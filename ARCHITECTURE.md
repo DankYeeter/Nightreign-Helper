@@ -9689,7 +9689,7 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
 **Entscheidung.**
 1. `advisor/worker.py`: `VesselComparison(QObject)` haelt eine `AdvisorController(answer=run.run, cache=<der der Leiste>,
    debounce_ms=0)`, fragt eine Frage je Gefaess nacheinander, die naechste aus `ready`. Signale `row_ready(VesselRow)`,
-   `finished(tuple[VesselRow, ...])`, `failed(str)`, `stopped()`. Die Leiste baut ihren Controller mit explizitem
+   `finished(tuple[VesselRow, ...])`, `failed(str)`; kein `stopped`, seit AK-453 liest es niemand. Die Leiste baut ihren Controller mit explizitem
    `ResultCache`. Cache nur im Hauptthread (Bestand), also ohne Lock. **`CACHE_SIZE` bleibt 32:** haelt zwei volle Vergleiche
    samt Vorschlaegen, mehr braucht AK-435 nicht.
 2. Qt-frei in `run.py`: `vessel_questions(request, vessels, chosen_id, deep)`, `vessel_row(vessel_id, result)`,
@@ -9737,7 +9737,9 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
    95 260 verfolgte Objekte, bis 93,9 ms, mit gehaltenem GIL. **Tauschprobe im selben Prozess, je zweimal:** ohne Spitzen 178,8 und 61,8 ms; nach `gc.collect(); gc.freeze()`
    **0 Abstaende ueber 50 ms**, Spitzen 13,7 und 21,0 ms, GC hoechstens 12,8 ms. Darum: einmal nach dem Laden des Datensatzes
    `gc.collect(); gc.freeze()`, beim Neuaufbau davor `gc.unfreeze()`. Standardbibliothek, zwei Zeilen, hilft auch jedem Einzellauf. Gemessen offscreen, ohne Zeichnen;
-   Pruefung am Fenster unten.
+   Pruefung am Fenster unten. **Gebaut in `datasource.load_data`** (dem einen Ladeweg, `app.main`), nicht in `app.py`. **Nachmessung am gebauten `VesselComparison`,
+   07.11.2026, Wylder, 11 Gefaesse, Deep an, 324 Relikte, Testabzug v19, je zwei kalte Laeufe:** Schaden mit `freeze` 9,05 bis 10,61 s, Spitzen 12,9 bis 23,4 ms, einmal 134,0 ms in 4 Laeufen;
+   ohne 9,03 und 11,30 s, Spitzen 40,1 und 52,9 ms. Abwehr mit `freeze` 6,74 und 8,13 s, Spitzen 13,4 und 13,2 ms; ohne 6,96 und 7,59 s, beide 59,1 ms. 11 Treffer 10 bis 20 ms.
 
 **Konsequenz.** Leicht: jede Zeile ist per Bauart, was `Optimize` dort sagt, inklusive Avoid, Teilmenge und Stern; ein spaeterer Fix an `run.run` gilt mit. Ein
 wiederholter `Optimize` ist Treffer. Dauerhaft: rund 13 s Hintergrundlast je Optimize-Frage auf einem Kern; drei Controller muessen vor Datenwechsel stehen; AD-059 und AD-062 teilen `place`.

@@ -53,7 +53,7 @@ from .advisorblock import FoldButton
 from .advisor import goals as advisor_goals
 from .advisor import run as advisor_run
 from .advisor import types
-from .advisor.worker import AdvisorController
+from .advisor.worker import AdvisorController, VesselComparison
 from .theme import SLOT_COLOURS
 
 #: The warning line's colour: the theme's one yellow, the Yellow slot's
@@ -468,6 +468,11 @@ class Asking:
     ctx: types.GoalContext
     nightfarer: str
     relics: int
+    #: What the same question is asked about next (AD-062): every vessel of
+    #: this Nightfarer, which one is on screen, and whether Deep is on.
+    vessels: tuple = ()
+    vessel_id: int | None = None
+    deep: bool = False
 
 
 def held_slot(index: int, card) -> types.HeldSlot:
@@ -797,7 +802,10 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         data_version=str(meta.get("data_version") or ""),
     )
     return Asking(request=request, inventory=owned, ctx=ctx,
-                  nightfarer=hero["name"], relics=owned.relic_count)
+                  nightfarer=hero["name"], relics=owned.relic_count,
+                  vessels=tuple(planner.hero_vessels),
+                  vessel_id=(planner.current_vessel() or {}).get("id"),
+                  deep=planner.deep_check.isChecked())
 
 
 def _a_tooltip(line: str, details: tuple[str, ...] = ()) -> str:
@@ -1007,14 +1015,20 @@ class AdvisorBar(QWidget):
 
     def __init__(self, asking, parent: QWidget | None = None, *,
                  controller: AdvisorController | None = None,
+                 comparison: VesselComparison | None = None,
                  filters=None, data=None) -> None:
         super().__init__(parent)
         self._asking = asking
         #: The two marked sets (`effectfilters.EffectFilters`), read for the
         #: AK-280 clauses of the tooltip and for nothing else here.
         self._filters = filters
-        self._controller = (AdvisorController(self) if controller is None
-                            else controller)
+        cache = advisor_run.ResultCache()
+        self._controller = (AdvisorController(self, cache=cache)
+                            if controller is None else controller)
+        #: AD-062, on the same cache: the chosen vessel's question is a hit,
+        #: and so is a vessel the player then opens (AK-435).
+        self.comparison = (VesselComparison(cache, self)
+                           if comparison is None else comparison)
         self._situation = Situation(State.NOTHING_YET)
         self._answer = None
         #: AK-425, AK-426, AK-429: what a run asked for from the block says
@@ -1325,12 +1339,14 @@ class AdvisorBar(QWidget):
         """
         self._forget_the_answer()
         self._controller.before_the_data_changes()
+        self.comparison.before_the_data_changes()
 
     def shutdown(self) -> None:
-        """The window is closing: stop the run and wait for the thread."""
+        """The window is closing: stop the runs and wait for the threads."""
         self._wait_timer.stop()
         self._figures_timer.stop()
         self._controller.shutdown()
+        self.comparison.shutdown()
 
     def clear(self) -> None:
         """Put the answer away and go back to 4.1."""
@@ -1466,6 +1482,7 @@ class AdvisorBar(QWidget):
         self._ask()
 
     def _ask(self) -> None:
+        self.comparison.cancel()
         asking = self._asking(self.goal_id())
         if asking is None:
             self._show(self._no_save())
@@ -1484,6 +1501,7 @@ class AdvisorBar(QWidget):
         meanwhile, so nothing can overtake this (AK-424). The state changes at
         once because the window reads it to lock the block.
         """
+        self.comparison.cancel()
         asking = self._asking(self.goal_id())
         if asking is None:
             self._forget_the_answer()
@@ -1569,7 +1587,19 @@ class AdvisorBar(QWidget):
         Which of 4.6, 4.9 and 4.11 this is depends on what the run could not
         do, and an empty slot is said before a silent effect: a slot with
         nothing in it is the one the player can see for themselves.
+
+        The budget of A6 ends here, and the vessels are compared from here on
+        (AD-062.3).
         """
+        self._draw_the_answer(result)
+        asked = self._asked
+        if asked is not None and asked.vessels:
+            self.comparison.start(
+                advisor_run.vessel_questions(asked.request, asked.vessels,
+                                             asked.vessel_id, asked.deep),
+                asked.inventory, asked.ctx)
+
+    def _draw_the_answer(self, result) -> None:
         self._stop_the_clocks()
         self._answer = result
         label = result.goal_label

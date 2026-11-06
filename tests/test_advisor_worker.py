@@ -722,3 +722,152 @@ def test_one_asking_may_wait_less_than_the_controller_does(qapp):
         controller._pending = None
 
     assert calls == [0, 5000]
+
+
+# -- the vessel comparison (AD-062) ------------------------------------------
+
+def _vessel_questions(request):
+    """Three vessels: this one, one of two slots, one that takes no hold."""
+    slots = request.problem.slots
+    other = dataclasses.replace(request, problem=dataclasses.replace(
+        request.problem, slots=slots[:1]))
+    return (types.VesselQuestion(1, request),
+            types.VesselQuestion(2, unfit_holds=("Urn",)),
+            types.VesselQuestion(3, other))
+
+
+class _ComparisonSeen:
+    def __init__(self, comparison) -> None:
+        self.rows, self.finished, self.failed = [], [], []
+        comparison.row_ready.connect(self.rows.append)
+        comparison.finished.connect(self.finished.append)
+        comparison.failed.connect(self.failed.append)
+
+
+@pytest.fixture
+def comparison(qapp):
+    made = []
+
+    def build(cache=None, **kwargs):
+        made.append(worker.VesselComparison(
+            run.ResultCache() if cache is None else cache, **kwargs))
+        return made[-1]
+
+    yield build
+    for each in made:
+        each.shutdown()
+
+
+def test_the_vessels_are_asked_in_order_and_fill_one_row_each(qapp, comparison,
+                                                              question):
+    """AK-433 and AD-062.5: a row per vessel as it arrives, none asked for the
+    vessel that cannot take the holds, each row what `run.run` says there."""
+    inventory, _problem, ctx, request = question
+    questions = _vessel_questions(request)
+    compared = comparison()
+    seen = _ComparisonSeen(compared)
+
+    compared.start(questions, inventory, ctx)
+    assert spin(qapp, lambda: bool(seen.finished)), "the comparison never ended"
+
+    assert [row.vessel_id for row in seen.rows] == [1, 2, 3]
+    assert seen.finished[0] == tuple(seen.rows)
+    assert seen.rows[1].unfit_holds == ("Urn",)
+    alone = run.run(dataclasses.replace(questions[2].request, generation=0),
+                    run.frozen_inventory(inventory, questions[2].request.problem),
+                    ctx, goals.GOALS)
+    assert seen.rows[2].value == alone.suggestions[0].score.value
+
+
+def test_a_vessel_the_cache_knows_runs_nothing(qapp, comparison, question):
+    """AD-062.3: the chosen vessel is the answer already given; shared cache."""
+    inventory, _problem, ctx, request = question
+    cache = run.ResultCache()
+    watched = Watched()
+    first = comparison(cache, goals=watched.registry)
+    seen = _ComparisonSeen(first)
+    first.start(_vessel_questions(request), inventory, ctx)
+    assert spin(qapp, lambda: bool(seen.finished))
+    assert len(cache) == 2
+
+    scored, seen_again = watched.calls, _ComparisonSeen(first)
+    first.start(_vessel_questions(request), inventory, ctx)
+    assert spin(qapp, lambda: bool(seen_again.finished))
+    assert watched.calls == scored
+    assert seen_again.rows == seen.rows[:3]
+
+
+def test_a_stopped_comparison_says_nothing_more(qapp, comparison, question):
+    """AD-062.4: an answer on its way is dropped, the rest is never asked."""
+    inventory, _problem, ctx, request = question
+    watched = Watched(hold=True)
+    compared = comparison(goals=watched.registry)
+    seen = _ComparisonSeen(compared)
+    compared.start(_vessel_questions(request), inventory, ctx)
+    assert spin(qapp, lambda: watched.calls > 0)
+
+    compared.cancel()
+    watched.release()
+    calls = watched.calls
+    assert spin(qapp, lambda: compared._controller._thread is None)
+    spin(qapp, lambda: False, timeout=0.05)
+    assert seen.rows == [] and seen.finished == []
+    assert compared._waiting == []
+    assert watched.calls - calls < scorings_of(question)
+
+
+def test_a_new_comparison_takes_over_from_a_running_one(qapp, comparison,
+                                                        question):
+    inventory, _problem, ctx, request = question
+    watched = Watched(hold=True)
+    compared = comparison(goals=watched.registry)
+    seen = _ComparisonSeen(compared)
+    compared.start(_vessel_questions(request), inventory, ctx)
+    assert spin(qapp, lambda: watched.calls > 0)
+
+    compared.start((types.VesselQuestion(9, request),), inventory, ctx)
+    watched.release()
+    assert spin(qapp, lambda: bool(seen.finished))
+    assert [row.vessel_id for row in seen.rows] == [9]
+
+
+def test_a_failed_vessel_ends_the_comparison_in_one_line(qapp, comparison,
+                                                         question, capsys):
+    inventory, _problem, ctx, request = question
+    compared = comparison(goals=Watched(raises="Broken here").registry)
+    seen = _ComparisonSeen(compared)
+    compared.start(_vessel_questions(request), inventory, ctx)
+    assert spin(qapp, lambda: bool(seen.failed))
+    assert seen.failed == [errortext.in_english(ValueError("Broken here"))]
+    assert seen.finished == [] and compared._waiting == []
+
+
+def test_the_data_changing_stops_it_and_forgets_the_answers(qapp, comparison,
+                                                            question):
+    """AD-006 point 7 and AD-062.4: `model` keeps its tables in globals."""
+    inventory, _problem, ctx, request = question
+    cache = run.ResultCache()
+    cache.put(request, types.AdvisorResult(goal_id="max_damage", goal_label="x"))
+    watched = Watched(hold=True)
+    compared = comparison(cache, goals=watched.registry)
+    compared.start(_vessel_questions(request)[2:], inventory, ctx)
+    assert spin(qapp, lambda: watched.calls > 0)
+
+    compared.before_the_data_changes()
+    watched.release()
+    assert len(cache) == 0 and compared._waiting == []
+    assert compared._controller._thread.isInterruptionRequested()
+
+
+def test_shutdown_stops_it_and_waits_for_the_thread(qapp, comparison, question):
+    inventory, _problem, ctx, request = question
+    compared = comparison()
+    seen = _ComparisonSeen(compared)
+    compared.start(_vessel_questions(request), inventory, ctx)
+    assert spin(qapp, lambda: compared._controller._thread is not None)
+    thread = compared._controller._thread
+
+    compared.shutdown()
+    assert thread.isFinished()
+    spin(qapp, lambda: False, timeout=0.05)
+    assert seen.finished == []

@@ -2171,3 +2171,74 @@ def test_six_blocks_with_x_and_reject_stay_inside_the_narrow_column(planner):
     finally:
         planner.advisor_bar.clear()
         planner.hide()
+
+
+# -- the row starts and stops the vessel comparison (AD-062.3, .4) ------------
+
+class _Comparison(QObject):
+    """What the row asks of `VesselComparison`, written down."""
+
+    row_ready = Signal(object)
+    finished = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = []
+
+    def start(self, questions, inventory, ctx) -> None:
+        self.calls.append(("start", questions))
+
+    def cancel(self) -> None:
+        self.calls.append("cancel")
+
+    def before_the_data_changes(self) -> None:
+        self.calls.append("data")
+
+    def shutdown(self) -> None:
+        self.calls.append("shutdown")
+
+
+FOUR_VESSELS = tuple({"id": index, "slots": [1, 1, 1], "deep_slots": [1, 1, 1]}
+                     for index in (7, 8, 9, 10))
+
+
+@pytest.fixture
+def comparing_bar(qapp):
+    asked = dataclasses.replace(_an_asking(), vessels=FOUR_VESSELS, vessel_id=8,
+                                deep=True)
+    widget = advisorbar.AdvisorBar(lambda goal_id: asked,
+                                   controller=_Controller(),
+                                   comparison=_Comparison())
+    widget.asked = asked
+    yield widget
+    widget.deleteLater()
+
+
+def test_an_answer_starts_the_comparison_with_the_chosen_vessel_first(
+        comparing_bar):
+    comparing_bar._ask()
+    assert comparing_bar.comparison.calls == ["cancel"]
+    comparing_bar._on_ready(_an_answer())
+    _cancel, (name, questions) = comparing_bar.comparison.calls
+    assert name == "start"
+    assert [question.vessel_id for question in questions] == [8, 7, 9, 10]
+    assert questions[0].request is comparing_bar.asked.request
+
+
+def test_a_row_with_no_vessels_compares_nothing(bar):
+    bar._on_ready(_an_answer())
+    assert bar.comparison._waiting == []
+    assert bar.comparison._controller._thread is None
+
+
+@pytest.mark.parametrize("what_happens, expected", [
+    (lambda widget: widget._ask(), "cancel"),
+    (lambda widget: widget.ask_again(), "cancel"),
+    (lambda widget: widget.the_data_is_changing(), "data"),
+    (lambda widget: widget.shutdown(), "shutdown"),
+], ids=["optimize", "ask_again", "data", "shutdown"])
+def test_what_stops_the_comparison(comparing_bar, what_happens, expected):
+    """AD-062.4; the last two are not optional (AD-006.7)."""
+    what_happens(comparing_bar)
+    assert comparing_bar.comparison.calls[0] == expected

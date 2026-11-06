@@ -42,7 +42,8 @@ handed to it at construction: the Advisor bar's instance answers with
 else about the two differs but three figures -- the debounce, the size of the
 cache, and what comes back. A second thread path written for the picker would
 have been a second place for the generation counter, the debounce and the
-cancelling to be got right, and the two would have drifted.
+cancelling to be got right, and the two would have drifted. The vessel
+comparison is a third instance of the same class (AD-062), not a third path.
 
 **No `progress` signal.** AD-006 point 1 names one, and there is nothing for
 it to say: the progress bar of the advisor bar is indeterminate by
@@ -510,4 +511,80 @@ class AdvisorController(QObject):
         """
         if self._running.request.generation != self._generation:
             return
+        self.failed.emit(reason)
+
+
+class VesselComparison(QObject):
+    """The same question about every vessel, one after the other (AD-062).
+
+    A third `AdvisorController`, sharing the bar's cache: the chosen vessel is
+    asked first and is the hit on the answer just given, and a row is by
+    construction what `Optimize` says there, because it is `run.run`'s answer.
+    One at a time, never side by side: they would share one GIL (AD-062).
+    """
+
+    #: One `VesselRow`, as soon as its answer is there (AK-433).
+    row_ready = Signal(object)
+    #: All of them, in the order they were asked.
+    finished = Signal(object)
+    #: One line, the run's own (AK-453). The comparison ends with it.
+    failed = Signal(str)
+
+    def __init__(self, cache: advisor_run.ResultCache,
+                 parent: QObject | None = None, *,
+                 answer: Answer = advisor_run.run,
+                 goals: Mapping[str, types.Goal] = GOALS) -> None:
+        super().__init__(parent)
+        self._controller = AdvisorController(self, answer=answer, goals=goals,
+                                             cache=cache, debounce_ms=0)
+        self._controller.ready.connect(self._on_answer)
+        self._controller.failed.connect(self._on_failed)
+        self._waiting: list[types.VesselQuestion] = []
+        self._rows: list[types.VesselRow] = []
+        self._material: tuple = ()
+
+    def start(self, questions, inventory, ctx: types.GoalContext) -> None:
+        """Ask these, taking over from whatever was still being asked."""
+        self._controller.cancel()
+        self._waiting = list(questions)
+        self._rows = []
+        self._material = (inventory, ctx)
+        self._ask_the_next()
+
+    def cancel(self) -> None:
+        """Stop. Nothing more arrives, whatever the worker was carrying."""
+        self._waiting = []
+        self._controller.cancel()
+
+    def before_the_data_changes(self) -> None:
+        """Stop and forget the answers (AD-006 point 7, AD-062.4)."""
+        self._waiting = []
+        self._controller.before_the_data_changes()
+
+    def shutdown(self) -> None:
+        """Stop and wait for the thread. Only when the window is closing."""
+        self._waiting = []
+        self._controller.shutdown()
+
+    def _ask_the_next(self) -> None:
+        while self._waiting and self._waiting[0].request is None:
+            unfit = self._waiting.pop(0)
+            self._add(types.VesselRow(unfit.vessel_id,
+                                      unfit_holds=unfit.unfit_holds))
+        if self._waiting:
+            self._controller.ask(self._waiting[0].request, *self._material)
+        else:
+            self.finished.emit(tuple(self._rows))
+
+    def _add(self, row: types.VesselRow) -> None:
+        self._rows.append(row)
+        self.row_ready.emit(row)
+
+    def _on_answer(self, result: types.AdvisorResult) -> None:
+        asked = self._waiting.pop(0)
+        self._add(advisor_run.vessel_row(asked.vessel_id, result))
+        self._ask_the_next()
+
+    def _on_failed(self, reason: str) -> None:
+        self._waiting = []
         self.failed.emit(reason)
