@@ -9,6 +9,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ### Changed
 - Optimize no longer suggests a relic that carries an effect or curse you
   marked Avoid; a relic you hold or place yourself stays where you put it.
+- A favourited effect no longer blocks a suggestion: Optimize carries every
+  favourite the chalice can hold, fills the other slots, and Why names the
+  rest.
 
 ## [1.20.1] - 2026-11-01
 

@@ -41,13 +41,16 @@ never which results are shown. Three grips carry it. Every state knows which
 required effects it has not met yet, and for each of them branches to the
 first K available **carriers** out of the whole pool of the level -- not the
 shortlist, because a carrier ranked 60th is still the only way to meet the
-player's condition. After each level a state is dropped when its unmet
-effects can no longer be matched one-to-one onto the levels still to come, so
-at the last level every surviving state is complete. And because a forced
-carrier ignores the symmetry floor, the same set of copies can arrive in two
-slot orders; one of them is dropped before the W cut, on which copy sits in
-which group of interchangeable slots. A beam that comes back empty under a required effect means no
-constellation of owned copies meets the condition -- `run.run` says so.
+player's condition. After each level a state is dropped when the levels still
+to come can no longer carry its unmet effects, so at the last level every
+surviving state is complete. And because a forced carrier ignores the symmetry
+floor, the same set of copies can arrive in two slot orders; one of them is
+dropped before the W cut, on which copy sits in which group of interchangeable
+slots.
+
+**`beam` takes `required` as binding; which part of it binds is `attainable`'s**
+(A28, AD-058). `run.run` asks that first and hands the beam only what the
+vessel can carry, so the player's favourites never empty a suggestion.
 
 **The scorer is a parameter** (AD-003, S7), so AD-002/C can be hung behind
 the same call without touching this file. `goal_scorer` below is the ordinary
@@ -162,26 +165,70 @@ def _carriers_by_level(problem: types.SlotProblem,
 def _can_still_be_met(unmet: tuple[int, ...],
                       later: Sequence[dict[int, tuple[types.Candidate, ...]]],
                       spent: frozenset[int]) -> bool:
-    """Can the unmet effects be matched one-to-one onto the levels to come?
+    """Can the levels to come still carry the unmet effects (AD-058.3)?
 
-    Each effect needs a later level whose pool offers a carrier this state
-    has not spent, and no level may serve two effects. Brute force over a
-    handful of effects and at most six levels. ponytail: conservative in one
-    case -- two effects whose only cover is a single copy carrying both, in
-    the last free slot -- there the beam reports empty though a constellation
-    exists; upgrade is a matching over copies instead of levels, if QA finds
-    the case on a save.
+    One copy per level, and what is left open afterwards goes to the next
+    one. `spent` does not grow on the way down, and that is exact rather than
+    generous: a copy covers everything it carries at once, so a second use of
+    it covers nothing new. Copies that leave the same effects open are one
+    question, asked once.
     """
     if not unmet:
         return True
-    effect, rest = unmet[0], unmet[1:]
-    for index, carriers in enumerate(later):
-        if not any(copy.handle not in spent
-                   for copy in carriers.get(effect, ())):
-            continue
-        if _can_still_be_met(rest, later[:index] + later[index + 1:], spent):
-            return True
-    return False
+    if not later:
+        return False
+    tried = set()
+    for effect in unmet:
+        for copy in later[0].get(effect, ()):
+            left = _still_unmet(unmet, copy)
+            if copy.handle in spent or left in tried:
+                continue
+            tried.add(left)
+            if _can_still_be_met(left, later[1:], spent):
+                return True
+    return _can_still_be_met(unmet, later[1:], spent)
+
+
+def attainable(problem: types.SlotProblem,
+               pools: Sequence[types.SlotPool]) -> frozenset[int]:
+    """The required effects this vessel can carry at once (A28, AD-058.2).
+
+    What a held relic carries, and the largest set of the others the free
+    slots can reach together: one copy per pool, so the sets reachable after a
+    pool are those before it, each with or without what a copy there carries.
+    One copy offered in two pools changes no union, so the answer is exact
+    without tracking which copies were spent. Between two sets of one size the
+    stronger best carriers decide, in the direction that ranked the pools,
+    then the lower ids.
+
+    ponytail: exponential in the favourites; a greedy pick if far more than
+    twenty ever occur (AD-058.2).
+    """
+    held = types.held_relics(problem)
+    effects = [eid for eid in sorted(problem.required)
+               if not any(_carries(relic, eid) for relic in held)]
+    worth: dict[int, float] = {}
+    reach = {0}
+    for pool in pools:
+        masks = set()
+        for copy in pool.candidates:
+            mask = 0
+            for bit, eid in enumerate(effects):
+                if _carries(copy, eid):
+                    mask |= 1 << bit
+                    gain = types.marginal_for(copy, pool.rank_by)
+                    worth[eid] = max(worth.get(eid, gain), gain)
+            masks.add(mask)
+        reach |= {before | mask for before in reach for mask in masks}
+
+    def carried_by(mask: int) -> list[int]:
+        return [eid for bit, eid in enumerate(effects) if mask >> bit & 1]
+
+    most = max(mask.bit_count() for mask in reach)
+    best = min((mask for mask in reach if mask.bit_count() == most),
+               key=lambda mask: (-sum(worth[eid] for eid in carried_by(mask)),
+                                 carried_by(mask)))
+    return frozenset(carried_by(best)) | (problem.required - set(effects))
 
 
 def _once_per_placement(states: Sequence[_State],

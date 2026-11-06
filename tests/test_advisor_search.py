@@ -261,6 +261,96 @@ def test_a_requirement_no_constellation_meets_is_an_empty_beam_not_a_filter_drop
     assert [handles_of(s) for s in found] == [[10, 11]]
 
 
+def test_one_copy_that_carries_two_favourites_needs_one_slot():
+    """AD-058.3, the false blockade Ironeye's Chalice showed: the feasibility
+    cut counted two effects as two slots although one copy carries both."""
+    worth = {10: 5.0, 11: 4.0}
+    problem = types.SlotProblem(slots=slots_of(advisor.RED),
+                                required=frozenset({WANTED, ALSO_WANTED}))
+    pool = [pool_of(0, [offer(0, 11, 4.0),
+                        offer(0, 10, 5.0, effects=(WANTED,),
+                              curses=(ALSO_WANTED,))])]
+
+    found = search.beam(problem, pool, types.DEFAULT_BUDGET,
+                        adding_scorer(worth))
+
+    assert [handles_of(s) for s in found] == [[10]]
+
+
+# -- AD-058.2: what the free slots can carry together ------------------------
+
+THIRD_WANTED = 777_002
+
+
+def attainable_over(required, *rows, held=None):
+    """`search.attainable` over one pool per row of `(handle, worth, effects)`."""
+    pools = [pool_of(index,
+                     [offer(index, handle, worth, effects=effects)
+                      for handle, worth, effects in row], rank_by=DAMAGE)
+             for index, row in enumerate(rows)]
+    slots = slots_of(*[advisor.RED] * (len(rows) + (1 if held else 0)))
+    if held:
+        pools = [dataclasses.replace(pool, slot_index=pool.slot_index + 1,
+                                     candidates=tuple(dataclasses.replace(
+                                         copy, slot_index=pool.slot_index + 1)
+                                         for copy in pool.candidates))
+                 for pool in pools]
+    entries = (types.HeldSlot(0, held),) if held else ()
+    return search.attainable(types.SlotProblem(slots=slots, held=entries,
+                                               required=frozenset(required)),
+                             pools)
+
+
+def test_the_largest_subset_wins_whatever_its_carriers_are_worth():
+    assert attainable_over({WANTED, ALSO_WANTED, THIRD_WANTED},
+                           [(10, 9.0, (WANTED,)),
+                            (11, 1.0, (ALSO_WANTED, THIRD_WANTED))]) == {
+        ALSO_WANTED, THIRD_WANTED}
+
+
+def test_a_tie_goes_to_the_stronger_carrier_and_then_to_the_lower_id():
+    """AD-058.2: the same subset size, so what it costs decides; and with the
+    same worth an answer that does not follow the hash seed (QA-059)."""
+    assert attainable_over({WANTED, ALSO_WANTED},
+                           [(10, 1.0, (WANTED,)),
+                            (11, 9.0, (ALSO_WANTED,))]) == {ALSO_WANTED}
+    assert attainable_over({WANTED, ALSO_WANTED},
+                           [(10, 3.0, (WANTED,)),
+                            (11, 3.0, (ALSO_WANTED,))]) == {WANTED}
+
+
+def test_a_favourite_on_a_held_relic_stays_attained():
+    holding = types.HeldRelic(relic_id=1, name="Kept", effect_ids=(WANTED,),
+                              handle=1)
+    assert attainable_over({WANTED, ALSO_WANTED},
+                           [(10, 1.0, (ALSO_WANTED,))], held=holding) == {
+        WANTED, ALSO_WANTED}
+
+
+def test_attainable_matches_every_assignment_written_out():
+    """AD-058.2 says the rule is exact, and that one copy offered in two pools
+    cannot fool it. Held against the enumeration over made pools in which the
+    same handle turns up in several slots."""
+    import itertools
+    import random
+
+    effects = (WANTED, ALSO_WANTED, THIRD_WANTED, 777_003, 777_004)
+    for seed in range(200):
+        pick = random.Random(seed)
+        copies = {handle: tuple(pick.sample(effects, pick.randint(0, 3)))
+                  for handle in range(10, 16)}
+        rows = [[(handle, 1.0, copies[handle])
+                 for handle in pick.sample(sorted(copies), pick.randint(0, 4))]
+                for _ in range(pick.randint(1, 4))]
+        best = 0
+        for chosen in itertools.product(*[[None] + row for row in rows]):
+            used = [copy for copy in chosen if copy is not None]
+            if len({handle for handle, _, _ in used}) == len(used):
+                best = max(best, len({effect for _, _, carried in used
+                                      for effect in carried}))
+        assert len(attainable_over(effects, *rows)) == best, f"seed {seed}"
+
+
 # -- AD-009 point 3: the colour rule survives the search --------------------
 
 def test_no_suggestion_puts_a_copy_in_a_slot_that_cannot_hold_it(game_data,

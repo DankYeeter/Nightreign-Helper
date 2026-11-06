@@ -168,10 +168,10 @@ class SlotProblem:
     AD-060): no copy of such a roll is offered, whichever copy was shown.
     What the player holds is untouched, as it is for `excluded`.
 
-    `required` are the effect ids the player marked `Favourite` (A19,
-    AD-036.4): every suggestion carries each of them on a held relic or a
-    chosen copy, or there is no suggestion and the run says which effect no
-    copy could supply (A7). A boundary condition of the beam, like holding
+    `required` are the effect ids the player marked `Favourite` (A19, A28,
+    AD-036.4, AD-058): every suggestion carries each of them the vessel can
+    carry at once, on a held relic or a chosen copy, and the run says which
+    it had to leave out (A7). A boundary condition of the beam, like holding
     (AD-014.5) -- never a filter over its result. An id in both sets is
     refused: the window keeps them apart, and a problem that asked for both
     would have no answer that is not a lie about one of them.
@@ -829,12 +829,9 @@ class AdvisorResult:
     data_note: str = ""
     budget_note: str = ""
     generation: int = 0
-    #: The beam came back empty because a `Favourite` effect could be met
-    #: by no owned constellation -- `explain.required_but_unmet` wrote the
-    #: sentence for it (AK-291.1). The status line reads this to say "blocked
-    #: by a requirement you marked" instead of "nothing to choose from"
-    #: (AK-294): the pools were not empty, the requirement was unmeetable.
-    blocked_by_a_requirement: bool = False
+    #: The `Favourite` effects the best suggestion does not carry, sorted
+    #: (AD-058.5). `explain.required_but_unmet` wrote one sentence for each.
+    required_left_out: tuple[int, ...] = ()
     #: The chosen damage type or attack art, lowered as it stands mid-sentence,
     #: when every suggestion was dropped because nothing owned moves the
     #: ranked figure under it (QA-290); empty otherwise. The status line reads

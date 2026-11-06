@@ -1244,63 +1244,53 @@ def _felt_by_the_goal(problem: types.SlotProblem,
     return felt
 
 
-def required_but_unmet(problem: types.SlotProblem,
+def required_but_unmet(left_out: Sequence[int],
+                       problem: types.SlotProblem,
                        pools: Sequence[types.SlotPool],
                        ctx: types.GoalContext,
                        inventory) -> tuple[str, ...]:
-    """Why an empty beam under a required effect is an answer (A7, AK-281).
+    """Why a favourited effect is not in the suggestion (A7, AK-281, AD-058.5).
 
-    One AK-281 sentence per required effect that no held relic carries and
-    no pool of a free slot offers a carrier for. The pools decide *which*
-    effect is missing a carrier; whether a sentence may say "no copy you
-    own" is a second, separate question, answered against `inventory` (the
-    whole save, not only what fits the open slots): QA-273 found the pools'
-    verdict read as a verdict on possession, when a copy the player owns can
-    fail every pool for a structural reason -- wrong colour, or Deep of
-    Night switched off for this vessel -- and still be owned. The sentence
-    then says so and, when Deep is the whole reason, names it (AD-036.4
-    stays silent about colour: a copy can fail several open slots for
-    different colours at once, and naming one would read as the only one).
-    When every effect has a carrier somewhere and the beam still found no
-    constellation for the free slots together, one sentence names them all,
-    alphabetically by display name (AK-291: an order by id reads as
-    arbitrary).
+    One sentence per id in `left_out`, alphabetically by display name (AK-291:
+    an order by id reads as arbitrary). A carrier in some pool means the free
+    slots could not hold it beside the others. With none, the pools decide
+    *that* the effect is missing a carrier; whether a sentence may say "no
+    copy you own" is a second, separate question, answered against `inventory`
+    (the whole save, not only what fits the open slots): QA-273 found the
+    pools' verdict read as a verdict on possession, when a copy the player
+    owns can fail every pool for a structural reason -- wrong colour, or Deep
+    of Night switched off for this vessel -- and still be owned. The sentence
+    then says so and, when Deep is the whole reason, names it (AD-036.4 stays
+    silent about colour: a copy can fail several open slots for different
+    colours at once, and naming one would read as the only one).
     """
-    held = types.held_relics(problem)
-    unmet = [eid for eid in sorted(problem.required)
-             if not any(eid in relic.effect_ids or eid in relic.curse_ids
-                        for relic in held)]
-    if not unmet:
-        return ()
-
     def named(effect_id: int) -> str:
         return _effect_name(ctx, effect_id) or f"effect {effect_id}"
 
-    uncarried = [eid for eid in unmet
-                 if not any(eid in copy.effect_ids or eid in copy.curse_ids
-                            for pool in pools for copy in pool.candidates)]
-    if uncarried:
-        no_deep_slot_in_play = not any(slot.deep for slot in problem.slots)
-        lines = []
-        for eid in uncarried:
-            owned = [relic for relic in inventory.relics
-                    if eid in relic.effect_ids or eid in relic.curse_ids]
-            if not owned:
-                lines.append(
-                    f"No copy you own carries {named(eid)}, which you "
-                    f"favourited — no suggestion can meet that.")
-                continue
-            noun = "copy" if len(owned) == 1 else "copies"
-            reason = (" (Deep of Night is off)"
-                      if no_deep_slot_in_play
-                      and all(relic.is_deep for relic in owned) else "")
+    no_deep_slot_in_play = not any(slot.deep for slot in problem.slots)
+    lines = []
+    for eid in sorted(left_out, key=named):
+        if any(eid in copy.effect_ids or eid in copy.curse_ids
+               for pool in pools for copy in pool.candidates):
             lines.append(
-                f"You own {len(owned)} {noun} carrying {named(eid)}, but "
-                f"none fits the open slots{reason}.")
-        return tuple(lines)
-    return (f"No combination of the copies you own carries "
-            f"{', '.join(sorted(named(eid) for eid in unmet))}, which you "
-            f"favourited — no suggestion can meet that.",)
+                f"No combination of the copies you own carries {named(eid)}, "
+                f"which you favourited — no suggestion can meet that.")
+            continue
+        owned = [relic for relic in inventory.relics
+                 if eid in relic.effect_ids or eid in relic.curse_ids]
+        if not owned:
+            lines.append(
+                f"No copy you own carries {named(eid)}, which you "
+                f"favourited — no suggestion can meet that.")
+            continue
+        noun = "copy" if len(owned) == 1 else "copies"
+        reason = (" (Deep of Night is off)"
+                  if no_deep_slot_in_play
+                  and all(relic.is_deep for relic in owned) else "")
+        lines.append(
+            f"You own {len(owned)} {noun} carrying {named(eid)}, but "
+            f"none fits the open slots{reason}.")
+    return tuple(lines)
 
 
 def required_met_by_a_hold(problem: types.SlotProblem,

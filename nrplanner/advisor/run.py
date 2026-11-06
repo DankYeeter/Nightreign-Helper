@@ -352,6 +352,14 @@ def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
     return dataclasses.replace(suggestion, reasons=groups), chosen, built
 
 
+def _required_left_out(problem: types.SlotProblem,
+                       chosen: Sequence[types.Candidate]) -> tuple[int, ...]:
+    """The favourites no held relic and no copy of the suggestion carries."""
+    carried = {eid for relic in (*types.held_relics(problem), *chosen)
+               for eid in (*relic.effect_ids, *relic.curse_ids)}
+    return tuple(sorted(problem.required - carried))
+
+
 def run(request: types.AdvisorRequest, inventory,
         ctx: types.GoalContext, goals: Mapping[str, types.Goal],
         should_cancel: Callable[[], bool] = never_cancelled
@@ -398,8 +406,15 @@ def run(request: types.AdvisorRequest, inventory,
                              should_cancel)
     if should_cancel():
         raise search.Cancelled("stopped after the pre-sort, before the search")
-    found = search.beam(problem, pools, request.budget,
-                        search.goal_scorer(problem, ctx, goal), should_cancel)
+    scorer = search.goal_scorer(problem, ctx, goal)
+    # A28: the favourites the vessel can carry bind the search, and the free
+    # search is the promise "never blocks" against the K limit of its forced
+    # branches missing a carrier (AD-058.2, .4).
+    found = (search.beam(dataclasses.replace(
+                 problem, required=search.attainable(problem, pools)),
+                 pools, request.budget, scorer, should_cancel)
+             or search.beam(dataclasses.replace(problem, required=frozenset()),
+                            pools, request.budget, scorer, should_cancel))
 
     bases = evaluate_per_goal(problem, (), ctx, goals)
     base = bases[goal.id]
@@ -461,13 +476,12 @@ def run(request: types.AdvisorRequest, inventory,
     unknowns = tuple(dict.fromkeys(ranked.unknowns
                                    + explain.unknowns(problem)
                                    + held_favourites))
-    # A7 for A19: an empty beam under a required effect is not "nothing to
-    # say", it is the answer that no owned constellation meets the condition
-    # (AD-036.4). The pools decide which effect is missing a carrier;
-    # `inventory` decides whether that copy is owned at all (QA-273).
-    blocked = (explain.required_but_unmet(problem, pools, ctx, inventory)
-               if not found and problem.required else ())
-    unknowns += blocked
+    # A7 for A19: a favourite the suggestion does not carry is said by name.
+    # Under AK-365 the whole suggestion fell, and that has its own sentence.
+    left_out = () if no_carrier_for else _required_left_out(problem,
+                                                            best_chosen)
+    unknowns += explain.required_but_unmet(left_out, problem, pools, ctx,
+                                           inventory)
     if no_carrier_for:
         unknowns += (no_carrier_sentence(no_carrier_for),)
     return types.AdvisorResult(
@@ -486,7 +500,7 @@ def run(request: types.AdvisorRequest, inventory,
         effects_without_a_figure=explain.effects_without_a_figure(groups),
         data_note=explain.data_note(ctx),
         generation=request.generation,
-        blocked_by_a_requirement=bool(blocked),
+        required_left_out=left_out,
         no_carrier_for=no_carrier_for,
     )
 

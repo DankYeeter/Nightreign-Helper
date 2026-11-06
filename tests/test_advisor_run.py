@@ -165,11 +165,12 @@ NO_CARRIER_SENTENCE = (
     "or weapon art that does.")
 
 
-def _recluse_sorceries(game_data, damage_type, hit_with=None):
+def _recluse_sorceries(game_data, damage_type, hit_with=None, favourite=False):
     """Recluse under `Sorceries` x `damage_type`, owning four relics that
     each raise magic damage and nothing else a sorcery could use.
 
-    `hit_with=""` leaves the art unchosen, so the type is the only choice."""
+    `hit_with=""` leaves the art unchosen, so the type is the only choice.
+    `favourite` marks their effect as a `Favourite`."""
     from nrplanner import damage, model
 
     if hit_with is None:
@@ -183,7 +184,9 @@ def _recluse_sorceries(game_data, damage_type, hit_with=None):
                     if w["id"] == recluse["starting_weapon"]),
         tier=1, slot_index=damage.STARTING_SLOT)
     owned = advisor.make_inventory(game_data, recluse, count=4, rolls=[magic])
-    slot_problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED])
+    slot_problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED, advisor.RED]),
+        required=frozenset(magic if favourite else ()))
     ctx = dataclasses.replace(
         advisor.context(game_data, recluse, reference=reference),
         hit_with=hit_with, damage_type=damage_type)
@@ -204,6 +207,16 @@ def test_a_chosen_kind_nothing_owned_reaches_says_so(game_data):
     assert result.suggestions == ()
     assert result.no_carrier_for == "fire damage with Sorceries"
     assert NO_CARRIER_SENTENCE in result.unknowns
+
+
+def test_a_dropped_suggestion_leaves_no_favourite_left_out(game_data):
+    """AD-057.4: under AK-365 the whole suggestion falls and that one sentence
+    says why. A favourite was not what kept it out, so none is named."""
+    result = _recluse_sorceries(game_data, "Fire", favourite=True)
+
+    assert result.suggestions == ()
+    assert result.no_carrier_for
+    assert result.required_left_out == ()
 
 
 def test_a_chosen_type_alone_keeps_its_label(game_data):
@@ -307,10 +320,11 @@ def test_avoid_beats_a_favourite_on_the_one_copy_that_carries_both(game_data,
 
 
 def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
-    """A19/A7 through `run.run`, AK-281's sentence: the beam is empty and the
-    answer says which effect no owned copy carries -- and, with a carrier
-    for each but no constellation for the free slots, that no combination
-    does. Decided on the pools, so the sentence is about what is owned.
+    """A19/A7 through `run.run`, AK-281's sentence: the suggestion fills what
+    it can (A28, AD-058.1), and the answer says which effect no owned copy
+    carries -- and, with a carrier for each but no constellation for the free
+    slots, that no combination does. Decided on the pools, so the sentence is
+    about what is owned.
     """
     rolls = advisor.raising_effects(game_data, wylder, 5)
     nobody_carries = rolls[4][0]
@@ -330,23 +344,24 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
     problem = advisor.problem([advisor.RED, advisor.RED])
     result = a_run(dataclasses.replace(
         problem, required=frozenset({nobody_carries, rolls[0][0]})))
-    assert result.suggestions == ()
+    assert len(result.suggestions[0].choices) == 2
+    assert all(owned.relics[0].handle in {c.handle for c in s.choices}
+               for s in result.suggestions), (
+        "the favourite that can be met went missing with the one that cannot")
     assert result.unknowns[-1] == (
         f"No copy you own carries {name(nobody_carries)}, which you "
         f"favourited — no suggestion can meet that.")
-    # AK-294: the status line's second clause reads this flag, and it is
-    # only ever true when the sentence above was written.
-    assert result.blocked_by_a_requirement
+    assert result.required_left_out == (nobody_carries,)
 
     one_slot = advisor.problem([advisor.RED])
     result = a_run(dataclasses.replace(
         one_slot, required=frozenset({rolls[0][0], rolls[1][0]})))
-    assert result.suggestions == ()
+    assert len(result.suggestions[0].choices) == 1
+    left_out, = result.required_left_out
+    assert left_out in {rolls[0][0], rolls[1][0]}
     assert result.unknowns[-1] == (
-        f"No combination of the copies you own carries "
-        f"{', '.join(sorted(name(eid) for eid in (rolls[0][0], rolls[1][0])))}"
-        f", which you favourited — no suggestion can meet that.")
-    assert result.blocked_by_a_requirement
+        f"No combination of the copies you own carries {name(left_out)}, "
+        f"which you favourited — no suggestion can meet that.")
 
     met = a_run(dataclasses.replace(problem,
                                     required=frozenset({rolls[0][0]})))
@@ -354,7 +369,41 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
         owned.relics[0].handle in {c.handle for c in s.choices}
         for s in met.suggestions)
     assert not any("required" in line for line in met.unknowns)
-    assert not met.blocked_by_a_requirement
+    assert met.required_left_out == ()
+
+
+def test_the_search_falls_back_when_the_budget_misses_a_carrier(monkeypatch,
+                                                                game_data,
+                                                                wylder):
+    """AD-058.4, "never blocks" against the K limit of the forced branches:
+    with the beam empty under the attainable favourites, the free search
+    answers, and what the suggestion then lacks is named."""
+    from nrplanner.advisor import candidates
+
+    owned = advisor.make_inventory(game_data, wylder, count=4)
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    free = advisor.problem([advisor.RED])
+    weakest = candidates.pool(owned, free, 0, ctx, goals.GOALS,
+                              DAMAGE).candidates[-1]
+    wanted = weakest.effect_ids[0]
+    question = dataclasses.replace(free, required=frozenset({wanted}))
+    frozen = run.frozen_inventory(owned, question)
+    real = search.beam
+    asked = []
+
+    def misses_the_carrier(problem, *args, **kwargs):
+        asked.append(problem.required)
+        return () if problem.required else real(problem, *args, **kwargs)
+
+    monkeypatch.setattr(search, "beam", misses_the_carrier)
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    assert asked == [frozenset({wanted}), frozenset()]
+    assert result.suggestions[0].choices[0].handle != weakest.handle
+    assert result.required_left_out == (wanted,)
 
 
 def test_a_required_effect_a_held_relic_carries_is_said_to_be_there(
@@ -390,7 +439,7 @@ def test_a_required_effect_a_held_relic_carries_is_said_to_be_there(
     assert (f"{name(on_the_hold)}, which you favourited, is carried by "
             f"{holding.name} held in Slot 1.") in result.unknowns
     assert not any(name(in_the_open) in line for line in result.unknowns)
-    assert not result.blocked_by_a_requirement
+    assert result.required_left_out == ()
     # AK-314.1: the card's own line is the same single sentence, unabridged.
     assert result.favourites_met_line == (
         f"{name(on_the_hold)}, which you favourited, is carried by "
@@ -450,11 +499,11 @@ def test_a_required_effect_owned_only_deep_says_so_when_deep_is_off(
     result = run.run(advisor.request_for(question, ctx, frozen), frozen,
                      ctx, goals.GOALS)
 
-    assert result.suggestions == ()
+    assert len(result.suggestions[0].choices) == 2
     assert result.unknowns[-1] == (
         f"You own 2 copies carrying {name(deep_effect)}, but none fits the "
         f"open slots (Deep of Night is off).")
-    assert result.blocked_by_a_requirement
+    assert result.required_left_out == (deep_effect,)
 
 
 def _ranking(result) -> list[tuple[tuple[int, ...], float]]:

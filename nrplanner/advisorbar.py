@@ -205,12 +205,9 @@ class Situation:
     #: The slots the run was asked about, and how many of them got a relic.
     slots: int = 0
     slots_filled: int = 0
-    #: Slots the run had nothing to offer for (4.11), and whether that is
-    #: because a `Favourite` effect could not be met rather than because
-    #: the pools were empty (AK-294: two causes, two clauses).
+    #: Slots the run had nothing to offer for (4.11).
     slots_without_a_choice: int = 0
-    blocked_by_a_requirement: bool = False
-    #: AK-365's third cause: the chosen type or art nothing owned reaches,
+    #: AK-365's cause: the chosen type or art nothing owned reaches,
     #: as `AdvisorResult.no_carrier_for` spells it; empty for the other two.
     no_carrier_for: str = ""
     #: The two clauses of 4.9, counted apart because they are two different
@@ -252,15 +249,6 @@ def _slots_with_nothing(count: int) -> str:
     if count == 1:
         return "1 slot has nothing to choose from"
     return f"{count} slots have nothing to choose from"
-
-
-def _slots_blocked(count: int) -> str:
-    """The second clause of 4.11 when the pools were not empty at all: a
-    `Favourite` effect had no owned constellation (AK-294). "requirement
-    you marked" is AK-291's own wording, not a new term (A12)."""
-    if count == 1:
-        return "1 slot is blocked by a requirement you marked"
-    return f"{count} slots are blocked by a requirement you marked"
 
 
 def _slots_no_carrier(count: int, choice: str) -> str:
@@ -378,9 +366,7 @@ def status_line(situation: Situation) -> str:
                 f"suggest.")
     if state is State.SUGGESTED_WITH_AN_EMPTY_SLOT:
         count = situation.slots_without_a_choice
-        if situation.blocked_by_a_requirement:
-            empty = _slots_blocked(count)
-        elif situation.no_carrier_for:
+        if situation.no_carrier_for:
             empty = _slots_no_carrier(count, situation.no_carrier_for)
         else:
             empty = _slots_with_nothing(count)
@@ -1439,8 +1425,6 @@ class AdvisorBar(QWidget):
                                   goal_label=label, slots=slots,
                                   slots_filled=filled,
                                   slots_without_a_choice=slots - filled,
-                                  blocked_by_a_requirement=(
-                                      result.blocked_by_a_requirement),
                                   no_carrier_for=result.no_carrier_for)
         elif curses or left_out:
             situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS,
