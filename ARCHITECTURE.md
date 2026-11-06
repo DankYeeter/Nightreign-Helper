@@ -6003,7 +6003,7 @@ Entscheidung, AD-036, die AD-035 abloest. Vorgelagerte `researcher`-/
 `compliance-agent`-Laeufe: keine (`docs/research/`, `docs/legal/` fuehren
 nichts zu T-248).*
 
-### AD-036 — Zwei Effektmengen sind Randbedingung der Frage (`SlotProblem`), nicht Zustand der Rechnung; die Lesart faellt, die Grundlinie ist der bisherige Best case (2026-09-14, Status: aktiv; loest AD-035 ab)
+### AD-036 — Zwei Effektmengen sind Randbedingung der Frage (`SlotProblem`), nicht Zustand der Rechnung; die Lesart faellt, die Grundlinie ist der bisherige Best case (2026-09-14, Status: aktiv; loest AD-035 ab; **Punkt 2 Satz "Das Relikt bleibt Kandidat" abgeloest durch AD-057, Punkt 4 Machbarkeits-Schnitt und A7-Antwort abgeloest durch AD-058**, 2026-11-06)
 
 **Kontext.** A18 nimmt den Umschalter Worst/Best case zurueck (QA-261: der
 Nutzer liest "Best case" als Spielsituation) und verlangt stattdessen, dass
@@ -9530,8 +9530,8 @@ Teilmenge vor dem Beam, danach Bestand: gewaehlt.**
    offenen Effekte; Sieger hoechste Bitzahl, Gleichstand nach Summe der besten Traeger-Grenzbeitraege
    je Effekt, dann Ids. Dieselbe Kopie zweimal aendert keine Vereinigung, die Rechnung ist exakt.
    Gemessen 110 von 110 gleich der Aufzaehlung aller Teilmengen, Median 0,245 ms, Maximum 1,041 ms;
-   Belastung 20 Favoriten 116,4 ms (im Worker). `ponytail:` exponentiell in den Favoriten, Decke bei
-   ca. 30; Aufstieg Greedy, wenn das je vorkommt.
+   Belastung 20 Favoriten 116,4 ms (im Worker). `ponytail:` exponentiell in den Favoriten; Aufstieg
+   Greedy, falls deutlich mehr als 20 vorkommen.
 3. `_can_still_be_met` rechnet ueber Kopien: je Ebene eine Kopie, `rest` = offene Effekte, die sie
    nicht traegt; Kopien mit gleichem `rest` nur einmal probieren. Exakt, weil eine Kopie alles
    deckt, was sie traegt, und spaeter nicht mehr gebraucht wird. Der `ponytail`-Vermerk dort faellt.
@@ -9668,7 +9668,7 @@ nach dem Wechsel steht der Vorschlag ohne zweiten Lauf.
 | `pools` + `beam`, ohne Marken | Summe **13,66 s**, Maximum 1,43 s, Median 1,26 s | 9,38 s |
 | voller `run.run`, ohne Marken | Summe **15,52 s**, Median 1,41 s | 10,69 s |
 | voller `run.run`, Avoid hart | 14,87 s, Median 1,37 s | 10,46 s |
-| echter Controller im `QThread`, 11 nacheinander | **13,33 s** (zwei weitere Laeufe 13,8 und 16,7 s mit Messzeitgeber) | |
+| echter Controller im `QThread`, 11 nacheinander | **13,33 s** (vier weitere Laeufe 13,8 bis 16,7 s) | |
 | dieselben 11 als Cache-Treffer | **13,1 ms** | |
 
 Abstand der Gefaesse (Schaden): 118 Chalice, 114 Forgotten Goblet, 113 Urn, 94 Erdtree Grail; bei 0 Marken gefuellt 6/6
@@ -9691,11 +9691,11 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
    debounce_ms=0)`, fragt eine Frage je Gefaess nacheinander, die naechste aus `ready`. Signale `row_ready(VesselRow)`,
    `finished(tuple[VesselRow, ...])`, `failed(str)`, `stopped()`. Die Leiste baut ihren Controller mit explizitem
    `ResultCache`. Cache nur im Hauptthread (Bestand), also ohne Lock. **`CACHE_SIZE` bleibt 32:** haelt zwei volle Vergleiche
-   samt Vorschlaegen; die 66 aus dem Entwurf wuerden 8 MiB kosten, ohne dass AK-435 sie braucht.
+   samt Vorschlaegen, mehr braucht AK-435 nicht.
 2. Qt-frei in `run.py`: `vessel_questions(asking, vessels, chosen_id, deep)`, `vessel_row(vessel_id, result)`,
    `ranked(rows, chosen_id)`.
 3. **Das gewaehlte Gefaess zuerst, ohne Sonderweg:** `AdvisorBar._on_ready` startet den Vergleich; die Frage des gewaehlten
-   Gefaesses ist die eben beantwortete, also Treffer in Mikrosekunden. Nicht gestartet wird bei einem Treffer aus AD-062.7.
+   Gefaesses ist die eben beantwortete, also ein Treffer (11 Treffer gemessen 13,1 ms). Nicht gestartet wird bei einem Treffer aus AD-062.7.
    A6 bleibt damit vom Vergleich unberuehrt.
 4. **Abbruch:** `VesselComparison.cancel()` aus `_ask`, `ask_again`, Veraltung (Punkt 8), `the_data_is_changing`, `shutdown`.
    Der Controller verwirft Antworten sofort per Generation; der Worker war gemessen **197,6 ms** nach `cancel` weg (ein Messpunkt,
@@ -9729,7 +9729,7 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
    die gespeicherten Slots an diesen Stellen. **Ein gewoehnlicher Zeilenklick uebertraegt nichts**, Holds des Spielers je Gefaess bleiben
    (AD-017); hat er Holds oder Rejects, gibt es keinen Treffer und 4.1. Abweichung von AK-435(a)(c) nur in diesem Fall.
 8. **Veraltet (AK-434):** Die Leiste merkt sich beim Start `request` ohne `problem.slots`, `held`, `rejected`, `generation`, Fingerabdruck und
-   vergleicht nach jedem `the_build_changed` (1,3 ms Median fuer `asking_from` samt Einfrieren), dazu ein Aufruf aus `_set_hold` und aus jeder Reject-Aenderung.
+   vergleicht nach jedem `the_build_changed` (`asking_from` gemessen 0,6 ms Median, 1,13 ms Maximum), dazu ein Aufruf aus `_hold_changed` und aus jeder Reject-Aenderung.
    Eine Zustandsnaht statt neun Aufrufstellen; Gefaess, `Use`, Handaenderung am Slot aendern die Signatur nicht.
 9. **Hauptthread (A6 Zeile 3, 50 ms).** Je Frage `ask` Median 1,31 ms, Maximum 2,47 ms. Der Lauf selbst haelt die Grenze am Bestand **nicht**: Zeitgeber-Abstand Median
    10,4 ms; ueber 50 ms bei **einem** Lauf bereits 51,6 ms, bei 11 Laeufen 3 bis 4 Abstaende, Spitze 178,8 ms. Ursache: voller GC (Generation 2) ueber den Datensatz,
@@ -9779,7 +9779,7 @@ Vergleich pausiert, solange der Picker offen ist; (c) `qa-engineer` A18-Nachweis
 
 **OF-62 (`director` → App Designer):** Was heisst `BEST`? Gebaut wird **erst erfuellte Wuensche, dann Zahl** (Raider unter den heutigen Marken: Decrepit Goblet 88 mit 6 von 6, nicht Scadutree Grail 119 mit 2 von 6). Alternative: reine Zahl, Fehlendes nur im Tooltip `Misses`. Eine Zeile in `ranked`.
 
-**OF-63 (`director` → `ui-ux-designer`), Luecken der Spec gegen diesen Entwurf:** (a) AK-432 "Kopfzahl des `Why`-Dialogs" gibt es nicht, Quelle ist `Suggestion.score.display`; (b) der Satz "{difference} more than this one" passt nicht, wenn `BEST` wegen OF-62 die **kleinere** Zahl hat; (c) Zeile mit `unfit_holds` und ein Satz fuer gehaltene Relikte ohne Platz fehlen; (d) AK-443 nennt nur leere Slots: sind alle sechs gefuellt und 2 von 6 Favoriten offen (41 von 110 gemessen), sagt die Leiste nichts; (e) AK-433 "`Cancel` bricht den Vergleich ab": waehrend des Vergleichs steht die Leiste schon auf `Optimize`, ohne `Cancel`; ein neuer Lauf bricht ab, Bedarf fuer mehr? (f) AK-435(a)(c) bei Holds oder Rejects: Zeilenklick zeigt 4.1 (AD-062.7); (g) AK-428 ohne `deep`: bestaetigt.
+**OF-63 (`director` → `ui-ux-designer`), Luecken der Spec gegen diesen Entwurf:** (a) AK-432 "Kopfzahl des `Why`-Dialogs" gibt es nicht, Quelle ist `Suggestion.score.display`; (b) der Satz "{difference} more than this one" passt nicht, wenn `BEST` wegen OF-62 die **kleinere** Zahl hat; (c) Zeile mit `unfit_holds` und ein Satz fuer gehaltene Relikte ohne Platz fehlen; (d) AK-443 nennt nur leere Slots: sind alle sechs gefuellt und 2 von 6 Favoriten offen (41 von 110 gemessen), sagt die Leiste nichts; (e) AK-433 "`Cancel` bricht den Vergleich ab": waehrend des Vergleichs steht die Leiste schon auf `Optimize`, ohne `Cancel`; ein neuer Lauf bricht ab, Bedarf fuer mehr? (f) AK-435(a)(c) bei Holds oder Rejects: Zeilenklick zeigt 4.1 (AD-062.7).
 
 ---
 
