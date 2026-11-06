@@ -44,11 +44,12 @@ import html
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import (QBoxLayout, QComboBox, QHBoxLayout, QLabel,
-                               QProgressBar, QPushButton, QSizePolicy,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QBoxLayout, QComboBox, QFrame, QHBoxLayout,
+                               QLabel, QProgressBar, QPushButton, QScrollArea,
+                               QSizePolicy, QVBoxLayout, QWidget)
 
 from . import damage, effecttext, favourites, model, weapons, weaponslots
+from .advisorblock import FoldButton
 from .advisor import goals as advisor_goals
 from .advisor import run as advisor_run
 from .advisor import types
@@ -214,6 +215,11 @@ class Situation:
     favourite_effects_unmet: int = 0
     favourite_relics_left_out: int = 0
     details: tuple[str, ...] = ()
+    #: AK-426, AK-429: the last clause of a result the player asked for with
+    #: an X or `Reject`. AK-425: what `Cancel` says then, and 4.5 has only one
+    #: other sentence.
+    note: str = ""
+    stopped_note: str = ""
     #: AK-365's cause: the chosen type or art nothing owned reaches,
     #: as `AdvisorResult.no_carrier_for` spells it; empty for the other two.
     no_carrier_for: str = ""
@@ -334,18 +340,20 @@ def marking_clauses(filters) -> list[str]:
             if filters.avoided_families else [])
 
 
-def _favourite_clauses(situation: Situation) -> tuple[str, ...]:
-    """What the result goes without: effects, then relics (AK-455, AK-439).
+def _closing_clauses(situation: Situation) -> tuple[str, ...]:
+    """What the result goes without, effects then relics (AK-455, AK-439), and
+    what the player just asked for last (AK-426).
 
-    One clause per kind and only where its count is not zero. Each ends on its
-    own full stop, as 4.9's do.
+    One clause per kind and only where there is something to say. Each ends on
+    its own full stop, as 4.9's do.
     """
     effects = situation.favourite_effects_unmet
     relics = situation.favourite_relics_left_out
     return (*((f"{effects} favourite effect{'' if effects == 1 else 's'} could "
                f"not be met.",) if effects else ()),
             *((f"{relics} favourited relic{'' if relics == 1 else 's'} did not "
-               f"fit.",) if relics else ()))
+               f"fit.",) if relics else ()),
+            *((situation.note,) if situation.note else ()))
 
 
 def _clauses(head: str, *clauses: str) -> str:
@@ -378,11 +386,11 @@ def status_line(situation: Situation) -> str:
         return (f"Working out {_lower_case_first(goal)} — "
                 f"{situation.relics} relics, {situation.slots} slots.")
     if state is State.STOPPED:
-        return "Stopped. Nothing was changed."
+        return situation.stopped_note or "Stopped. Nothing was changed."
     if state is State.SUGGESTED:
         head = f"{goal} — {situation.slots_filled} of {situation.slots} slots filled"
-        missed = _favourite_clauses(situation)
-        return _clauses(head, *missed) if missed else f"{head}."
+        closing = _closing_clauses(situation)
+        return _clauses(head, *closing) if closing else f"{head}."
     if state is State.OUTDATED:
         if situation.marking_changed:
             return ("The effects you marked changed while this was working "
@@ -404,7 +412,7 @@ def status_line(situation: Situation) -> str:
             if situation.curses_without_a_number else "",
             _effects_left_out(situation.effects_left_out)
             if situation.effects_left_out else "",
-            *_favourite_clauses(situation))
+            *_closing_clauses(situation))
     if state is State.NOT_RANKABLE:
         return (f"The game files carry no figures this goal can be ranked "
                 f"on for {situation.nightfarer}, so there is nothing to "
@@ -417,7 +425,7 @@ def status_line(situation: Situation) -> str:
             empty = _slots_empty(count, situation.empty_slots)
         return _clauses(f"{goal} — {situation.slots_filled} of "
                         f"{situation.slots} slots filled{CLAUSES}{empty}.",
-                        *_favourite_clauses(situation))
+                        *_closing_clauses(situation))
     if state is State.FAILED:
         return f"Could not work that out — {situation.reason}."
     if state is State.APPLIED:
@@ -514,8 +522,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     The two effect sets the player marked (A18/A19) travel the same way, on
     the same type (AD-036.1): the picker's own question is built from this
     one by replacing `held`, so it carries them without knowing. The relics
-    starred for this Nightfarer too (AD-059.1); those the picker takes off
-    again, because the picker is the hand choice.
+    starred for this Nightfarer too (AD-059.1) and the rolls rejected for this
+    build (AD-060.3); those two the picker takes off again, because the picker
+    is the hand choice.
 
     The request is derived from the context beside it, field by field, and
     that is not tidiness: `run.run` refuses a request whose fields describe
@@ -609,6 +618,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     problem = types.SlotProblem(slots=slots, held=held,
                                 excluded=planner.effect_filters.resolved_excluded,
                                 required=planner.effect_filters.required,
+                                rejected=planner.rejected_rolls(),
                                 pinned=favourites.marked_for(hero["id"]))
 
     # The baseline counts every switchable condition as met (AD-036.6): the
@@ -842,6 +852,69 @@ class _ElidingLabel(QLabel):
                                         self.width()))
 
 
+#: How many rejected relics the list shows before it scrolls (AK-430).
+REJECTED_ROWS_SHOWN = 4
+
+
+class RejectedList(QWidget):
+    """The relics rejected for this build, under the row and not in it (AK-430).
+
+    Nothing at all with none rejected; closed, the one fold button. Open, one
+    line per relic with `Suggest again`, scrolling in here rather than in the
+    middle column.
+    """
+
+    #: The player took a rejection back. Carries the roll.
+    suggest_again = Signal(object)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        self.scroller = QScrollArea()
+        self.scroller.setWidgetResizable(True)
+        self.scroller.setFrameShape(QFrame.NoFrame)
+        self.scroller.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.fold = FoldButton("", "", self.scroller)
+        column.addWidget(self.fold, 0, Qt.AlignLeft)
+        column.addWidget(self.scroller)
+        self.setVisible(False)
+
+    def show_these(self, rows) -> None:
+        """Draw `(roll, relic name, its effects joined)` per rejected relic."""
+        self.setVisible(bool(rows))
+        if not rows:
+            self.fold.setChecked(False)
+            return
+        count = len(rows)
+        said = f"{count} relic{'' if count == 1 else 's'} rejected for this build"
+        self.fold.say(said, said)
+        # The press that took a row back is still in that row's button.
+        old_page = self.scroller.takeWidget()
+        if old_page is not None:
+            old_page.deleteLater()
+        page = QWidget()
+        lines = QVBoxLayout(page)
+        lines.setContentsMargins(0, 0, 0, 0)
+        lines.setSpacing(0)
+        height = 0
+        for roll, name, effects in rows:
+            row = QHBoxLayout()
+            label = _ElidingLabel()
+            label.set_whole_text(f"{name} — {effects}" if effects else name)
+            again = QPushButton("Suggest again")
+            again.setAccessibleName(f"Suggest {name} again")
+            again.clicked.connect(
+                lambda _checked=False, taken=roll: self.suggest_again.emit(taken))
+            row.addWidget(label, 1)
+            row.addWidget(again)
+            lines.addLayout(row)
+            height = again.sizeHint().height()
+        self.scroller.setWidget(page)
+        self.scroller.setFixedHeight(height * min(count, REJECTED_ROWS_SHOWN))
+
+
 class _OneOrTwoLines(QBoxLayout):
     """The question beside the doing while both fit, the doing below it
     when they do not (AK-395, AK-396).
@@ -943,6 +1016,11 @@ class AdvisorBar(QWidget):
                             else controller)
         self._situation = Situation(State.NOTHING_YET)
         self._answer = None
+        #: AK-425, AK-426, AK-429: what a run asked for from the block says
+        #: if it is stopped and when it is done, and what the tooltip adds.
+        self._stopped_note = ""
+        self._done_note = ""
+        self._done_tip = ""
         #: The asking a running or finished run was started from: 4.4 counts
         #: its relics and slots, and no answer carries them back.
         self._asked = None
@@ -1380,7 +1458,8 @@ class AdvisorBar(QWidget):
 
     def _optimize_or_cancel(self) -> None:
         if self._situation.state in WORKING_STATES:
-            self._stop_shows = Situation(State.STOPPED)
+            self._stop_shows = Situation(State.STOPPED,
+                                         stopped_note=self._stopped_note)
             self._controller.cancel()
             return
         self._ask()
@@ -1391,8 +1470,34 @@ class AdvisorBar(QWidget):
             self._show(self._no_save())
             return
         self._asked = asking
+        self._stopped_note = self._done_note = self._done_tip = ""
         self._forget_the_answer()
         self._controller.ask(asking.request, asking.inventory, asking.ctx)
+
+    def ask_again(self, *, stopped: str = "", done: str = "",
+                  done_tip: str = "") -> None:
+        """The same question with one mark more, asked from the block (AD-061).
+
+        Unlike `_ask` the answer stays on screen until the new one arrives, so
+        nothing jumps (AK-425), and there is no debounce: the block is locked
+        meanwhile, so nothing can overtake this (AK-424). The state changes at
+        once because the window reads it to lock the block.
+        """
+        asking = self._asking(self.goal_id())
+        if asking is None:
+            self._forget_the_answer()
+            self._show(self._no_save())
+            return
+        self._asked = asking
+        self._stopped_note, self._done_note = stopped, done
+        self._done_tip = done_tip
+        self._show(Situation(State.WORKING_QUIETLY))
+        self._controller.ask(asking.request, asking.inventory, asking.ctx,
+                             debounce_ms=0)
+
+    def is_working(self) -> bool:
+        """Is a run being waited for?"""
+        return self._situation.state in WORKING_STATES
 
     def goal_id(self) -> str:
         """The direction the combo is standing on."""
@@ -1481,9 +1586,11 @@ class AdvisorBar(QWidget):
         said = {"goal_label": label, "slots": slots, "slots_filled": filled,
                 "favourite_effects_unmet": len(result.required_left_out),
                 "favourite_relics_left_out": len(result.pins_left_out),
+                "note": self._done_note,
                 "details": (*result.required_unmet,
                             *(f"{pin.name}: {pin.because}"
-                              for pin in result.pins_left_out))}
+                              for pin in result.pins_left_out),
+                            *((self._done_tip,) if self._done_tip else ()))}
         if slots - filled > 0:
             situation = Situation(State.SUGGESTED_WITH_AN_EMPTY_SLOT, **said,
                                   slots_without_a_choice=slots - filled,
@@ -1505,6 +1612,7 @@ class AdvisorBar(QWidget):
         not given a second one.
         """
         self._stop_the_clocks()
+        self._forget_the_answer()
         self._show(Situation(State.FAILED, reason=reason.rstrip(". ")))
 
     def _on_stopped(self) -> None:

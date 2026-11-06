@@ -22,9 +22,10 @@ import dataclasses
 import html
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QPushButton
 
-from nrplanner import advisorbar, chalices, inventory
+from nrplanner import advisorbar, advisorblock, chalices, effectfilters, inventory
 from nrplanner import app as appmod
 from nrplanner.advisor import goals, types
 from tests.advisor_row_at_the_window import AK_350_ROOMS
@@ -601,3 +602,197 @@ def test_a_slot_without_a_choice_shows_its_reason_on_the_card(planner):
 
     planner.show_the_suggestion(None)
     assert cards[other].suggestion.isHidden()
+
+
+# --- a part-filled answer (AK-444) ------------------------------------------
+
+def test_apply_all_leaves_a_slot_without_a_choice_as_it_was(planner):
+    """AK-444: the one slot the answer names changes, the empty one keeps the
+    relic the player put there, and `Undo apply` puts everything back."""
+    offers = two_offers(planner)
+    (kept_index, kept_copy), (named_index, named_copy) = offers
+    planner._put_these_keys_in_the_slots([
+        chalices.slot_key(kept_copy) if index == kept_index else key
+        for index, key in enumerate(keys_of(planner))])
+    answer = dataclasses.replace(
+        an_answer_for([(named_index, named_copy)]),
+        empty_slots=(types.EmptySlot(kept_index, types.EMPTY_NOTHING,
+                                     line="Nothing."),))
+    a_live_answer(planner, answer)
+    before = keys_of(planner)
+
+    planner.apply_all()
+
+    keys = keys_of(planner)
+    assert keys[kept_index] == before[kept_index] == chalices.slot_key(kept_copy)
+    assert keys[named_index] == chalices.slot_key(named_copy)
+
+    planner.undo_apply()
+    assert keys_of(planner) == before
+
+
+# --- X and `Reject` on the real window (AD-060, AD-061) ----------------------
+
+class _NoRun:
+    """A controller that answers nothing: the question is what is measured."""
+
+    def __init__(self, bar, monkeypatch) -> None:
+        self.asked = []
+        monkeypatch.setattr(bar._controller, "ask", self.ask)
+
+    def ask(self, request, inventory, ctx, debounce_ms=None) -> int:
+        self.asked.append((request, debounce_ms))
+        return len(self.asked)
+
+
+def a_card_with_a_line(planner):
+    """A live answer whose first card has a relic, a line and an X."""
+    index, copy = two_offers(planner)[0]
+    effect_id = copy.effect_ids[0]
+    answer = an_answer_for([(index, copy)])
+    group = dataclasses.replace(answer.suggestions[0].reasons[0], lines=(
+        types.ReasonLine(slot_index=index, effect_id=effect_id, text="Line."),))
+    answer = dataclasses.replace(answer, suggestions=(dataclasses.replace(
+        answer.suggestions[0], reasons=(group,)),))
+    a_live_answer(planner, answer)
+    return planner.active_slots()[index], copy, effect_id, answer
+
+
+def test_an_x_marks_the_effect_and_asks_again(planner, monkeypatch):
+    """AK-424: the mark, one run at once, and the answer does not go (AK-425)
+    though the mark says `changed`, and the block is locked meanwhile."""
+    card, _copy, effect_id, answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    try:
+        card.suggestion.drawn_lines[0].avoid.click()
+
+        assert effect_id in planner.effect_filters.excluded
+        assert planner.advisor_bar.answer is answer
+        assert len(run.asked) == 1
+        request, debounce = run.asked[0]
+        assert debounce == 0
+        assert effect_id in request.problem.excluded
+        assert not card.suggestion.isEnabled()
+        assert card.suggestion.isVisibleTo(card)
+    finally:
+        planner.effect_filters.mark(effect_id, None)
+
+
+def test_a_mark_set_in_the_filter_window_starts_no_run(planner, monkeypatch):
+    """AK-289, unchanged: only the block asks again."""
+    _card, _copy, effect_id, _answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    try:
+        planner.effect_filters.mark(effect_id, effectfilters.EXCLUDED)
+
+        assert run.asked == []
+        assert planner.advisor_bar.answer is None
+    finally:
+        planner.effect_filters.mark(effect_id, None)
+
+
+def test_the_new_answer_unlocks_the_block_and_takes_the_focus(planner,
+                                                              monkeypatch):
+    """AK-426: back on the first X of the same slot, or on `Optimize`."""
+    card, _copy, effect_id, answer = a_card_with_a_line(planner)
+    _NoRun(planner.advisor_bar, monkeypatch)
+    bar = planner.advisor_bar
+    try:
+        first = card.suggestion.first_x()
+        first.setFocus()
+        first.click()
+        assert not card.suggestion.isEnabled()
+
+        bar._asked = dataclasses.replace(bar._asked)
+        bar._on_ready(answer)
+
+        assert card.suggestion.isEnabled()
+        assert planner.focusWidget() is card.suggestion.first_x()
+
+        card.suggestion.first_x().setFocus()
+        card.suggestion.first_x().click()
+        bar._on_ready(dataclasses.replace(answer, suggestions=()))
+
+        assert planner.focusWidget() is bar.optimize_button
+    finally:
+        planner.effect_filters.mark(effect_id, None)
+
+
+def test_reject_is_for_this_build_only_and_goes_with_the_roll(planner,
+                                                              monkeypatch):
+    """AD-060: the question carries the roll, the store nothing; another
+    vessel has no such rejection, and coming back brings it again (AK-428)."""
+    card, copy, _effect_id, _answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    roll = types.roll_of(copy)
+
+    card.suggestion.reject_button.click()
+
+    assert run.asked[0][0].problem.rejected == frozenset({roll})
+    assert run.asked[0][1] == 0
+    assert not planner.rejected_list.isHidden()
+    assert not card.suggestion.isEnabled()
+
+    rows = [row for row in range(planner.chalice_list.count())
+            if planner.chalice_list.item(row).data(Qt.UserRole) is not None]
+    here = planner.chalice_list.currentRow()
+    planner.chalice_list.setCurrentRow(next(row for row in rows if row != here))
+    assert planner.rejected_rolls() == frozenset()
+    assert planner.rejected_list.isHidden()
+    planner.chalice_list.setCurrentRow(here)
+    assert planner.rejected_rolls() == frozenset({roll})
+    assert not planner.rejected_list.isHidden()
+
+    planner.deep_check.toggle()
+    assert planner.rejected_rolls() == frozenset({roll}), (
+        "a rejection hangs on no slot, so Deep of Night does not part it "
+        "from its build (AD-060.2)")
+    planner.deep_check.toggle()
+    planner._suggest_again(roll)
+
+
+def test_suggest_again_gives_it_back_and_asks_if_an_answer_stands(planner,
+                                                                  monkeypatch):
+    """AK-430."""
+    card, copy, _effect_id, answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    roll = types.roll_of(copy)
+    card.suggestion.reject_button.click()
+    planner.advisor_bar._on_ready(answer)
+    asked = len(run.asked)
+
+    planner.rejected_list.scroller.widget().findChild(QPushButton).click()
+
+    assert planner.rejected_rolls() == frozenset()
+    assert planner.rejected_list.isHidden()
+    assert len(run.asked) == asked + 1
+    assert run.asked[-1][0].problem.rejected == frozenset()
+
+
+def test_suggest_again_with_no_answer_starts_nothing(planner, monkeypatch):
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    roll = (1, (2,), ())
+    planner._rejects[planner._reject_key()] = {roll: "Urn"}
+    planner._show_the_rejects()
+
+    planner.rejected_list.suggest_again.emit(roll)
+
+    assert run.asked == []
+    assert planner.rejected_rolls() == frozenset()
+
+
+def test_a_rejection_is_named_in_the_list_with_its_effects(planner):
+    card, copy, _effect_id, _answer = a_card_with_a_line(planner)
+    roll = types.roll_of(copy)
+    planner._rejects[planner._reject_key()] = {roll: copy.name}
+    try:
+        planner._show_the_rejects()
+        page = planner.rejected_list.scroller.widget()
+        label = page.findChild(advisorbar._ElidingLabel)
+        names = [advisorblock.effect_name(planner.effects, eid)
+                 for eid in copy.effect_ids]
+        assert label.accessibleName() == f"{copy.name} — {', '.join(names)}"
+        assert page.findChild(QPushButton).text() == "Suggest again"
+    finally:
+        planner._rejects.clear()
+        planner._show_the_rejects()

@@ -406,15 +406,12 @@ def pin(inventory, problem: types.SlotProblem, ctx: types.GoalContext,
     wanted, left_out = _stars_to_lay(inventory, problem)
     free = types.free_slots(problem)
     open_to: dict[int, tuple[types.Slot, ...]] = {}
-    fits_in: dict[int, tuple[types.Slot, ...]] = {}
     for copy in wanted:
-        fits_in[copy.handle] = tuple(slot for slot in problem.slots
-                                     if place((copy,), (slot,))[0])
-        open_to[copy.handle] = tuple(slot for slot in free
-                                     if slot in fits_in[copy.handle])
+        fits = tuple(slot for slot in problem.slots
+                     if place((copy,), (slot,))[0])
+        open_to[copy.handle] = tuple(slot for slot in free if slot in fits)
         if not open_to[copy.handle]:
-            reason = (types.PIN_SLOTS_HELD if fits_in[copy.handle]
-                      else types.PIN_NO_SLOT)
+            reason = types.PIN_SLOTS_HELD if fits else types.PIN_NO_SLOT
             left_out.append(types.PinLeftOut(
                 copy.name, types.roll_of(copy), reason, is_deep=copy.is_deep))
 

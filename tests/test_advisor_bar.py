@@ -237,8 +237,9 @@ class _Controller(QObject):
         self.shutdowns = 0
         self.running = False
 
-    def ask(self, request, inventory, ctx) -> int:
+    def ask(self, request, inventory, ctx, debounce_ms=None) -> int:
         self.asked.append(request)
+        self.debounce_ms = debounce_ms
         self.running = True
         return len(self.asked)
 
@@ -1459,7 +1460,8 @@ def test_the_row_stands_between_the_build_line_and_the_hint(planner):
     stack = column.layout()
     order = [stack.itemAt(i).widget() for i in range(stack.count())]
     area = _the_slot_area(planner)
-    assert order.index(planner.advisor_bar) == order.index(area) - 1
+    assert order[order.index(planner.advisor_bar) + 1:order.index(area)] == [
+        planner.rejected_list]
     # The build list is above the row and outside the area; the hint is
     # below it and inside.
     assert planner.build_box not in area.findChildren(type(planner.build_box))
@@ -1949,3 +1951,223 @@ def test_the_next_state_takes_the_details_off_the_tooltip(bar):
     bar.the_build_changed()
 
     assert "Unmet." not in bar.status.toolTip()
+
+
+# --- asking again from the block (AD-061, AK-424 to AK-426, AK-429) ----------
+
+def test_asking_again_keeps_the_answer_and_waits_for_nothing(bar):
+    """AK-424: no debounce. AK-425: the old blocks stay until the new one."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    answer = _an_answer()
+    bar._controller.answers(answer)
+
+    bar.ask_again(done="“Strength” avoided.")
+
+    assert bar.answer is answer
+    assert bar.is_working()
+    assert bar._controller.debounce_ms == 0
+    assert len(bar._controller.asked) == 2
+
+
+def test_the_answer_names_what_the_player_asked_for_last(bar):
+    """AK-426: the last clause, and where to take it back in the tooltip."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    bar.ask_again(done="“Strength” avoided.", done_tip="Undo this in Filters.")
+    bar._controller.begins()
+    bar._controller.answers(dataclasses.replace(_an_answer(),
+                                                required_left_out=(7,)))
+
+    assert bar.status.accessibleName() == (
+        "Maximise damage — 6 of 6 slots filled  ·  1 favourite effect could "
+        "not be met.  ·  “Strength” avoided.")
+    assert "Undo this in Filters." in bar.status.toolTip()
+
+
+def test_the_next_optimize_forgets_that_clause(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.ask_again(stopped="Stopped. “Urn” stays rejected.",
+                  done="“Urn” rejected.")
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    assert bar.status.accessibleName() == (
+        "Maximise damage — 6 of 6 slots filled.")
+
+
+def test_cancel_says_what_stays_and_the_blocks_go(bar):
+    """AK-425, AK-429."""
+    seen = []
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.suggestion_changed.connect(seen.append)
+
+    bar.ask_again(stopped="Stopped. “Strength” stays avoided.")
+    bar._controller.begins()
+    bar.optimize_button.click()
+
+    assert bar.status.accessibleName() == "Stopped. “Strength” stays avoided."
+    assert bar.answer is None
+    assert seen == [None]
+
+
+def test_a_plain_cancel_keeps_its_sentence(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.ask_again(stopped="Stopped. “Strength” stays avoided.")
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar.optimize_button.click()
+
+    assert bar.status.accessibleName() == "Stopped. Nothing was changed."
+
+
+def test_a_failed_run_takes_the_old_blocks_with_it(bar):
+    """Otherwise they would stand locked under a line saying it failed."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    bar.ask_again()
+    bar._controller.failed.emit("the run gave up")
+
+    assert bar.answer is None
+    assert bar.situation.state is advisorbar.State.FAILED
+
+
+def test_a_build_changed_under_a_run_from_the_block_still_outdates_it(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.ask_again(stopped="Stopped. “Strength” stays avoided.")
+    bar._controller.begins()
+
+    bar.the_build_changed()
+
+    assert bar.situation.state is advisorbar.State.OUTDATED
+    assert bar.answer is None
+
+
+def test_asking_again_without_a_save_says_so_and_takes_the_blocks(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.asking["value"] = None
+
+    bar.ask_again()
+
+    assert bar.situation.state is advisorbar.State.NO_SAVE
+    assert bar.answer is None
+
+
+# --- the list of what was rejected (AK-430) ----------------------------------
+
+@pytest.fixture
+def rejected(qapp):
+    widget = advisorbar.RejectedList()
+    yield widget
+    widget.deleteLater()
+
+
+def test_with_nothing_rejected_the_list_takes_no_room(rejected):
+    rejected.show_these([])
+
+    assert rejected.isHidden()
+
+
+def test_closed_it_is_one_line_that_counts(rejected):
+    rejected.show_these([((1, (), ()), "Urn", "")])
+    assert not rejected.isHidden()
+    assert rejected.scroller.isHidden()
+    assert rejected.fold.text() == "▸ 1 relic rejected for this build"
+
+    rejected.show_these([((1, (), ()), "Urn", ""), ((2, (), ()), "Jar", "")])
+    assert rejected.fold.text() == "▸ 2 relics rejected for this build"
+
+
+def test_open_it_names_each_and_gives_it_back(rejected):
+    roll = (1, (2,), ())
+    rejected.show_these([(roll, "<b>Urn</b>", "Strength, Vigor")])
+    rejected.fold.click()
+    seen = []
+    rejected.suggest_again.connect(seen.append)
+
+    assert rejected.fold.text() == "▾ 1 relic rejected for this build"
+    label = rejected.scroller.widget().findChild(advisorbar._ElidingLabel)
+    assert label.accessibleName() == "<b>Urn</b> — Strength, Vigor"
+    assert label.textFormat() == Qt.PlainText
+    assert "&lt;b&gt;Urn" in label.toolTip()
+    again = rejected.scroller.widget().findChild(QPushButton)
+    assert again.text() == "Suggest again"
+    again.click()
+    assert seen == [roll]
+
+
+def test_past_four_it_scrolls_in_here(rejected):
+    """AK-430: four rows at most, the rest in the list's own scrolling."""
+    four = [((index, (), ()), f"Relic {index}", "") for index in range(4)]
+    six = [((index, (), ()), f"Relic {index}", "") for index in range(6)]
+
+    rejected.show_these(four)
+    height_of_four = rejected.scroller.maximumHeight()
+    rejected.show_these(six)
+
+    assert rejected.scroller.maximumHeight() == height_of_four
+
+
+def test_six_blocks_with_x_and_reject_stay_inside_the_narrow_column(planner):
+    """AK-421, AK-427, measured at the window's least width: no sideways
+    scrolling under six cards, no button cut, and a line is as tall as its X
+    and no taller."""
+    planner.deep_check.setChecked(True)
+    cards = planner.active_slots()
+    lines = tuple(types.ReasonLine(slot_index=0, effect_id=index + 1,
+                                   text=f"Effect {index}: Physical Attack +1")
+                  for index in range(3)) + (
+        types.ReasonLine(slot_index=0, effect_id=4, text="Curse: Vigor -1",
+                         is_curse=True),)
+    groups = tuple(types.SlotReasons(
+        slot_index=index, relic_name="Grand Luminous Scene", effects_total=3,
+        effects_with_a_figure=3, count_line="3 of its 3 effects moved a number.",
+        lines=lines) for index in range(len(cards)))
+    answer = types.AdvisorResult(
+        goal_id="max_damage", goal_label="Maximise damage",
+        suggestions=(types.Suggestion(
+            choices=tuple(types.SlotChoice(index, 900 + index, 1, "Relic")
+                          for index in range(len(cards))),
+            score=types.GoalScore(1.0, "1", ""), reasons=groups),))
+    planner.advisor_bar._answer = answer
+    planner.advisor_bar._show(advisorbar.Situation(
+        advisorbar.State.SUGGESTED, goal_label="Maximise damage",
+        slots=len(cards), slots_filled=len(cards)))
+    planner.show_the_suggestion(answer)
+    planner.resize(planner.minimumWidth(), 900)
+    planner.show()
+    rendered.settle()
+    try:
+        area = _the_slot_area(planner)
+        assert area.horizontalScrollBar().maximum() == 0
+        block = cards[0].suggestion
+        for button in (block.use_button, block.why_button, block.reject_button):
+            assert button.width() >= button.minimumSizeHint().width(), (
+                f"{button.text()} is cut: {button.width()} of "
+                f"{button.minimumSizeHint().width()}")
+            assert button.geometry().right() <= block.contentsRect().right()
+        assert [line.height() for line in block.drawn_lines] == [24] * 4
+    finally:
+        planner.advisor_bar.clear()
+        planner.hide()

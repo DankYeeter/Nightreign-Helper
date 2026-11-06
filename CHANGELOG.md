@@ -19,6 +19,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - A relic you favourited for a Nightfarer now goes into Optimize's suggestion
   when it fits; the status line counts favourites it could not honour and Why
   names each with its reason.
+- Each effect and curse in a suggestion has an X that avoids it and asks again;
+  Reject turns down a relic for this build, and the list under the advisor bar
+  gives it back.
 
 ## [1.20.1] - 2026-11-01
 

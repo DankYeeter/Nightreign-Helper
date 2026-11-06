@@ -24,9 +24,10 @@ from . import (advisorblock, chalices, datasource, effectfilterdialog,
                gamepath, inventory, model, savereader, shortcut,
                singleinstance, uiscale, weaponslots)
 from .advisor import run as advisor_run
+from .advisor import types as advisor_types
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
-from .advisorbar import AdvisorBar, asking_from
+from .advisorbar import AdvisorBar, RejectedList, asking_from
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -646,6 +647,13 @@ class Planner(QMainWindow):
         # written down today points at a copy that may be melted tomorrow.
         self._holds: dict[tuple[int, int | None, bool],
                           dict[int, int | None]] = {}
+        # The rolls rejected per (Nightfarer, vessel), with the name the list
+        # shows (AD-060.1): session state of the window for the same reasons.
+        self._rejects: dict[tuple[int, int | None],
+                            dict[advisor_types.Roll, str]] = {}
+        # The card an X or `Reject` was pressed on with the focus in its
+        # block, until the answer that asked for arrives (AK-426).
+        self._focus_after_asking: RelicSlot | None = None
 
         # The data version is a build number off the game install. It means
         # nothing to a player and ate half the title bar, so the title just
@@ -1108,6 +1116,9 @@ class Planner(QMainWindow):
             lambda goal_id: asking_from(self, goal_id), column,
             filters=self.effect_filters, data=self.data)
         stack.addWidget(self.advisor_bar)
+        self.rejected_list = RejectedList()
+        self.rejected_list.suggest_again.connect(self._suggest_again)
+        stack.addWidget(self.rejected_list)
 
         # The relic picker's track: the same class, a second instance, and
         # three figures of its own -- the pool rather than the whole answer,
@@ -2952,6 +2963,11 @@ class Planner(QMainWindow):
         for card in list(self.base_slots) + list(self.deep_slots):
             card.suggestion.use_requested.connect(
                 lambda slot=card: self.use_the_suggestion(slot))
+            card.suggestion.reject_requested.connect(
+                lambda slot=card: self._reject_from_the_block(slot))
+            card.suggestion.avoid_requested.connect(
+                lambda effect_id, slot=card:
+                self._avoid_from_the_block(slot, effect_id))
             # AK-274: the card's own `Why` opens the very dialog the bar's
             # does -- same handler, so there is no second account to keep in
             # step with the first.
@@ -2969,6 +2985,87 @@ class Planner(QMainWindow):
         """
         self._slots_before_applying = None
         self.show_the_suggestion(result)
+        card, self._focus_after_asking = self._focus_after_asking, None
+        if card is not None:
+            first_x = None if result is None else card.suggestion.first_x()
+            (first_x or self.advisor_bar.optimize_button).setFocus()
+
+    # -- asking again from the block ----------------------------------------
+
+    def _reject_key(self) -> tuple:
+        """Which build a rejection belongs to (AD-060.2). No Deep, unlike a
+        hold: a hold sits on a slot, and a rejection on none."""
+        vessel = self.current_vessel()
+        return self.current_hero()["id"], vessel["id"] if vessel else None
+
+    def rejected_rolls(self) -> frozenset:
+        """The rolls rejected for the build now on screen."""
+        return frozenset(self._rejects.get(self._reject_key(), {}))
+
+    def _show_the_rejects(self) -> None:
+        self.rejected_list.show_these([
+            (roll, name, ", ".join(advisorblock.effect_name(self.effects, eid)
+                                   for eid in roll[1]))
+            for roll, name in self._rejects.get(self._reject_key(), {}).items()])
+
+    def _ask_again_from(self, card, **said) -> None:
+        """The block's marks changed, so the question is new (AD-061). The
+        focus is read before the block locks and lets it go (AK-426)."""
+        focused = self.focusWidget()
+        if card.suggestion.isAncestorOf(focused):
+            self._focus_after_asking = card
+        self.advisor_bar.ask_again(**said)
+        self._lock_the_blocks()
+
+    def _lock_the_blocks(self) -> None:
+        """AK-425: the blocks stay and take no press while a run replaces them."""
+        working = self.advisor_bar.is_working()
+        for card in self._all_slots():
+            card.suggestion.setEnabled(not working)
+
+    def _avoid_from_the_block(self, card, effect_id: int) -> None:
+        """An X at a line (AK-424). The mark would otherwise throw the answer
+        away as an outdating; this one the row asked for itself."""
+        name = advisorblock.effect_name(self.effects, effect_id)
+        with self.advisor_bar.while_the_player_applies_it():
+            self.effect_filters.mark(effect_id, effectfilters.EXCLUDED)
+        self._ask_again_from(card, stopped=f"Stopped. “{name}” stays avoided.",
+                             done=f"“{name}” avoided.",
+                             done_tip="Undo this in Filters.")
+
+    def _reject_from_the_block(self, card) -> None:
+        """`Reject` on a block (AK-429): this roll, for this build."""
+        result = self.advisor_bar.answer
+        if result is None or not result.suggestions:
+            return
+        index = self._all_slots().index(card)
+        choice = next((choice for choice in result.suggestions[0].choices
+                       if choice.slot_index == index), None)
+        copy = (None if choice is None
+                else self._relics_by_handle().get(choice.handle))
+        if copy is None:
+            return
+        self._rejects.setdefault(self._reject_key(), {})[
+            advisor_types.roll_of(copy)] = copy.name
+        self._show_the_rejects()
+        self._ask_again_from(card,
+                             stopped=f"Stopped. “{copy.name}” stays rejected.",
+                             done=f"“{copy.name}” rejected.")
+
+    def _suggest_again(self, roll) -> None:
+        """AK-430: the rejection goes, and a standing answer is asked anew. A
+        run on its way was asked with the rejection, so it is out of date."""
+        key = self._reject_key()
+        rejects = self._rejects.get(key, {})
+        rejects.pop(roll, None)
+        if not rejects:
+            self._rejects.pop(key, None)
+        self._show_the_rejects()
+        if self.advisor_bar.answer is None:
+            self.advisor_bar.the_build_changed()
+            return
+        self.advisor_bar.ask_again()
+        self._lock_the_blocks()
 
     # -- applying an answer -------------------------------------------------
 
@@ -3209,6 +3306,7 @@ class Planner(QMainWindow):
         cards = self.active_slots()
         for card in list(self.base_slots) + list(self.deep_slots):
             card.put_the_suggestion_away()
+        self._lock_the_blocks()
         if result is None or not result.suggestions:
             return
         suggestion = result.suggestions[0]
@@ -3241,7 +3339,10 @@ class Planner(QMainWindow):
                 held_favourite_line=(result.favourites_met_line
                                      if group.slot_index == held_favourite_slot
                                      else ""),
-                pinned=group.slot_index in result.pins_placed)
+                pinned=group.slot_index in result.pins_placed,
+                names={line.effect_id: advisorblock.effect_name(
+                    self.effects, line.effect_id) for line in group.lines},
+                favourited=self.effect_filters.required)
         for empty in result.empty_slots:
             cards[empty.slot_index].show_no_suggestion(empty.line)
 
@@ -3388,6 +3489,7 @@ class Planner(QMainWindow):
         # cause it, because a fifth arrived once already and did not know it
         # had to say so (see `populate`'s note about narrowing a slot).
         self._show_the_holds()
+        self._show_the_rejects()
         # Every path that changes a vessel, a mode or a relic ends here, so
         # this is the one place the stored build has to be kept up to date.
         self._store_chalice()

@@ -279,8 +279,11 @@ class AdvisorController(QObject):
         return self._generation
 
     def ask(self, request: types.AdvisorRequest, inventory,
-            ctx: types.GoalContext) -> int:
+            ctx: types.GoalContext, debounce_ms: int | None = None) -> int:
         """Ask this question, after the debounce. Hands back its generation.
+
+        `debounce_ms` overrides this controller's own for this asking: a
+        question nobody can be overtaking while they type needs none (AK-424).
 
         Two fields of the request are filled in here rather than trusted from
         the caller, and both for the same reason -- they are not about what is
@@ -295,7 +298,7 @@ class AdvisorController(QObject):
         reading exactly what it started with, and the living object stays
         where it belongs.
         """
-        self._wait_for(self._question_from(request, inventory, ctx))
+        self._wait_for(self._question_from(request, inventory, ctx), debounce_ms)
         return self._generation
 
     def ask_and_answer_if_known(self, request: types.AdvisorRequest,
@@ -353,11 +356,13 @@ class AdvisorController(QObject):
             inventory=frozen,
             ctx=ctx)
 
-    def _wait_for(self, question: Question) -> None:
+    def _wait_for(self, question: Question,
+                  debounce_ms: int | None = None) -> None:
         """Let this question be the pending one, after the debounce."""
         self._pending = question
         self._interrupt_the_running_worker()
-        self._timer.start(self._debounce_ms)
+        self._timer.start(self._debounce_ms if debounce_ms is None
+                          else debounce_ms)
 
     def cancel(self) -> bool:
         """Abandon whatever is running or waiting. Says so at once (AK-11).

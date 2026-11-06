@@ -694,3 +694,31 @@ def test_the_snapshot_is_taken_once_however_the_question_is_asked(
     track.ask(request, Counting(inventory), ctx)
     assert len(counted) == once, (
         "the two ways of asking freeze the inventory differently often")
+
+
+def test_one_asking_may_wait_less_than_the_controller_does(qapp):
+    """AK-424: `debounce_ms` is this asking's, the next one waits as ever."""
+    from nrplanner.advisor import worker as advisor_worker
+
+    calls = []
+    controller = advisor_worker.AdvisorController(debounce_ms=5000)
+
+    class Timer:
+        def start(self, milliseconds):
+            calls.append(milliseconds)
+
+        def stop(self):
+            pass
+
+        def isActive(self):
+            return False
+
+    controller._timer = Timer()
+    marker = object()
+    try:
+        controller._wait_for(marker, 0)
+        controller._wait_for(marker)
+    finally:
+        controller._pending = None
+
+    assert calls == [0, 5000]
