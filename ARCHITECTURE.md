@@ -9428,6 +9428,361 @@ Kachel ohne Art-Zahl (Katalysator, keine Wahl, Gruende aus AD-056.5): Satz statt
 
 ---
 
+## Themenbereich Q — Harter Ausschluss, Teilerfuellung, Stern, Reject, Chalice-Vergleich: A18 neu, A28 (2026-11-06)
+
+**Quellen.** `GOAL.md` A18 (Ersatz 06.11.), A19, A28; `UI_SPEC.md` AK-420 bis AK-448
+(`6a7522f`); Vorbefund `fehlerdiagnostiker` (v1.20.1, Skripte `scan.py`, `scanhard.py`,
+`fav.py` im Sitzungs-Scratchpad). Kein `researcher`-/`compliance`-Lauf, keine neue
+Abhaengigkeit.
+
+**Messbedingung aller Zahlen dieses Abschnitts**, wenn nicht anders genannt: Stand
+`8450ccf`, Testabzug `EXTRACT_VERSION` 19, echter Spielstand nur lesend (324 Relikte),
+Datenumlenkung gesetzt, Deep of Night an, Budget K=20/W=40, diese Maschine, Skripte
+`<Scratchpad>/a28/m1..m6.py` und `proto.py`. Markenfall des Nutzers aus seiner Registry:
+Avoid `6820400,6851700`, Favourite `6500400,6611001,6611002,7006200,7031300,7060200`.
+Prototypen liefen von aussen; **kein Lauf des gebauten Codes**.
+
+| Praemisse | Quelle, Guete | Ergebnis |
+|---|---|---|
+| "Der Nutzer hat vermutlich schon Sterne" | Auftrag, Vermutung | **falsch.** `reg query HKCU\Software\DankYeeter\NightreignHelper /s /f favourites`: 0 Treffer; Untergruppen nur `advisor`, `builds`, `chalices`, `ui`. Gegenprobe: `favourites.toggle` unter umgelenkter Org schreibt `...\favourites\1\|2,3\|4`, dieselbe Abfrage findet das. Grenze: gelesen aus der Sitzung, nicht aus dem Terminal des Nutzers |
+| "Gleiche Layouts einmal rechnen" spart Laeufe | Auftrag, Vorbericht | **traegt nicht.** Der Schluessel hat keine Gefaess-Id (stimmt), aber Deep an: 11 von 11 Layouts verschieden, je Nightfarer, alle 10; Deep aus: 11 geordnet, 9 als Menge. Der geordnete Schluessel trifft also nie (AD-016: Indizes sind Teil der Antwort) |
+| 11 Gefaesse je Nightfarer | `app.py:1699-1701`, gemessen | stimmt fuer alle 10 |
+| Zahl "wie die Kopfzahl des Why-Dialogs" (AK-432) | Spec | **Der Kopf hat keine Zahl** (`advisorblock.head_sentence`: Ziel, Nightfarer, Gefaess, Deep, Reliktzahl). Quelle ist `Suggestion.score.display`, siehe AD-062.6 |
+| Eintrag 33,4 KiB (`worker.py:89`, T-118) | Kommentar | veraltet: `AdvisorResult` 127,3 KiB gepickelt |
+
+### AD-057 — Avoid und Reject wirken an einer Stelle: `candidates.pool` nimmt den Traeger gar nicht erst auf; `evaluate` streicht weiter fuer alles, was der Spieler selbst gesetzt hat (2026-11-06, Status: aktiv; **loest AD-036 Punkt 2 Satz "Das Relikt bleibt Kandidat" ab**, Rest von AD-036.2/.3 gilt)
+
+**Kontext.** A18 neu: ein Relikt mit markiertem Effekt oder Fluch wird nie vorgeschlagen,
+von Hand bleibt es waehlbar. Gemessen (Vorbefund, 110 Kombinationen je zwei Ziele): heute
+70 von 660 Slots unter Schaden und 29 von 660 unter Abwehr mit Traeger.
+
+**Optionen.** A im Bestand bleiben (nur die Id streichen): verletzt A18. B Filter in
+`inventory.relics_for`: Picker und Fremdaufrufer verloeren die Handwahl, und das Modul kennt
+keine Marken. C Nachfilter ueber das Beam-Ergebnis: AD-036 hat das fuer A19 verworfen, leert
+Slots ohne Not. **D Filter in `candidates.pool`: gewaehlt**, dort laufen `run.run`,
+`run.slot_pool` und ueber die Pools `search.beam`.
+
+**Entscheidung.**
+1. `candidates.pool`, heute Z. 256: zusaetzlich `continue`, wenn `types.unwanted(problem,
+   relic)`, d. h. `problem.excluded` schneidet `effect_ids ∪ curse_ids` oder `roll_of(relic)
+   in problem.rejected` (AD-060). Keine zweite Stelle.
+2. `evaluate.effect_ids_of` (`evaluate.py:68`) bleibt: ein gehaltenes Relikt, auch im Picker
+   als "alle anderen Slots gehalten", traegt den Effekt in die Zahl **nicht** ein.
+   **AK-447: Fassung A**; `MARK_LEGEND` bleibt. Grund: A18 Satz "zaehlt in keiner Rangfolge"
+   und AD-036.2. Bewusster Preis: die Beraterzahl weicht dort vom Werteblatt ab, das das Spiel
+   rechnet. Umkehr: eine Zeile, dazu AK-447 und `MARK_LEGEND`.
+3. Picker: Karte ohne Zahl am Ende mit "—", gehaltenes Relikt ohne Hinweis (Vorbefund,
+   uebernommen). `relicpicker.py:529` setzt in seinem `replace` zusaetzlich `pinned=()`,
+   `rejected=frozenset()`: ein Reject gilt dem Vorschlag, der Picker ist die Handwahl.
+4. **Grund je leerem Slot, Kategorien fuer AK-441 bis AK-444.** `SlotPool` bekommt
+   `avoided_by: tuple[int, ...]` (die Avoid-Ids, die hier Kopien nahmen, sortiert),
+   `rejected_out: int`, `pin_taken: tuple[str, ...]` (Namen der Stern-Relikte, deren Kopie
+   hier passte). `AdvisorResult.empty_slots: tuple[EmptySlot, ...]`, je nicht gehaltenem Slot
+   ohne Wahl im besten Vorschlag, aus `explain.empty_slots(...)`:
+
+   ```python
+   @dataclass(frozen=True)          # illustrierend
+   class EmptySlot:
+       slot_index: int
+       reason: str                  # eine der sechs Konstanten unten
+       effect_ids: tuple[int, ...] = ()   # EMPTY_AVOIDED, EMPTY_REQUIREMENT
+       relic_name: str = ""               # EMPTY_PIN
+   ```
+
+   | Vorrang | Konstante | Bedingung, in dieser Reihenfolge | AK-442 |
+   |---|---|---|---|
+   | 1 | `EMPTY_REQUIREMENT` | Pool nicht leer, alle Kopien von anderen Slots verbraucht, darunter ein Traeger eines Pflichteffekts | Favourite-Effekt |
+   | 2 | `EMPTY_PIN` | Pool leer und `pin_taken` nicht leer | Stern |
+   | 3 | `EMPTY_AVOIDED_AND_REJECTED` | Pool leer, `avoided_by` und `rejected_out` | gemischt |
+   | 4 | `EMPTY_AVOIDED` | Pool leer, `avoided_by` | Avoid |
+   | 5 | `EMPTY_REJECTED` | Pool leer, `rejected_out` | Reject |
+   | 6 | `EMPTY_NOTHING` | sonst | "nichts uebrig" |
+
+   AK-365 (`no_carrier_for`) bleibt ein **siebter** Grund ausserhalb dieser Liste: dort faellt
+   der ganze Vorschlag, `empty_slots` ist leer. Gemessen im Vorbefund unter den Marken des
+   Nutzers 0 leere Slots; die Kategorien sind fuer andere Marken da, Testfaelle konstruiert.
+5. `explain.required_but_unmet`, Z. 1297-1299, sagt sonst falsch "none fits the open slots":
+   tragen alle eigenen Traeger einen Avoid-Effekt, eigener Satz (Wortlaut Designer).
+
+**Konsequenz.** Wertverlust gemessen (Vorbefund, 220 Laeufe): Median 0 %, Maximum 9,5 % Schaden,
+8,79 % Abwehr. Dauerhaft: `SlotPool` traegt drei Zaehlfelder fuer die Erklaerung.
+**Umkehrbarkeit:** leicht (eine Bedingung).
+
+### AD-058 — Ein Effekt-Favourite ist Pflicht, **soweit das Gefaess ihn erreichen kann**: beste Teilmenge vor dem Beam, Rest genannt; die Machbarkeit rechnet ueber Kopien (2026-11-06, Status: aktiv; **loest AD-036 Punkt 4 "Machbarkeits-Schnitt" und "A7-Antwort" ab**, A19 durch A28 abgeschwaecht)
+
+**Kontext.** A19 sagt "nur Konstellationen mit jedem Effekt", A28 "der Vorschlag fuellt die
+uebrigen Slots soweit moeglich". Gemessen: Raider's Chalice "0 of 6 slots filled"; heute 74 von
+110 blockiert (Vorbefund, Avoid hart). Zweiter Fehler: `search.py:162-174` zaehlt eine Kopie mit
+zwei Favoriten als zwei Slots, falsche Blockade bei Ironeye's Chalice.
+
+**Optionen.** A Blockade behalten, nur den Satz aendern: verletzt A28. B Favoriten weich in die
+Beam-Ordnung (Zahl offener Pflichten vor dem Wert): jede Ebene braeuchte eine Mischordnung, der
+W-Schnitt wirft dann starke Zweige. C ein Beam je Teilmenge: bis 2^n Laeufe, A6 reisst. **D
+Teilmenge vor dem Beam, danach Bestand: gewaehlt.**
+
+**Entscheidung.**
+1. **A19 gilt, wo erreichbar:** jeder Vorschlag traegt jeden Pflichteffekt, den die freien Slots
+   dieses Gefaesses zusammen tragen koennen. Geht das nicht fuer alle, die **groesste** Teilmenge,
+   die uebrigen genannt. Der Vorschlag blockiert nie. *Fuer `GOAL.md` A19 faellig (Director):
+   Nachweissatz ergaenzen.*
+2. `search.attainable(problem, pools, rank_by) -> frozenset[int]`, Mengen-DP ueber die Pools:
+   `reach = {0}`; je Pool `reach |= {r | m}` fuer jede Maske `m` der von einer Kopie getragenen
+   offenen Effekte; Sieger hoechste Bitzahl, Gleichstand nach Summe der besten Traeger-Grenzbeitraege
+   je Effekt, dann Ids. Dieselbe Kopie zweimal aendert keine Vereinigung, die Rechnung ist exakt.
+   Gemessen 110 von 110 gleich der Aufzaehlung aller Teilmengen, Median 0,245 ms, Maximum 1,041 ms;
+   Belastung 20 Favoriten 116,4 ms (im Worker). `ponytail:` exponentiell in den Favoriten, Decke bei
+   ca. 30; Aufstieg Greedy, wenn das je vorkommt.
+3. `_can_still_be_met` rechnet ueber Kopien: je Ebene eine Kopie, `rest` = offene Effekte, die sie
+   nicht traegt; Kopien mit gleichem `rest` nur einmal probieren. Exakt, weil eine Kopie alles
+   deckt, was sie traegt, und spaeter nicht mehr gebraucht wird. Der `ponytail`-Vermerk dort faellt.
+4. `run.run`: `found = beam(q) or beam(replace(q, required=frozenset()))`. Der Rueckfall ist die
+   Zusage "blockiert nie" gegen den Fall, dass die K-Grenze der Zwangszweige einen Traeger verfehlt.
+5. `AdvisorResult.required_left_out: tuple[int, ...]` **ersetzt** `blocked_by_a_requirement`;
+   `required_but_unmet` bekommt diese Ids und liefert je Effekt den A7-Satz in `unknowns`.
+
+**Gemessen (Prototyp, 110 Kombinationen, Ziel Schaden):** 110 von 110 mit 6 gefuellten Slots; alle
+6 Favoriten 39, 5: 20, 4: 41, 2: 10; Gleichstand der Teilmenge 4; Beam Median 0,89 s, Maximum 1,33 s.
+Raider's Chalice jetzt 4 von 6 bei Attack rating 117. Ironeye's Chalice 6 von 6; abgeleitet aus 110
+minus 74 = 36 gegen 39 trugen **3** Kombinationen die falsche Blockade.
+
+**Umkehrbarkeit:** leicht (die Felder), mittel (Tests zu AK-281/AK-291/AK-294 haengen daran).
+
+### AD-059 — Der Stern ist eine Randbedingung auf `SlotProblem`, wird vor der Suche auf Slots gelegt und laeuft als Grundzustand mit; zurueck kommt er als gewoehnliche Wahl (2026-11-06, Status: aktiv; erweitert AD-014, Marken-Bauform AD-036)
+
+**Kontext.** A28: das Relikt muss hinein, wenn es passt; was nicht passt, wird genannt.
+`favourites.py`: Schluessel `relic_id|effects|curses`, je Nightfarer. Auf dem Stand des Nutzers
+**0 Sterne** (Tabelle oben): **der erste Lauf nach dem Update aendert durch den Stern nichts**;
+sichtbar aendern sich AD-057 und AD-058.
+
+**Optionen.**
+- A Beam-Pflicht wie Effekt-Favoriten (Zwangszweige, Faehigkeitsschnitt): bis K Zweige je Stern
+  mehr, und die Teilmenge der Sterne muesste zusaetzlich entschieden werden.
+- B Pool des Slots auf die eine Kopie verengen: fruehe Ebenen rechnen ohne den Stern, das ist genau
+  der Fehler, den AD-014.3 fuer gehaltene Slots ausschliesst.
+- **C Vorab legen, als `held` in die Suche, als Wahl zurueck: gewaehlt.** Die Suche wird kleiner:
+  gemessen 3 Sterne als Holds 0,67 s gegen 1,26 s Median frei, AD-014 traegt die Stacking-Regeln.
+
+**Entscheidung.**
+1. `SlotProblem.pinned: tuple[Roll, ...] = ()`, sortiert, `Roll = tuple[int, tuple[int, ...],
+   tuple[int, ...]]`, `types.roll_of(copy)`. Das Paket bleibt Qt-frei und kennt das Textformat nicht:
+   `asking_from` liest `favourites.marked_for(hero_id)` (neu, ein Durchlauf ueber die Gruppe, mit
+   `parts`). Cache-Schluessel stimmt ohne Zutun, wie `excluded` (AD-036.1). Kein Feld auf
+   `AdvisorRequest`.
+2. `candidates.place(items, slots) -> (gelegt, Rest)`, je Eintrag: freier Slot **gleicher Farbe**,
+   sonst freier **weisser** Slot gleicher Deep-Art. Verlustfrei: ein Stern in Farbe statt Weiss laesst
+   jedem anderen Relikt mindestens dieselbe Wahl. Exakte Maximalzuordnung, kein Matching noetig. Wird
+   von AD-062.5 mitbenutzt.
+3. `candidates.pin(inventory, problem, ctx, goal)`: Sterne nach Grenzbeitrag gegen `held` (ein
+   `evaluate` je Stern), Gleichstand Name, Handle. Wer Rest bleibt, ist also der schwaechste.
+   `ponytail:` erster Ordnung, kein Neubewerten nach jedem gelegten Stern; zaehlt nur bei mehr Sternen
+   als Slots.
+4. `run.run` rechnet mit zwei Problemen: `searched = replace(problem, held=problem.held + gelegt)` fuer
+   Pools und Beam; `problem` (ohne Sterne) fuer Grundzustand, `gain`, `explain`. Jeder Vorschlag bekommt
+   die gelegten Kopien als `SlotChoice` in Slot-Reihenfolge; `explain.chosen_for` kennt sie als zusaetzliche
+   Quelle. Damit schreibt `Apply all` sie, und `result.held` bleibt, was der Spieler haelt (Zaehlung
+   QA-284 unberuehrt). `AdvisorResult.pins_placed: tuple[int, ...]` (Slots, fuer AK-437) und
+   `pins_left_out: tuple[PinLeftOut, ...]`.
+5. **Vorrang, Kategorien fuer AK-439** (`PinLeftOut(name, roll, reason, effect_id=None, other="")`):
+
+   | Pruefung, in dieser Reihenfolge | Konstante | Spec-Grund |
+   |---|---|---|
+   | keine Kopie im Besitz | *keine Zeile* | ein solcher Stern ist nirgends sichtbar und nicht entfernbar; eine Dauerzeile waere Rauschen |
+   | gehaltene Kopie gleichen Rolls | *erfuellt, keine Zeile* | kein zweites Exemplar |
+   | Roll traegt Avoid-Id | `PIN_AVOIDED` + `effect_id` | "it carries …" |
+   | Roll in `rejected` | `PIN_REJECTED` | "you rejected it" |
+   | keine Kopie mit Handle (AD-055) oder alle gehalten | `PIN_NO_COPY` | "you own no copy that is free" |
+   | kein Slot passender Farbe/Deep im Gefaess | `PIN_NO_SLOT` | "no free slot of its colour" |
+   | passende Slots, alle gehalten | `PIN_SLOTS_HELD` | "every slot of its colour is held" |
+   | passender Slot von anderem Stern belegt | `PIN_OTHER_PIN` + `other` | "… takes the only slot" |
+   | Legen senkt `attainable` | `PIN_BLOCKS_REQUIREMENT` + `effect_id` | "would leave … unmet" |
+
+   Der Spec-Rest "it does not fit with the other choices" wird nie erzeugt. Avoid und Reject schlagen
+   den Stern (A18), der Stern bleibt gesetzt. **Effekt-Favourite schlaegt Stern** (AK-440: "zwingend"
+   gegen "wenn es passt"); Umkehr: die letzte Zeile der Tabelle streichen.
+6. Hold schlaegt alles: gehaltene Slots sind fuer `place` nicht frei, und `candidates.pool` fasst
+   Gehaltenes nie an.
+7. Stern setzen oder nehmen aendert die Frage, nicht den Lauf: `relicpicker.py:1500` nach `menu.changed`
+   zusaetzlich `the_build_changed(marking_changed=True)`, wie AK-183/AK-289. Heute fehlt das.
+
+**Konsequenz.** Dauerhaft: `run.run` haelt zwei Probleme auseinander; wer `searched` an `explain` gibt,
+schreibt dem Vorschlag die Sterne nicht mehr gut (Waechtertest). **Umkehrbarkeit:** leicht.
+
+### AD-060 — `Reject` ist eine Menge von Rolls je (Nightfarer, Gefaess) im Fenster, nicht auf Platte (2026-11-06, Status: aktiv; Muster AD-017, erweitert AD-057)
+
+**Kontext.** A28: "gilt nur fuer diesen Build". AK-428: wie Hold bis Programmende, zurueck beim
+Rueckwechseln. **Annahmen des Designers bestaetigt.**
+
+**Optionen.** A je Handle (AD-013): die zweite Kopie gleichen Rolls kaeme sofort wieder, der Spieler saehe
+"dasselbe Relikt". B in den gespeicherten Build: AD-017 Option C, schlechteste Option. C `QSettings`: AD-017
+Option A, Handles und Rolls ueberleben das Einschmelzen ohne Regel. **D Roll, im Fenster: gewaehlt.**
+
+**Entscheidung.**
+1. `Planner._rejects: dict[tuple[int, int | None], dict[Roll, str]]`, Wert ist der Name fuer AK-430. Neben
+   `_holds`, kein `QSettings`, kein Schema.
+2. Schluessel `(hero_id, vessel_id)`, **ohne `deep`, anders als AD-017.2**: Hold ist an Slots gebunden und
+   die Slotmenge aendert sich mit Deep, ein Reject haengt an keinem Slot.
+3. `SlotProblem.rejected: frozenset[Roll] = frozenset()`, von `asking_from` gefuellt; im Schluessel; wirkt
+   ueber AD-057.1. Nicht im Picker (AD-057.3). Gehaltenes und Handgewaehltes bleiben unberuehrt.
+4. Ein Roll, der nicht mehr im Besitz ist, bleibt liegen und trifft nichts; ein Neu-Scan leert nichts (keine
+   Handles, anders als AD-017.3).
+
+**Umkehrbarkeit:** leicht.
+
+### AD-061 — X und `Reject` fragen neu ueber `ask_again`; das Markieren laeuft unter dem vorhandenen "der Spieler wendet an"-Schutz (2026-11-06, Status: aktiv; ergaenzt AK-183, laesst AK-289 fuer das Filter-Fenster)
+
+**Kontext.** Heute startet nur der Knopf (`_goal_chosen` Z. 1263, `the_build_changed` Z. 1186-1194).
+`mark()` sendet `changed`, `app.py:2950` ruft `the_build_changed(marking_changed=True)`, das wirft die Antwort
+weg: gegen AK-425 ("alte Bloecke bleiben stehen").
+
+**Optionen.** A neues kwarg an `the_build_changed`: Designer-Vorschlag, eine zweite Bedeutung fuer eine Funktion
+"der Build hat sich geaendert". B `changed` kurz trennen: `QSignalBlocker` wuerde auch den Filterzaehler stumm
+schalten. **C vorhandener Schutz: gewaehlt.** `while_the_player_applies_it` (`advisorbar.py:1217`) ist genau
+"diese Aenderung hat die Zeile selbst verlangt", und ein Fehler mittendrin laesst sie nicht taub.
+
+**Entscheidung.**
+```python
+# Planner, illustrierend
+def _avoid_from_the_block(self, effect_id):
+    with self.advisor_bar.while_the_player_applies_it():
+        self.effect_filters.mark(effect_id, effectfilters.EXCLUDED)
+    self.advisor_bar.ask_again(stopped_says=name)
+```
+`AdvisorBar.ask_again`: wie `_ask`, aber **ohne** `_forget_the_answer`, und `AdvisorController.ask(...,
+debounce_ms=0)` (neuer Parameter, AK-424: die Bloecke sind waehrenddessen gesperrt, zu daempfen gibt es nichts).
+`Situation.stopped_note` traegt den Satz aus AK-425/AK-429; bei `Cancel` faellt die Antwort. `Reject` gleich, nur
+statt `mark` der Eintrag in `_rejects`. `Suggest again` (AK-430): Eintrag weg, `ask_again` nur, wenn eine Antwort
+steht. Marken aus dem Filter-Fenster unveraendert: kein Lauf.
+
+**Umkehrbarkeit:** leicht.
+
+### AD-062 — Der Chalice-Vergleich ist **dieselbe Frage elfmal**: je Gefaess ein gewoehnlicher `run.run` nacheinander ueber eine dritte `AdvisorController`-Instanz mit geteiltem Cache (2026-11-06, Status: aktiv; erweitert AD-006, AD-007, AD-028; **`gc.freeze` neu**)
+
+**Kontext.** A28: jeder `Optimize` bewertet alle Gefaesse mit Ziel, Filtern, gehaltenen Relikten; das Budget aus A6
+gilt bis zum Vorschlag, der Vergleich darf im Hintergrund fertig werden. AK-433: Zeilen fuellen sich einzeln. AK-435:
+nach dem Wechsel steht der Vorschlag ohne zweiten Lauf.
+
+**Gemessen, Wylder, 11 Gefaesse:**
+
+| Weg | Schaden | Abwehr |
+|---|---|---|
+| `pools` + `beam`, ohne Marken | Summe **13,66 s**, Maximum 1,43 s, Median 1,26 s | 9,38 s |
+| voller `run.run`, ohne Marken | Summe **15,52 s**, Median 1,41 s | 10,69 s |
+| voller `run.run`, Avoid hart | 14,87 s, Median 1,37 s | 10,46 s |
+| echter Controller im `QThread`, 11 nacheinander | **13,33 s** (zwei weitere Laeufe 13,8 und 16,7 s mit Messzeitgeber) | |
+| dieselben 11 als Cache-Treffer | **13,1 ms** | |
+
+Abstand der Gefaesse (Schaden): 118 Chalice, 114 Forgotten Goblet, 113 Urn, 94 Erdtree Grail; bei 0 Marken gefuellt 6/6
+in allen elf. Der Unterschied ist also gross genug fuer die Frage.
+
+**Optionen.**
+- A **eine Frage `run.compare`** mit allen Gefaessen: ein Ergebnis am Ende, gegen AK-433; neues Feld auf
+  `AdvisorRequest`, `FrozenInventory` fuer alle Farbpaare, eigene Antwortfunktion. 12 % billiger (13,66 gegen 15,52 s),
+  aber AK-435 braeuchte dann doch den zweiten Lauf. Verworfen.
+- B **eigener schmaler Rechenweg** ohne `explain`: dieselben 12 %; eine zweite Stelle, an der ein Gefaesswert entsteht,
+  die vom Vorschlag abweichen kann (AD-002-Klasse). Verworfen.
+- C **Bar-Controller wiederverwenden:** `started`/`ready` meinen dort den sichtbaren Lauf, die Leiste muesste 4.2 bis 4.4
+  fuer Hintergrundlaeufe unterdruecken; `ask` uebernimmt die eine Generation. Verworfen.
+- D **Layouts zusammenlegen:** 0 Ersparnis (Tabelle oben). Exakt gleiche Layouts treffen den Cache ohnehin. Nicht gebaut;
+  interessant nur, wenn Saetze je Layout nicht mehr Slot-Indizes tragen muessten.
+- **E dritte Instanz, gewaehlt** (AD-028 Option D fortgesetzt).
+
+**Entscheidung.**
+1. `advisor/worker.py`: `VesselComparison(QObject)` haelt eine `AdvisorController(answer=run.run, cache=<der der Leiste>,
+   debounce_ms=0)`, fragt eine Frage je Gefaess nacheinander, die naechste aus `ready`. Signale `row_ready(VesselRow)`,
+   `finished(tuple[VesselRow, ...])`, `failed(str)`, `stopped()`. Die Leiste baut ihren Controller mit explizitem
+   `ResultCache`. Cache nur im Hauptthread (Bestand), also ohne Lock. **`CACHE_SIZE` bleibt 32:** haelt zwei volle Vergleiche
+   samt Vorschlaegen; die 66 aus dem Entwurf wuerden 8 MiB kosten, ohne dass AK-435 sie braucht.
+2. Qt-frei in `run.py`: `vessel_questions(asking, vessels, chosen_id, deep)`, `vessel_row(vessel_id, result)`,
+   `ranked(rows, chosen_id)`.
+3. **Das gewaehlte Gefaess zuerst, ohne Sonderweg:** `AdvisorBar._on_ready` startet den Vergleich; die Frage des gewaehlten
+   Gefaesses ist die eben beantwortete, also Treffer in Mikrosekunden. Nicht gestartet wird bei einem Treffer aus AD-062.7.
+   A6 bleibt damit vom Vergleich unberuehrt.
+4. **Abbruch:** `VesselComparison.cancel()` aus `_ask`, `ask_again`, Veraltung (Punkt 8), `the_data_is_changing`, `shutdown`.
+   Der Controller verwirft Antworten sofort per Generation; der Worker war gemessen **197,6 ms** nach `cancel` weg (ein Messpunkt,
+   0,6 s im Lauf). `the_data_is_changing` und `shutdown` sind **Pflicht** (AD-006.7, `model`-Globale), Waechtertest. **Laeuft der Vergleich
+   weiter, wenn das Gefaess wechselt** (AK-434): ja, ein Wechsel fragt nichts neu.
+5. **Halten im fremden Gefaess:** `vessel_questions` legt die gehaltenen Relikte mit `candidates.place` (AD-059.2) in die Slots
+   des anderen Gefaesses. `HeldRelic` bekommt `colour`, `is_deep` (Eingang `advisorbar.held_slot`; ein Custom relic in einem weissen
+   Slot passt in jeden Slot gleicher Deep-Art). Das gewaehlte Gefaess behaelt die Stellung des Spielers. Passt ein gehaltenes Relikt
+   nirgends: keine Frage, Zeile mit `unfit_holds`, Rang zuletzt. Ein Hold auf einem **leeren** Slot bleibt beim Gefaess, wird nicht
+   uebertragen. Marken, Sterne und die Rejects des offenen Gefaesses reisen unveraendert im `problem`.
+6. **Datenmodell und Vergleichsgroesse:**
+   ```python
+   @dataclass(frozen=True)        # illustrierend
+   class VesselRow:
+       vessel_id: int
+       figure: str                # Suggestion.score.display, sonst die Grundlinie
+       value: float               # Suggestion.score.value
+       filled: int                # choices + held, wie advisorbar._on_ready
+       slots: int
+       required_left_out: tuple[int, ...] = ()
+       pins_left_out: int = 0
+       unfit_holds: tuple[str, ...] = ()
+   ```
+   `ranked`: **(unfit zuletzt, weniger offene Wuensche, hoeherer `value`, mehr `filled`, das gewaehlte, Listenreihenfolge).**
+   Wuensche zuerst: gemessen bei Raider unter den Marken des Nutzers Scadutree Grail 119 mit 2 von 6 Favoriten gegen Decrepit Goblet 88 mit
+   6 von 6. A19 nennt den Favoriten Pflicht, A28 fragt nach dem besten Gefaess "fuer die relikte die ich will". **Offen OF-62.** Gleichstand nach
+   AK-432 auf `figure`. `difference` ueber `damage.displayed` wie `explain._signed_delta`.
+7. **Wechsel ohne zweiten Lauf:** Ist der Vergleich aktuell, fragt die Leiste nach dem Wechsel `ask_and_answer_if_known` und zeichnet bei
+   Treffer wie `_on_ready`. Ohne Holds und ohne Rejects stimmt der Schluessel von selbst. **`Switch to it` uebertraegt** Holds und Rejects ins Zielgefaess
+   (`_holds`, `_rejects`, Relikte in die Slots ueber den `Apply`-Weg), sonst waere die Zahl der Zeile nicht die des Vorschlags; das ueberschreibt dort
+   die gespeicherten Slots an diesen Stellen. **Ein gewoehnlicher Zeilenklick uebertraegt nichts**, Holds des Spielers je Gefaess bleiben
+   (AD-017); hat er Holds oder Rejects, gibt es keinen Treffer und 4.1. Abweichung von AK-435(a)(c) nur in diesem Fall.
+8. **Veraltet (AK-434):** Die Leiste merkt sich beim Start `request` ohne `problem.slots`, `held`, `rejected`, `generation`, Fingerabdruck und
+   vergleicht nach jedem `the_build_changed` (1,3 ms Median fuer `asking_from` samt Einfrieren), dazu ein Aufruf aus `_set_hold` und aus jeder Reject-Aenderung.
+   Eine Zustandsnaht statt neun Aufrufstellen; Gefaess, `Use`, Handaenderung am Slot aendern die Signatur nicht.
+9. **Hauptthread (A6 Zeile 3, 50 ms).** Je Frage `ask` Median 1,31 ms, Maximum 2,47 ms. Der Lauf selbst haelt die Grenze am Bestand **nicht**: Zeitgeber-Abstand Median
+   10,4 ms; ueber 50 ms bei **einem** Lauf bereits 51,6 ms, bei 11 Laeufen 3 bis 4 Abstaende, Spitze 178,8 ms. Ursache: voller GC (Generation 2) ueber den Datensatz,
+   95 260 verfolgte Objekte, bis 93,9 ms, mit gehaltenem GIL. **Tauschprobe im selben Prozess, je zweimal:** ohne Spitzen 178,8 und 61,8 ms; nach `gc.collect(); gc.freeze()`
+   **0 Abstaende ueber 50 ms**, Spitzen 13,7 und 21,0 ms, GC hoechstens 12,8 ms. Darum: einmal nach dem Laden des Datensatzes
+   `gc.collect(); gc.freeze()`, beim Neuaufbau davor `gc.unfreeze()`. Standardbibliothek, zwei Zeilen, hilft auch jedem Einzellauf. Gemessen offscreen, ohne Zeichnen;
+   Pruefung am Fenster unten.
+
+**Konsequenz.** Leicht: jede Zeile ist per Bauart, was `Optimize` dort sagt, inklusive Avoid, Teilmenge und Stern; ein spaeterer Fix an `run.run` gilt mit. Ein
+wiederholter `Optimize` ist Treffer. Dauerhaft: rund 13 s Hintergrundlast je Optimize-Frage auf einem Kern; drei Controller muessen vor Datenwechsel stehen; AD-059 und AD-062 teilen `place`.
+**Umkehrbarkeit:** leicht (Start aus `_on_ready` entfernen), mittel fuer `HeldRelic.colour` im Schluessel.
+
+**Befund zu "bedingte Effekte not counted" (Designer-Frage 4), keine Entscheidung.** `candidates.py:132` und Klausel 4.9b **stimmen**, und GOAL A18 Satz 1 ist nachgezogen, nicht
+widerlegt: `model.advisor_defaults()` zaehlt 420 Bedingungen als erfuellt, `asking_from` laesst davon nach den Nutzerentscheiden vom 28.10. und 01.11.2026
+(Waffentyp der gewaehlten Kachel, Status-Quelle, Waffenzahl) bei Wylder mit leerer Kachel 311 stehen. Die uebrigen zaehlen nicht, und genau die nennt der Satz: gemessen 6, 6 und 2 Kopien in den ersten drei
+Pools von Wylder's Urn; `result.not_counted` in drei besten Vorschlaegen 0. **Unvollstaendig ist `guide.md:235`** ("counted as met unless you say otherwise"); Ergaenzung beim `technical-writer` (AK-448).
+
+**Umsetzung, Reihenfolge zwingend, je Zeile ein Commit.**
+
+| Schritt | Inhalt | Dateien | Tests |
+|---|---|---|---|
+| Q1 | AD-057.1-.3: `rejected`-Feld, `unwanted`, Filter, Picker-`replace` | `advisor/types.py`, `advisor/candidates.py`, `relicpicker.py` | `test_advisor_candidates.py`, `test_advisor_run.py:288`, `test_advisor_explain.py:982, :1007`, `test_relic_picker_advisor.py`, `test_advisor_slot_pool.py` |
+| Q2 | AD-058: `attainable`, Kopien-Machbarkeit, Rueckfall, `required_left_out` (Leiste auf Bestandsklausel) | `advisor/search.py`, `advisor/run.py`, `advisor/explain.py`, `advisor/types.py`, `advisorbar.py` | `test_advisor_search.py`, `test_advisor_run.py`, `test_advisor_bar.py`, `test_advisor_covers_every_chalice.py` |
+| Q3 | AD-057.4-.5: Zaehlfelder, `empty_slots`, Klauseln AK-443 | `advisor/types.py`, `candidates.py`, `explain.py`, `run.py`, `advisorbar.py` | je Konstante ein konstruierter Fall, `test_advisor_explain.py`, `test_advisor_bar.py` |
+| Q4 | AD-059.1-.6 Qt-frei: `Roll`, `pinned`, `place`, `pin`, zwei Probleme in `run.run` | `advisor/types.py`, `candidates.py`, `run.py`, `explain.py` | `test_advisor_candidates.py`, `test_advisor_run.py`, `test_advisor_hold.py`; je `PIN_*` ein Fall; Waechter "`gain` zaehlt den Stern mit" |
+| Q5 | Stern an den Lauf: `marked_for`, `asking_from`, AD-059.7, AK-437-440 | `favourites.py`, `advisorbar.py`, `relicpicker.py`, `advisorblock.py` | `test_advisor_bar.py`, `test_relic_picker_advisor.py`, `test_advisor_block.py`; Umlenkung Registry |
+| Q6 | AD-060/061: `_rejects`, `ask_again`, X und `Reject`, Falte AK-430, AK-420-430 | `app.py`, `advisorbar.py`, `advisorblock.py`, `advisor/worker.py` | `test_advisor_block.py`, `test_advisor_bar.py`, `test_advisor_worker.py`, `test_advisor_apply.py` (AK-444) |
+| Q7 | AD-062.2, .5, .6 Qt-frei | `advisor/run.py`, `advisor/types.py`, `advisorbar.held_slot` | `test_advisor_run.py`, `test_advisor_types.py`, Waechter `vessel_row.value == run.run(...).suggestions[0].score.value` |
+| Q8 | AD-062.1, .3, .4, .9: `VesselComparison`, geteilter Cache, Abbruch, `gc.freeze` | `advisor/worker.py`, `advisorbar.py`, `app.py` | `test_advisor_worker.py`: Reihenfolge, Abbruch, `the_data_is_changing`, `shutdown`, Treffer je Zeile |
+| Q9 | AK-431-436, AD-062.7, .8 | `app.py`, `advisorbar.py` | `test_advisor_bar.py`, `test_advisor_apply.py` |
+| Q10 | Wortlaut AK-445-447, Docstrings `types.py:159`, `favourites.py:4`; `guide.md` beim `technical-writer` | `effectfilterdialog.py`, `advisor/explain.py`, `advisor/types.py`, `favourites.py` | `test_effectfilterdialog.py:310` |
+
+Q1 bis Q4 und Q7 sind Qt-frei und je einzeln lauffaehig. **Pruefphase (AD-033):** Mutationen je Griff: Filter `continue` weg; `attainable` gibt immer alles; `place` nimmt Weiss zuerst; `explain` bekommt `searched`;
+`shutdown` ohne `VesselComparison.cancel`.
+
+**Was der `developer` nicht tut.** Keine Layout-Zusammenlegung; kein schmaler Rechenweg neben `run.run`; kein Feld auf `AdvisorRequest` und `GoalContext`; keine Sterne oder Rejects auf Platte ausser dem bestehenden Stern; `favourites` nicht aus `advisor/`
+importieren (Qt, AD-001); kein paralleles Rechnen der Gefaesse (GIL); kein automatischer Gefaesswechsel; `evaluate.py:68` nicht entfernen; kein Lauf beim Markieren im Filter-Fenster; Wortlaute aus `UI_SPEC.md`, nicht von hier.
+
+**Pruefpunkte.** (a) `performance-tuner` am Fenster: Abstaende ueber 50 ms waehrend des Vergleichs mit Zeichnen; (b) ebenso Picker oeffnen waehrend des Vergleichs: zwei Worker teilen den GIL, AK-Zeiten der Picker-Spur **nicht gemessen**; Griff, falls reisst:
+Vergleich pausiert, solange der Picker offen ist; (c) `qa-engineer` A18-Nachweis, Vergleich Zeile gegen Optimize je Gefaess; (d) `gc.freeze`: Speicher nach zwei Datenneuaufbauten.
+
+**Risiken.** 13 s Dauerlast je Frage bei haeufigem X: Abbruch traegt, Treffer bleiben. `Switch to it` mit Holds ueberschreibt gespeicherte Slots des Zielgefaesses: nur auf Klick, und `chalices.save` bleibt der Weg. Beam-Rueckfall (AD-058.4) nennt dann mehr Effekte als noetig; in 110 Kombinationen nicht ausgeloest.
+
+**Bewusst nicht getan.** Row-Vorschau des Vorschlags im Vergleich; Vergleich ueber Nightfarer; Budget-Senkung fuer Fremdgefaesse (Zeile waere nicht mehr der Optimize-Wert); Pausieren bei offenem Picker (erst nach Pruefpunkt b); Neu-Bewertung der Sterne nach jedem Legen.
+
+**Offene Fragen aus Themenbereich Q.**
+
+**OF-62 (`director` → App Designer):** Was heisst `BEST`? Gebaut wird **erst erfuellte Wuensche, dann Zahl** (Raider unter den heutigen Marken: Decrepit Goblet 88 mit 6 von 6, nicht Scadutree Grail 119 mit 2 von 6). Alternative: reine Zahl, Fehlendes nur im Tooltip `Misses`. Eine Zeile in `ranked`.
+
+**OF-63 (`director` → `ui-ux-designer`), Luecken der Spec gegen diesen Entwurf:** (a) AK-432 "Kopfzahl des `Why`-Dialogs" gibt es nicht, Quelle ist `Suggestion.score.display`; (b) der Satz "{difference} more than this one" passt nicht, wenn `BEST` wegen OF-62 die **kleinere** Zahl hat; (c) Zeile mit `unfit_holds` und ein Satz fuer gehaltene Relikte ohne Platz fehlen; (d) AK-443 nennt nur leere Slots: sind alle sechs gefuellt und 2 von 6 Favoriten offen (41 von 110 gemessen), sagt die Leiste nichts; (e) AK-433 "`Cancel` bricht den Vergleich ab": waehrend des Vergleichs steht die Leiste schon auf `Optimize`, ohne `Cancel`; ein neuer Lauf bricht ab, Bedarf fuer mehr? (f) AK-435(a)(c) bei Holds oder Rejects: Zeilenklick zeigt 4.1 (AD-062.7); (g) AK-428 ohne `deep`: bestaetigt.
+
+---
+
 *Ab hier steht, was aus den Entscheidungen folgt: der Umsetzungsschnitt, die
 Verbote an den `developer`, die Pruefpunkte, die Risiken, das bewusst nicht
 Getane und die offenen Fragen. Innerhalb jedes Blocks stehen die Fassungen in
