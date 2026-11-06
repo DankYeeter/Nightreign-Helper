@@ -9285,7 +9285,7 @@ mehrere Nightfarer; Staerkeregler fuer Sterne; die Rechnung selbst (`architect`)
 
 *Quellen: OF-63 (a-f) und AD-057 bis AD-062 in `ARCHITECTURE.md`, Themenbereich Q.
 **Kein Fensterlauf**, alle Groessen sind Startwerte aus dem Code. Naechste freie AK:
-AK-461. Dieser Nachtrag **ersetzt nur die unten genannten Stellen** des Nachtrags
+AK-466 (Stand 2026-11-07, Abschnitt 7a: AK-461 bis AK-465). Dieser Nachtrag **ersetzt nur die unten genannten Stellen** des Nachtrags
 A28 (AK-420 bis AK-448); alles andere dort gilt unveraendert. Das Wort "Wunsch" kommt
 im Programmtext nie vor, dort steht `favourite`.*
 
@@ -9301,14 +9301,15 @@ im Programmtext nie vor, dort steht `favourite`.*
 | AK-439 Liste der Gruende, Leistenklausel | AK-455, AK-456 |
 | AK-442 Saetze "Favourite-Effekt" und "Stern", AK-443 `{short}` | AK-457 |
 | AK-447 "zwei Fassungen" | AK-458: **Fassung A** |
+| A7-Saetze (AK-281/AK-291) `No combination of the copies you own carries …` und `…which you favourited — no suggestion can meet that.` (zwei Stellen, Zeile 1392/1393 dieser Datei) | AK-462 (Kombination), AK-461 (Avoid); der Satz "No copy you own carries …" bleibt in der Aussage |
+| AK-450 Satz 3, Satz 5, Absatz "Satz 3 und 4 sagen …"; Kopf-Absatz "Zum offenen BEST-Rang" (Fassungen A/B) | AK-463 bis AK-465 |
 
-**Zum offenen BEST-Rang (OF-62).** Die Texte gelten fuer beide Antworten. Empfehlung
-bleibt **erst erfuellte Favourites, dann Zahl** (Fassung A). Gilt stattdessen "reine Zahl"
-(Fassung B), werden die Saetze AK-450 (3) und (4) nie erreicht, weil `BEST` dann nie die
-kleinere oder gleiche Zahl hat; sie bleiben als konstruierte Testfaelle stehen, falls die
-Antwort kippt. Alles andere ist in beiden Fassungen gleich. Eine Abweichung, die nur A
-braucht: die Zeile `{n} favourite(s) missing` (AK-452) ist unter B Zusatzinfo, unter A
-Pflicht, weil sonst eine `BEST`-Zeile mit der kleineren Zahl unerklaert bliebe.
+**Zum BEST-Rang (OF-62): entschieden am 2026-11-07** (`GOAL.md` A28, letzter Punkt,
+Nutzerzitat): erst erfuellte Effekt-Favourites, dann Stern-Relikte, dann Zahl des
+gewaehlten Ziels, dann das andere Ziel. Es gibt keine Fassung B mehr; die Saetze
+AK-450 (3) und (4) sind echte Faelle, die Zeile `{n} favourite(s) missing` (AK-452) ist
+Pflicht. Massgeblich sind AK-463 bis AK-465 (Abschnitt 7a); wo AK-450 und AK-452 davon
+abweichen, gilt Abschnitt 7a.
 
 ##### 1. Zahlquelle fuer den Gefaessvergleich (OF-63 a)
 
@@ -9492,12 +9493,104 @@ den Kopf gebaut, damit AK-432 eine hat; AK-449 liest nur `score.display`.
 Klicks, aber der Spieler trifft dort eine Entscheidung: Zeilenklick (nichts mitnehmen) oder
 `Switch to it` (mitnehmen), AK-454.
 
+##### 7a. Nachtrag 2026-11-07 (ui-ux-designer): A7-Saetze bei Avoid und Teilerfuellung, Rang des Vergleichs (AK-461 bis AK-465)
+
+*Quellen: `ARCHITECTURE.md` AD-057.5 und AD-058, `explain.required_but_unmet`
+(`explain.py:1247-1293`), `GOAL.md` A28. Kein Fensterlauf. Naechste freie AK: AK-466.*
+
+**AK-461 Eigene Traeger alle mit Avoid (AD-057.5).** Fall in `required_but_unmet`: der Spieler
+besitzt mindestens ein Relikt mit dem Effekt-Favourite, kein Pool enthaelt einen Traeger, und
+**jedes** besessene Relikt mit diesem Effekt traegt mindestens einen vermiedenen Effekt oder
+Fluch. Dieser Satz geht vor dem Satz `none fits the open slots` und vor dem Deep-Zusatz.
+Ist nur ein Teil der Traeger vermieden, bleibt der bisherige Satz (`none fits the open slots`
+ist dort wahr). Wortlaut (Namen in Anfuehrungszeichen wie AK-456; die vermiedenen Namen
+sind die Vereinigung ueber diese Relikte, alphabetisch, hoechstens zwei, dann `and {n} more`,
+Form AK-457):
+- ein Relikt: `You own 1 copy carrying “{effect}”, which you favourited, but it also carries an
+  effect you avoided: {names}. Remove the avoid under Filters to use it.`
+- mehrere: `You own {n} copies carrying “{effect}”, which you favourited, but each also carries an
+  effect you avoided: {names}. Remove the avoid under Filters to use them.`
+
+Der Schlusssatz nennt den Weg (Filters-Knopf, AK-302) und ist deshalb Pflicht. Der Satz sagt
+nie `no suggestion can meet that`: der Spieler kann es aendern.
+- Akzeptanz: Fall "ein Traeger, vermieden" und "drei Traeger, zwei verschiedene Avoids" mit
+  dem Satz wortgleich; Fall "ein Traeger vermieden, einer wegen Farbe nicht passend" liefert
+  den Bestandssatz; `rg 'none fits the open slots'` trifft den Fall "alle Traeger vermieden"
+  im Test nie.
+- Nicht festgelegt: ein per `Reject` abgelehntes Relikt (kein Avoid) faellt heute ebenfalls
+  in `none fits`; ein eigener Satz dafuer ist eine Frage an den `architect`, hier nicht
+  entschieden.
+
+**AK-462 Bestandssatz bei Teilerfuellung (AD-058).** Der Satz in `required_but_unmet`, der
+heute lautet `No combination of the copies you own carries {effect}, which you favourited —
+no suggestion can meet that.`, steht dort, wo ein Pool einen Traeger **hat** (der Effekt fehlt,
+weil die freien Slots ihn nicht zusammen mit den uebrigen tragen koennen). Er ist falsch
+geworden: eine andere Kombination traegt den Effekt, und "no suggestion can meet that" klingt
+nach Unmoeglichkeit. Neuer Wortlaut:
+
+`Your copies can carry “{effect}”, which you favourited, but not together with the favourites
+this suggestion already meets.`
+
+Der Satz `No copy you own carries “{effect}”, which you favourited — no suggestion can meet
+that.` (kein Relikt im Besitz) **bleibt** in der Aussage, denn dort stimmt er; dazu die
+Anfuehrungszeichen, ebenso im Satz `You own {n} copy/copies carrying “{effect}”, but none
+fits the open slots` (eine Konvention in einem Dialog). Der Satz "kein Vorschlag kann das
+erfuellen" steht damit nur noch dort, wo der Spieler das Relikt gar nicht besitzt.
+- Akzeptanz: `rg 'No combination of the copies you own'` und `rg 'no suggestion can meet
+  that'` treffen im Code nur noch den Satz "No copy you own"; Test mit einem Pool-Traeger
+  und fehlendem Effekt liefert den neuen Satz; AK-455 (Tooltip der Leistenklausel) nennt
+  denselben Satz (eine Quelle).
+
+**AK-463 Rang des Gefaessvergleichs (Entscheidung des Nutzers, `GOAL.md` A28).** Reihenfolge
+der Schluessel, jeweils der bessere zuerst, hinter "unfit zuletzt" (AK-451):
+1. mehr erfuellte **Effekt-Favourites** (weniger `required_left_out`),
+2. mehr erfuellte **Stern-Relikte** (weniger `pins_left_out`),
+3. hoeherer Wert des **gewaehlten Ziels**,
+4. hoeherer Wert des **anderen Ziels** (Schaden bzw. Abwehr).
+
+Danach (nicht sichtbar) Listenreihenfolge als letzter Entscheider. Diese Fassung ersetzt
+die Vermutung in AK-450 "welche der Rang zaehlt, entscheidet der `architect`": beide
+Favourite-Arten zaehlen, Effekte vor Sternen. Der `architect` zieht `ranked` (AD-062.6) nach;
+ein frueherer Schluessel "mehr `filled`" ist durch die Nutzerentscheidung nicht gedeckt.
+- Akzeptanz: Testfaelle, in denen je ein Schluessel allein entscheidet (1, 2, 3, 4); der
+  Test des Schluessels 4 hat gleiche Zahl im gewaehlten Ziel und verschiedene im anderen.
+
+**AK-464 Saetze der Statuszeile nach dem Rang.** AK-450 (1), (2) und (4) bleiben
+wortgleich. Die Faelle werden am **Wert** des gewaehlten Ziels unterschieden (nicht an der
+angezeigten Zahl):
+- (2) BEST hat den hoeheren Wert: wie AK-450 (2), auch wenn BEST zusaetzlich mehr Favourites
+  erfuellt (der Satz ist dann ebenfalls wahr; `{difference}` entfaellt nur nach AK-449).
+- (3) gleicher Wert, BEST erfuellt mehr Favourites (Effekte oder Sterne): wie AK-450 (3),
+  `…, same as this one, but it meets more of your favourites).`
+- **(3b) neu:** gleicher Wert, gleich viele erfuellte Favourites, BEST ist im **anderen** Ziel
+  besser: `Best of {total} for {goal}: {name} ({figure}, same as this one, but better for
+  {other}).` mit `{other}` = Name der anderen Zielrichtung aus derselben Quelle wie `{goal}`.
+  Ohne diesen Satz wuerde (3) hier falsch sagen, BEST erfuelle mehr Favourites.
+- (4) kleinerer Wert: wie AK-450 (4); das ist unter AK-463 nur moeglich, wenn BEST mehr
+  Favourites erfuellt, der Satz bleibt dadurch immer wahr.
+- (5) Gleichstand: **alle vier** Schluessel aus AK-463 gleich (nicht nur die Zahl des
+  gewaehlten Ziels); sonst entscheidet (3b).
+- Akzeptanz: je Satz ein konstruierter Fall, auch (3), (3b), (4) sind ab jetzt erreichbar;
+  zwei Gefaesse mit gleicher Zahl im gewaehlten Ziel und verschiedener im anderen zeigen
+  (3b), nicht (5) und nicht (3).
+
+**AK-465 `favourite(s) missing` ist Pflicht; OF-62 geschlossen.** Die Zeile
+`  ·  {n} favourite missing` / `{n} favourites missing` in der zweiten Textzeile (AK-452) steht
+immer, wenn `required_left_out` plus `pins_left_out` > 0 ist, in beiden Faellen: auf `BEST` und
+auf jeder anderen Zeile. `{n}` zaehlt Effekte und Sterne zusammen (wie die Schluessel 1 und 2).
+Der Tooltip `Misses: {names}.` nennt erst Effektnamen, dann Reliktnamen (AK-452), das
+entspricht der Reihenfolge des Rangs. Die Offenheit zu OF-62 und die Fassungen A/B im
+Kopf dieses Nachtrags sind erledigt.
+- Akzeptanz: eine Zeile mit `required_left_out` oder `pins_left_out` > 0 zeigt die Zeile,
+  auch wenn sie `BEST` ist; eine Zeile ohne fehlende Favourites zeigt nichts davon; `{n}` =
+  Zahl der Namen in `Misses:`. Eine `BEST`-Zeile mit kleinerer Zahl wird durch Satz (4)
+  der Statuszeile erklaert, die Zeile selbst zeigt die Zahl der **noch** fehlenden.
+
 ##### 8. Offene Fragen an den App Designer
 
-- **OF-62 (unveraendert offen):** `BEST` = erst erfuellte Favourites, dann Zahl
-  (Empfehlung), oder reine Zahl. Unter A kann `BEST` als "hoechste Zahl" gelesen werden;
-  AK-450 (3)/(4) und AK-452 erklaeren es. Soll das Wort schaerfer sein (z. B. `BEST FIT`),
-  ist das eine Zeile; ich habe es nicht vorweggenommen.
+- **OF-62: beantwortet am 2026-11-07** (Nutzerzitat in `GOAL.md` A28), keine Offenheit
+  mehr; siehe AK-463 bis AK-465. Das Wort bleibt `BEST` (der Nutzer sagt "als beste
+  markieren"); `AK-450 (3)/(4)` und AK-452 erklaeren, warum die Zahl kleiner sein kann.
 - **`Switch to it` mit Holds ueberschreibt gespeicherte Slots des Zielgefaesses** (AD-062,
   Risiken), ohne Rueckfrage, rueckholbar nur ueber `Undo apply` (AK-454). Der `architect`
   bestaetigt, dass Undo das voll abdeckt; sonst braucht der Knopf eine Bestaetigung, wenn
