@@ -114,9 +114,39 @@ TABLE = [
     ("4.11", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
         goal_label="Maximise damage", slots=4, slots_filled=3,
-        slots_without_a_choice=1),
-     "Maximise damage — 3 of 4 slots filled  ·  1 slot has nothing to choose "
-     "from."),
+        slots_without_a_choice=1,
+        empty_slots=(types.EmptySlot(3, types.EMPTY_NOTHING),)),
+     "Maximise damage — 3 of 4 slots filled  ·  1 slot empty: nothing left to "
+     "choose from."),
+    ("4.11 two of one reason (AK-443)", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=4, slots_filled=2,
+        slots_without_a_choice=2,
+        empty_slots=(types.EmptySlot(2, types.EMPTY_AVOIDED),
+                     types.EmptySlot(3, types.EMPTY_AVOIDED))),
+     "Maximise damage — 2 of 4 slots filled  ·  2 slots empty: everything "
+     "left carries an effect you avoided."),
+    ("4.11 two reasons (AK-443)", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=4, slots_filled=2,
+        slots_without_a_choice=2,
+        empty_slots=(types.EmptySlot(2, types.EMPTY_AVOIDED),
+                     types.EmptySlot(3, types.EMPTY_REJECTED))),
+     "Maximise damage — 2 of 4 slots filled  ·  2 slots empty for different "
+     "reasons — see the slot cards."),
+    *[(f"4.11 {reason} (AK-457)", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=1, slots_filled=0,
+        slots_without_a_choice=1,
+        empty_slots=(types.EmptySlot(0, reason, relic_name="Urn"),)),
+       f"Maximise damage — 0 of 1 slots filled  ·  1 slot empty: {short}.")
+      for reason, short in (
+          (types.EMPTY_REQUIREMENT,
+           "what is left is needed for your Favourite effects"),
+          (types.EMPTY_PIN, "your favourite “Urn” uses the rest"),
+          (types.EMPTY_AVOIDED_AND_REJECTED,
+           "everything left is rejected or carries an avoided effect"),
+          (types.EMPTY_REJECTED, "everything left is rejected"))],
     ("4.11 no carrier, one (AK-365)", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
         goal_label="Maximise damage", slots=1, slots_filled=0,
@@ -257,7 +287,7 @@ def _an_asking(relics: int = 292, slots: int = 6) -> advisorbar.Asking:
 
 def _an_answer(filled: int = 6, curses: tuple = (),
                not_counted: tuple = (),
-               held: int = 0) -> types.AdvisorResult:
+               held: int = 0, empty: tuple = ()) -> types.AdvisorResult:
     """An answer that fills `filled` slots of the question above, with
     `held` more already decided before the search ran (QA-284)."""
     choices = tuple(types.SlotChoice(slot_index=index, handle=100 + index,
@@ -270,7 +300,7 @@ def _an_answer(filled: int = 6, curses: tuple = (),
         goal_id="max_damage", goal_label="Maximise damage",
         suggestions=(types.Suggestion(choices=choices, score=score),),
         curses_without_a_figure=curses, not_counted=not_counted,
-        held=held_slots)
+        held=held_slots, empty_slots=empty)
 
 
 @pytest.fixture
@@ -512,10 +542,9 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
     """4.11 rather than 4.6: a slot with nothing in it is the loud one."""
     bar.optimize_button.click()
     bar._controller.begins()
-    bar._controller.answers(_an_answer(filled=5))
+    bar._controller.answers(_an_answer(filled=5, empty=(types.EmptySlot(5, types.EMPTY_NOTHING),)))
     assert bar.status.accessibleName() == (
-        "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
-        "choose from.")
+        "Maximise damage — 5 of 6 slots filled  ·  1 slot empty: nothing left to choose from.")
 
 
 def test_nothing_owned_reaching_the_choice_is_a_yellow_line_under_the_row(
@@ -565,10 +594,12 @@ def test_a_held_slot_does_not_count_as_nothing_to_choose_from(bar):
     choose from."""
     bar.optimize_button.click()
     bar._controller.begins()
-    bar._controller.answers(_an_answer(filled=4, held=1))
+    bar._controller.answers(_an_answer(
+        filled=4, held=1,
+        empty=(types.EmptySlot(5, types.EMPTY_NOTHING),)))
     assert bar.status.accessibleName() == (
-        "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
-        "choose from.")
+        "Maximise damage — 5 of 6 slots filled  ·  1 slot empty: nothing "
+        "left to choose from.")
 
 
 def test_a_marking_that_changes_under_a_run_names_the_marking_not_the_build(

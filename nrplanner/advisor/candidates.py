@@ -247,6 +247,8 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
 
     measured: list[types.Candidate] = []
     conditional = 0
+    avoided_by: set[int] = set()
+    rejected_out = 0
     for relic in offered:
         # Asked here and not once the pool is finished (SEC-022, AK-11). One
         # `evaluate` per offered relic is the unit of work in this loop, so
@@ -256,8 +258,12 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
             raise types.Cancelled(
                 f"stopped during the pre-sort of slot {slot_index}, after "
                 f"{len(measured)} candidates")
-        if (relic.handle is None or relic.handle in taken
-                or types.unwanted(problem, relic)):
+        if relic.handle is None or relic.handle in taken:
+            continue
+        if types.unwanted(problem, relic):
+            avoided_by.update(problem.excluded.intersection(
+                (*relic.effect_ids, *relic.curse_ids)))
+            rejected_out += types.roll_of(relic) in problem.rejected
             continue
         candidate = _offer(slot, relic)
         builds = evaluate_per_goal(base_problem, (candidate,), ctx, goals)
@@ -280,6 +286,8 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
                        for goal_id, score in base_scores.items()),
         candidates=tuple(measured),
         unknowns=_pool_findings(slot, without_handle, conditional),
+        avoided_by=tuple(sorted(avoided_by)),
+        rejected_out=rejected_out,
     )
 
 

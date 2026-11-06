@@ -2412,3 +2412,119 @@ def test_one_figure_an_effect_moves_on_many_fields_is_one_line(
     assert lines_of(groups) == (
         f"{name}: All damage taken +45.0% — this figure does not count it.",)
     assert all(line.is_curse for group in groups for line in group.lines)
+
+
+# -- AD-057.4, AK-441, AK-457: why a free slot stays empty -------------------
+
+def an_empty_slot(game_data, wylder, pool, colour=advisor.RED, required=()):
+    problem = types.SlotProblem(
+        slots=(types.Slot(index=0, colour=colour, deep=False),),
+        required=frozenset(required))
+    found, = explain.empty_slots(problem, (pool,), (),
+                                 advisor.context(game_data, wylder))
+    return found
+
+
+def named(game_data, effect_id):
+    return " ".join(game_data["effects"][str(effect_id)]["name"].split())
+
+
+def test_a_slot_with_spent_copies_of_a_favourite_names_the_favourite(
+        game_data, wylder):
+    """`EMPTY_REQUIREMENT`: the pool had copies, another slot spent them."""
+    wanted = advisor.raising_effects(game_data, wylder, 1)[0][0]
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE, candidates=(
+        a_copy(0, 1, "Carrier", [wanted]),))
+
+    found = an_empty_slot(game_data, wylder, pool, required=[wanted])
+
+    assert found.reason == types.EMPTY_REQUIREMENT
+    assert found.effect_ids == (wanted,)
+    assert found.line == (
+        f"The relics that could go here are needed elsewhere to carry "
+        f"“{named(game_data, wanted)}”, which you favourited.")
+
+
+def test_a_slot_with_spent_copies_and_no_favourite_has_nothing_left(game_data,
+                                                                    wylder):
+    """`EMPTY_NOTHING` with a pool: no favourite was the reason."""
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE,
+                          candidates=(a_copy(0, 1, "Spent"),))
+
+    assert an_empty_slot(game_data, wylder, pool).reason == types.EMPTY_NOTHING
+
+
+def test_a_pool_a_favourite_relic_emptied_names_the_relic(game_data, wylder):
+    """`EMPTY_PIN`, ahead of the marks."""
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE, pin_taken=("Urn",),
+                          avoided_by=(1,), rejected_out=1)
+
+    found = an_empty_slot(game_data, wylder, pool)
+
+    assert found.reason == types.EMPTY_PIN
+    assert found.relic_name == "Urn"
+    assert found.line == ("The relics that could go here are used by your "
+                          "favourite “Urn”.")
+
+
+def test_a_pool_both_marks_emptied_says_both(game_data, wylder):
+    """`EMPTY_AVOIDED_AND_REJECTED`."""
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE, avoided_by=(1,),
+                          rejected_out=2)
+
+    found = an_empty_slot(game_data, wylder, pool)
+
+    assert found.reason == types.EMPTY_AVOIDED_AND_REJECTED
+    assert found.line == ("Every relic left for this slot is rejected or "
+                          "carries an effect you avoided.")
+
+
+def test_a_pool_avoid_emptied_names_two_effects_and_counts_the_rest(game_data,
+                                                                    wylder):
+    """`EMPTY_AVOIDED`: at most two names, then `and {n} more` (AK-457)."""
+    ids = [roll[0] for roll in advisor.raising_effects(game_data, wylder, 3)]
+    first, second = (named(game_data, eid) for eid in ids[:2])
+
+    two = an_empty_slot(game_data, wylder, types.SlotPool(
+        slot_index=0, rank_by=DAMAGE, avoided_by=tuple(ids[:2])))
+    three = an_empty_slot(game_data, wylder, types.SlotPool(
+        slot_index=0, rank_by=DAMAGE, avoided_by=tuple(ids)))
+
+    assert two.reason == types.EMPTY_AVOIDED
+    assert two.effect_ids == tuple(ids[:2])
+    assert two.line == ("Every relic left for this slot carries an effect "
+                        f"you avoided: “{first}”, “{second}”.")
+    assert three.line == ("Every relic left for this slot carries an effect "
+                          f"you avoided: “{first}”, “{second}” and 1 more.")
+
+
+def test_a_pool_reject_emptied_says_so(game_data, wylder):
+    """`EMPTY_REJECTED`."""
+    found = an_empty_slot(game_data, wylder, types.SlotPool(
+        slot_index=0, rank_by=DAMAGE, rejected_out=1))
+
+    assert found.reason == types.EMPTY_REJECTED
+    assert found.line == "Every relic left for this slot is one you rejected."
+
+
+def test_an_empty_pool_with_no_mark_counts_the_colour_of_the_slot(game_data,
+                                                                  wylder):
+    """`EMPTY_NOTHING`: a white slot draws every colour, so it says any."""
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE)
+
+    coloured = an_empty_slot(game_data, wylder, pool)
+    white = an_empty_slot(game_data, wylder, pool, colour=model.WHITE_SLOT)
+
+    assert coloured.reason == white.reason == types.EMPTY_NOTHING
+    assert coloured.line == ("You own no unused relic of this colour for "
+                             "this slot.")
+    assert white.line == "You own no unused relic of any colour for this slot."
+
+
+def test_a_filled_slot_has_no_empty_slot_entry(game_data, wylder):
+    copy = a_copy(0, 1, "Chosen")
+    problem = advisor.problem([advisor.RED])
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE, candidates=(copy,))
+
+    assert explain.empty_slots(problem, (pool,), (copy,),
+                               advisor.context(game_data, wylder)) == ()

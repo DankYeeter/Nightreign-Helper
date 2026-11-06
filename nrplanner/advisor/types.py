@@ -630,6 +630,13 @@ class SlotPool:
     #: carries 0 and two pools of the same question compare equal whatever
     #: was asked in between.
     generation: int = 0
+    #: Why this pool may be short (AD-057.4): the `Avoid` ids that took copies
+    #: out of it, sorted; how many copies a Reject took; the names of the
+    #: favourite relics whose copy fits here and is already placed. Read by
+    #: `explain.empty_slots` and by nothing else.
+    avoided_by: tuple[int, ...] = ()
+    rejected_out: int = 0
+    pin_taken: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -775,6 +782,36 @@ class Suggestion:
     reasons: tuple[SlotReasons, ...] = ()
 
 
+#: Why a free slot has no choice in the best suggestion (AD-057.4), in the
+#: order `explain.empty_slots` asks. The copies were there and another slot
+#: spent them, one of them a carrier of a `Favourite` effect:
+EMPTY_REQUIREMENT = "requirement"
+#: Nothing was left because a favourite relic's copy is placed elsewhere:
+EMPTY_PIN = "pin"
+#: Nothing was left because of the player's marks, one or the other or both:
+EMPTY_AVOIDED_AND_REJECTED = "avoided_and_rejected"
+EMPTY_AVOIDED = "avoided"
+EMPTY_REJECTED = "rejected"
+#: Nothing of the kind: the save holds no unused relic for this slot.
+EMPTY_NOTHING = "nothing"
+
+
+@dataclass(frozen=True)
+class EmptySlot:
+    """A free slot the best suggestion leaves empty, and why (AK-441).
+
+    `line` is the card's whole sentence, written by `explain.py` because it
+    takes the dataset to name an effect. `effect_ids` belongs to
+    `EMPTY_AVOIDED` and `EMPTY_REQUIREMENT`, `relic_name` to `EMPTY_PIN`.
+    """
+
+    slot_index: int
+    reason: str
+    effect_ids: tuple[int, ...] = ()
+    relic_name: str = ""
+    line: str = ""
+
+
 @dataclass(frozen=True)
 class AdvisorResult:
     """What one run hands back, with everything it does not know (AD-010).
@@ -832,6 +869,10 @@ class AdvisorResult:
     #: The `Favourite` effects the best suggestion does not carry, sorted
     #: (AD-058.5). `explain.required_but_unmet` wrote one sentence for each.
     required_left_out: tuple[int, ...] = ()
+    #: Every free slot the best suggestion leaves empty, in slot order. Empty
+    #: under `no_carrier_for`: the whole suggestion fell, and that is the
+    #: reason given (AD-057.4).
+    empty_slots: tuple[EmptySlot, ...] = ()
     #: The chosen damage type or attack art, lowered as it stands mid-sentence,
     #: when every suggestion was dropped because nothing owned moves the
     #: ranked figure under it (QA-290); empty otherwise. The status line reads

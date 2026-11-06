@@ -694,3 +694,24 @@ def test_a_pool_the_advisor_produced_can_be_a_cache_key(game_data, wylder):
     for candidate in pool.candidates:
         hash(candidate)
     hash(candidates.base_state_for(advisor.problem([advisor.RED]), 0))
+
+
+def test_a_pool_counts_what_the_marks_took_out_of_it(game_data, wylder):
+    """AD-057.4: the reasons a slot may stay empty. Only copies that would
+    otherwise have been offered count: a held one was never going to be."""
+    rolls = advisor.raising_effects(game_data, wylder, 4)
+    inventory = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
+    avoided, cursed, rejected, held = inventory.relics
+    curse = advisor.a_curse_of_this_dataset(game_data)
+    cursed.curse_ids = [curse]
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED],
+                        held={1: advisor.held_relic(held)}),
+        excluded=frozenset({avoided.effect_ids[0], curse, held.effect_ids[0]}),
+        rejected=frozenset({types.roll_of(rejected)}))
+
+    pool = pool_for(inventory, problem, 0, advisor.context(game_data, wylder))
+
+    assert pool.candidates == ()
+    assert pool.avoided_by == tuple(sorted({avoided.effect_ids[0], curse}))
+    assert pool.rejected_out == 1

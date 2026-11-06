@@ -507,6 +507,10 @@ class RelicSlot(QFrame):
             curse_tooltip=self._suggested_curse_tooltip(choice),
             held_favourite_line=held_favourite_line)
 
+    def show_no_suggestion(self, reason: str) -> None:
+        """The answer leaves this slot empty, and this is why (AK-441)."""
+        self.suggestion.show_no_suggestion(reason)
+
     def put_the_suggestion_away(self) -> None:
         """No answer names this slot any more."""
         self.suggestion.put_the_suggestion_away()

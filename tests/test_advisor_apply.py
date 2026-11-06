@@ -18,6 +18,7 @@ really hands it.
 
 from __future__ import annotations
 
+import dataclasses
 import html
 
 import pytest
@@ -580,3 +581,23 @@ def test_at_2560_px_the_ratio_already_covers_the_need(
     for state in ("failed", "suggested"):
         assert row[state]["cut"] == [], (
             f"{state}: {row[state]['cut']}")
+
+
+def test_a_slot_without_a_choice_shows_its_reason_on_the_card(planner):
+    """AK-441: the one filled slot keeps its block, the empty one says why."""
+    (index, copy), (other, _) = two_offers(planner)
+    reason = "Every relic left for this slot is one you rejected."
+    answer = dataclasses.replace(
+        an_answer_for([(index, copy)]),
+        empty_slots=(types.EmptySlot(other, types.EMPTY_REJECTED,
+                                     line=reason),))
+
+    a_live_answer(planner, answer)
+
+    cards = planner.active_slots()
+    assert cards[index].suggestion.empty_reason.isHidden()
+    assert cards[other].suggestion.heading.text() == "NO SUGGESTION"
+    assert cards[other].suggestion.empty_reason.text() == reason
+
+    planner.show_the_suggestion(None)
+    assert cards[other].suggestion.isHidden()

@@ -3212,8 +3212,8 @@ class Planner(QMainWindow):
         if result is None or not result.suggestions:
             return
         suggestion = result.suggestions[0]
-        if any(group.slot_index >= len(cards)
-               for group in suggestion.reasons):
+        if any(entry.slot_index >= len(cards)
+               for entry in (*suggestion.reasons, *result.empty_slots)):
             return
         by_slot = {choice.slot_index: choice for choice in suggestion.choices}
         # AK-274: the card's `Why` follows the bar's own gate
@@ -3241,6 +3241,8 @@ class Planner(QMainWindow):
                 held_favourite_line=(result.favourites_met_line
                                      if group.slot_index == held_favourite_slot
                                      else ""))
+        for empty in result.empty_slots:
+            cards[empty.slot_index].show_no_suggestion(empty.line)
 
     def open_why(self, card=None) -> None:
         """The long form of the answer on screen (`UI_SPEC` §3.4).

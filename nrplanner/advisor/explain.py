@@ -1293,6 +1293,68 @@ def required_but_unmet(left_out: Sequence[int],
     return tuple(lines)
 
 
+def _named_at_most_two(ctx: types.GoalContext,
+                       effect_ids: Sequence[int]) -> str:
+    """`“a”, “b” and {n} more` (AK-457)."""
+    names = [f"“{_effect_name(ctx, eid) or f'effect {eid}'}”"
+             for eid in effect_ids[:2]]
+    more = len(effect_ids) - len(names)
+    return ", ".join(names) + (f" and {more} more" if more else "")
+
+
+def _empty_slot(problem: types.SlotProblem, pool: types.SlotPool,
+                ctx: types.GoalContext) -> types.EmptySlot:
+    """One free slot without a choice, by AD-057.4's order of reasons."""
+    index = pool.slot_index
+    wanted = tuple(eid for eid in sorted(problem.required)
+                   if any(eid in copy.effect_ids or eid in copy.curse_ids
+                          for copy in pool.candidates))
+    if wanted:
+        return types.EmptySlot(
+            index, types.EMPTY_REQUIREMENT, effect_ids=wanted,
+            line=f"The relics that could go here are needed elsewhere to "
+                 f"carry {_named_at_most_two(ctx, wanted)}, which you "
+                 f"favourited.")
+    if not pool.candidates and pool.pin_taken:
+        relic = pool.pin_taken[0]
+        return types.EmptySlot(
+            index, types.EMPTY_PIN, relic_name=relic,
+            line=f"The relics that could go here are used by your favourite "
+                 f"“{relic}”.")
+    if not pool.candidates and pool.avoided_by and pool.rejected_out:
+        return types.EmptySlot(
+            index, types.EMPTY_AVOIDED_AND_REJECTED,
+            line="Every relic left for this slot is rejected or carries an "
+                 "effect you avoided.")
+    if not pool.candidates and pool.avoided_by:
+        return types.EmptySlot(
+            index, types.EMPTY_AVOIDED, effect_ids=pool.avoided_by,
+            line=f"Every relic left for this slot carries an effect you "
+                 f"avoided: {_named_at_most_two(ctx, pool.avoided_by)}.")
+    if not pool.candidates and pool.rejected_out:
+        return types.EmptySlot(
+            index, types.EMPTY_REJECTED,
+            line="Every relic left for this slot is one you rejected.")
+    white = types.slot_at(problem, index).colour == model.WHITE_SLOT
+    return types.EmptySlot(
+        index, types.EMPTY_NOTHING,
+        line=f"You own no unused relic of {'any' if white else 'this'} "
+             f"colour for this slot.")
+
+
+def empty_slots(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
+                chosen: Sequence[types.Candidate],
+                ctx: types.GoalContext) -> tuple[types.EmptySlot, ...]:
+    """Every free slot the suggestion leaves empty, and why (AK-441, AK-457).
+
+    A pool that still has copies had them all spent by other slots: the search
+    leaves a slot empty only then (`search._successors`).
+    """
+    filled = {copy.slot_index for copy in chosen}
+    return tuple(_empty_slot(problem, pool, ctx) for pool in pools
+                 if pool.slot_index not in filled)
+
+
 def required_met_by_a_hold(problem: types.SlotProblem,
                            ctx: types.GoalContext) -> tuple[str, ...]:
     """A favourited effect a held relic already carries, said by name (A19).

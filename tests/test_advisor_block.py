@@ -1241,3 +1241,40 @@ def test_the_three_boxes_of_the_bar_carry_a_name(planner):
         "Goal", "Hit with", "Damage type"]
     assert not any(label.text() == "Goal"
                    for label in bar.findChildren(QLabel))
+
+
+def test_a_slot_with_no_suggestion_says_why_and_offers_nothing(block):
+    """AK-441: same dashed block, its own heading, one muted reason of at most
+    two lines with the whole text in the tooltip, and nothing to press."""
+    reason = "Every relic left for this slot is one you rejected."
+
+    block.show_no_suggestion(reason)
+
+    assert not block.isHidden()
+    assert block.heading.text() == "NO SUGGESTION"
+    assert block.empty_reason.text() == reason
+    assert reason in block.empty_reason.toolTip()
+    block.empty_reason.ensurePolished()
+    assert block.empty_reason.maximumHeight() == (
+        2 * block.empty_reason.fontMetrics().lineSpacing())
+    assert not block.empty_reason.isHidden()
+    for part in (block.use_button, block.why_button, block.relic_name,
+                 block.count_line, block.lines, block.held_favourite,
+                 block.already_equipped):
+        assert part.isHidden()
+
+
+def test_a_suggestion_after_no_suggestion_loses_the_reason(block):
+    block.show_no_suggestion("A reason.")
+
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+
+    assert block.empty_reason.isHidden()
+    assert not block.use_button.isHidden()
+
+    block.show_no_suggestion("A reason.")
+    block.put_the_suggestion_away()
+
+    assert block.isHidden()
+    assert block.empty_reason.text() == ""
+    assert block.empty_reason.toolTip() == ""

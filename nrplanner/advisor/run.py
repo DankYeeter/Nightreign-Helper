@@ -501,6 +501,8 @@ def run(request: types.AdvisorRequest, inventory,
         data_note=explain.data_note(ctx),
         generation=request.generation,
         required_left_out=left_out,
+        empty_slots=(() if no_carrier_for else explain.empty_slots(
+            problem, pools, best_chosen, ctx)),
         no_carrier_for=no_carrier_for,
     )
 

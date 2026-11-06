@@ -1030,3 +1030,34 @@ def test_a_cache_that_can_never_hit_is_refused():
     """
     with pytest.raises(ValueError, match="at least one"):
         run.ResultCache(size=0)
+
+
+def test_a_slot_the_marks_emptied_says_why_through_the_run(game_data, wylder):
+    """AD-057.4: one copy left for two slots, the others avoided. The answer
+    names the empty slot and its reason, and the filled one is not in it."""
+    rolls = advisor.raising_effects(game_data, wylder, 3)
+    owned = advisor.make_inventory(game_data, wylder, count=3, rolls=rolls)
+    avoided = {rolls[0][0], rolls[1][0]}
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    question = dataclasses.replace(advisor.problem([advisor.RED, advisor.RED]),
+                                   excluded=frozenset(avoided))
+    frozen = run.frozen_inventory(owned, question)
+
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    assert [choice.slot_index for choice in result.suggestions[0].choices] == [0]
+    empty, = result.empty_slots
+    assert empty.slot_index == 1
+    assert empty.reason == types.EMPTY_NOTHING, (
+        "the pool still offers the one copy, which slot 0 spent")
+
+
+def test_a_dropped_suggestion_has_no_empty_slot_entries(game_data):
+    """AD-057.4: AK-365 is the seventh reason, outside the list."""
+    result = _recluse_sorceries(game_data, "Fire")
+
+    assert result.no_carrier_for
+    assert result.empty_slots == ()

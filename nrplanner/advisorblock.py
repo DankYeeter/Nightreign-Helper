@@ -421,6 +421,10 @@ class SuggestionBlock(QFrame):
                                        size=SMALL_TEXT)
         column.addWidget(self.already_equipped)
 
+        self.empty_reason = _plain(colour=MUTED, size=SMALL_TEXT)
+        self.empty_reason.setVisible(False)
+        column.addWidget(self.empty_reason)
+
         self.setVisible(False)
 
     def show_the_suggestion(self, goal_label: str,
@@ -460,10 +464,33 @@ class SuggestionBlock(QFrame):
         self.held_favourite.setVisible(not already_equipped
                                        and bool(held_favourite_line))
         self.already_equipped.setVisible(already_equipped)
+        self.empty_reason.setVisible(False)
+        self.setVisible(True)
+
+    def show_no_suggestion(self, reason: str) -> None:
+        """AK-441: this slot has no choice in the answer, and says why.
+
+        Nothing to press, and at most two lines with the whole text in the
+        tooltip: a reason names effects, and those can be long.
+        """
+        self.heading.setText("NO SUGGESTION")
+        self.heading.setVisible(True)
+        for part in (self.use_button, self.why_button, self.relic_name,
+                     self.count_line, self.lines, self.held_favourite,
+                     self.already_equipped):
+            part.setVisible(False)
+        self.empty_reason.setText(reason)
+        self.empty_reason.setToolTip(as_a_tooltip(reason))
+        self.empty_reason.ensurePolished()
+        self.empty_reason.setMaximumHeight(
+            2 * self.empty_reason.fontMetrics().lineSpacing())
+        self.empty_reason.setVisible(True)
         self.setVisible(True)
 
     def put_the_suggestion_away(self) -> None:
         """No answer lives for this slot any more."""
+        self.empty_reason.clear()
+        self.empty_reason.setToolTip("")
         self.lines.clear()
         self.lines.setToolTip("")
         self.relic_name.clear()

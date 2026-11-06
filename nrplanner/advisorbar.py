@@ -205,8 +205,9 @@ class Situation:
     #: The slots the run was asked about, and how many of them got a relic.
     slots: int = 0
     slots_filled: int = 0
-    #: Slots the run had nothing to offer for (4.11).
+    #: Slots the run had nothing to offer for (4.11), and why (AK-443).
     slots_without_a_choice: int = 0
+    empty_slots: tuple[types.EmptySlot, ...] = ()
     #: AK-365's cause: the chosen type or art nothing owned reaches,
     #: as `AdvisorResult.no_carrier_for` spells it; empty for the other two.
     no_carrier_for: str = ""
@@ -240,7 +241,7 @@ def _lower_case_first(label: str) -> str:
 
 
 def _slots_with_nothing(count: int) -> str:
-    """The second clause of 4.11, in the number the run came back with.
+    """AK-365's lead-in, in the number the run came back with.
 
     The table writes the singular. The plural is this sentence's own plural
     and not a second wording -- but it has never been reviewed, and it is in
@@ -249,6 +250,28 @@ def _slots_with_nothing(count: int) -> str:
     if count == 1:
         return "1 slot has nothing to choose from"
     return f"{count} slots have nothing to choose from"
+
+
+def _empty_short(empty: types.EmptySlot) -> str:
+    """AK-457's `{short}`. An unknown reason is a `KeyError`, not a fallback."""
+    return {
+        types.EMPTY_REQUIREMENT:
+            "what is left is needed for your Favourite effects",
+        types.EMPTY_PIN: f"your favourite “{empty.relic_name}” uses the rest",
+        types.EMPTY_AVOIDED_AND_REJECTED:
+            "everything left is rejected or carries an avoided effect",
+        types.EMPTY_AVOIDED: "everything left carries an effect you avoided",
+        types.EMPTY_REJECTED: "everything left is rejected",
+        types.EMPTY_NOTHING: "nothing left to choose from",
+    }[empty.reason]
+
+
+def _slots_empty(count: int, empty_slots: tuple[types.EmptySlot, ...]) -> str:
+    """The second clause of 4.11 (AK-443): one reason, or see the cards."""
+    shorts = {_empty_short(empty) for empty in empty_slots}
+    if len(shorts) == 1:
+        return f"{count} slot{'' if count == 1 else 's'} empty: {shorts.pop()}"
+    return f"{count} slots empty for different reasons — see the slot cards"
 
 
 def _slots_no_carrier(count: int, choice: str) -> str:
@@ -369,7 +392,7 @@ def status_line(situation: Situation) -> str:
         if situation.no_carrier_for:
             empty = _slots_no_carrier(count, situation.no_carrier_for)
         else:
-            empty = _slots_with_nothing(count)
+            empty = _slots_empty(count, situation.empty_slots)
         return (f"{goal} — {situation.slots_filled} of "
                 f"{situation.slots} slots filled{CLAUSES}{empty}.")
     if state is State.FAILED:
@@ -1425,6 +1448,7 @@ class AdvisorBar(QWidget):
                                   goal_label=label, slots=slots,
                                   slots_filled=filled,
                                   slots_without_a_choice=slots - filled,
+                                  empty_slots=result.empty_slots,
                                   no_carrier_for=result.no_carrier_for)
         elif curses or left_out:
             situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS,

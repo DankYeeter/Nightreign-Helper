@@ -12,6 +12,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - A favourited effect no longer blocks a suggestion: Optimize carries every
   favourite the chalice can hold, fills the other slots, and Why names the
   rest.
+- A slot Optimize leaves empty now shows NO SUGGESTION with the reason, and
+  the status line names it.
 
 ## [1.20.1] - 2026-11-01
 
