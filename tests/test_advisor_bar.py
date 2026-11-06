@@ -1870,3 +1870,82 @@ def test_closing_the_window_waits_for_the_thread(planner, monkeypatch):
                         lambda: told.append(True))
     planner.close()
     assert told
+
+
+# --- what the suggestion goes without (AK-455, AK-439) -----------------------
+
+@pytest.mark.parametrize("state,extra,head", [
+    (advisorbar.State.SUGGESTED, {},
+     "Maximise damage — 6 of 6 slots filled"),
+    (advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS,
+     {"curses_without_a_number": 1},
+     "Maximise damage — 6 of 6 slots filled  ·  1 curse carries no number."),
+    (advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+     {"slots_without_a_choice": 1,
+      "empty_slots": (types.EmptySlot(5, types.EMPTY_NOTHING),)},
+     "Maximise damage — 6 of 6 slots filled  ·  1 slot empty: nothing left to "
+     "choose from."),
+])
+def test_all_three_result_states_say_what_they_go_without(state, extra, head):
+    """AK-455: empty slots, then effects, then relics, in each of the three."""
+    situation = advisorbar.Situation(
+        state, goal_label="Maximise damage", slots=6, slots_filled=6,
+        favourite_effects_unmet=2, favourite_relics_left_out=3, **extra)
+
+    assert advisorbar.status_line(situation) == (
+        f"{head}  ·  2 favourite effects could not be met.  ·  3 favourited "
+        f"relics did not fit.")
+
+
+def test_one_of_each_is_said_in_the_singular():
+    situation = advisorbar.Situation(
+        advisorbar.State.SUGGESTED, goal_label="Maximise damage", slots=6,
+        slots_filled=6, favourite_effects_unmet=1, favourite_relics_left_out=1)
+
+    assert advisorbar.status_line(situation) == (
+        "Maximise damage — 6 of 6 slots filled  ·  1 favourite effect could "
+        "not be met.  ·  1 favourited relic did not fit.")
+
+
+def test_a_full_suggestion_with_every_favourite_met_says_neither(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    assert bar.status.accessibleName() == (
+        "Maximise damage — 6 of 6 slots filled.")
+
+
+def test_the_clauses_count_the_answer_and_the_tooltip_says_each_one(bar):
+    """AK-455: `{n}` is the length of `required_left_out`, the tooltip is the
+    sentence the `Why` dialog reads. AK-439: `{name}: {reason}`. A name out of
+    the save comes through as text (SEC-019)."""
+    pin = types.PinLeftOut("<b>Urn</b>", (1, (), ()), types.PIN_REJECTED,
+                           because="you rejected it for this build")
+    answer = dataclasses.replace(
+        _an_answer(), required_left_out=(7, 8),
+        required_unmet=("No copy you own carries A.", "No copy you own carries B."),
+        pins_left_out=(pin,))
+
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(answer)
+
+    assert bar.status.accessibleName() == (
+        "Maximise damage — 6 of 6 slots filled  ·  2 favourite effects could "
+        "not be met.  ·  1 favourited relic did not fit.")
+    for tooltip in (bar.status.toolTip(), bar.toolTip()):
+        assert "No copy you own carries A.<br>No copy you own carries B." in tooltip
+        assert "&lt;b&gt;Urn&lt;/b&gt;: you rejected it for this build" in tooltip
+        assert "<b>" not in tooltip
+
+
+def test_the_next_state_takes_the_details_off_the_tooltip(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(dataclasses.replace(
+        _an_answer(), required_left_out=(7,), required_unmet=("Unmet.",)))
+
+    bar.the_build_changed()
+
+    assert "Unmet." not in bar.status.toolTip()

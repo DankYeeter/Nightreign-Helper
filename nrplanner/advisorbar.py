@@ -208,6 +208,12 @@ class Situation:
     #: Slots the run had nothing to offer for (4.11), and why (AK-443).
     slots_without_a_choice: int = 0
     empty_slots: tuple[types.EmptySlot, ...] = ()
+    #: Favourite effects and favourited relics the suggestion goes without
+    #: (AK-455, AK-439), in any of the three result states, and what the
+    #: tooltip says about each under the line.
+    favourite_effects_unmet: int = 0
+    favourite_relics_left_out: int = 0
+    details: tuple[str, ...] = ()
     #: AK-365's cause: the chosen type or art nothing owned reaches,
     #: as `AdvisorResult.no_carrier_for` spells it; empty for the other two.
     no_carrier_for: str = ""
@@ -328,6 +334,20 @@ def marking_clauses(filters) -> list[str]:
             if filters.avoided_families else [])
 
 
+def _favourite_clauses(situation: Situation) -> tuple[str, ...]:
+    """What the result goes without: effects, then relics (AK-455, AK-439).
+
+    One clause per kind and only where its count is not zero. Each ends on its
+    own full stop, as 4.9's do.
+    """
+    effects = situation.favourite_effects_unmet
+    relics = situation.favourite_relics_left_out
+    return (*((f"{effects} favourite effect{'' if effects == 1 else 's'} could "
+               f"not be met.",) if effects else ()),
+            *((f"{relics} favourited relic{'' if relics == 1 else 's'} did not "
+               f"fit.",) if relics else ()))
+
+
 def _clauses(head: str, *clauses: str) -> str:
     """A result sentence with whichever of its clauses have something to say.
 
@@ -360,8 +380,9 @@ def status_line(situation: Situation) -> str:
     if state is State.STOPPED:
         return "Stopped. Nothing was changed."
     if state is State.SUGGESTED:
-        return (f"{goal} — {situation.slots_filled} of "
-                f"{situation.slots} slots filled.")
+        head = f"{goal} — {situation.slots_filled} of {situation.slots} slots filled"
+        missed = _favourite_clauses(situation)
+        return _clauses(head, *missed) if missed else f"{head}."
     if state is State.OUTDATED:
         if situation.marking_changed:
             return ("The effects you marked changed while this was working "
@@ -382,7 +403,8 @@ def status_line(situation: Situation) -> str:
             _curses_with_no_number(situation.curses_without_a_number)
             if situation.curses_without_a_number else "",
             _effects_left_out(situation.effects_left_out)
-            if situation.effects_left_out else "")
+            if situation.effects_left_out else "",
+            *_favourite_clauses(situation))
     if state is State.NOT_RANKABLE:
         return (f"The game files carry no figures this goal can be ranked "
                 f"on for {situation.nightfarer}, so there is nothing to "
@@ -393,8 +415,9 @@ def status_line(situation: Situation) -> str:
             empty = _slots_no_carrier(count, situation.no_carrier_for)
         else:
             empty = _slots_empty(count, situation.empty_slots)
-        return (f"{goal} — {situation.slots_filled} of "
-                f"{situation.slots} slots filled{CLAUSES}{empty}.")
+        return _clauses(f"{goal} — {situation.slots_filled} of "
+                        f"{situation.slots} slots filled{CLAUSES}{empty}.",
+                        *_favourite_clauses(situation))
     if state is State.FAILED:
         return f"Could not work that out — {situation.reason}."
     if state is State.APPLIED:
@@ -490,7 +513,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     as part of the cache key, and never as a live reading of the window.
     The two effect sets the player marked (A18/A19) travel the same way, on
     the same type (AD-036.1): the picker's own question is built from this
-    one by replacing `held`, so it carries them without knowing.
+    one by replacing `held`, so it carries them without knowing. The relics
+    starred for this Nightfarer too (AD-059.1); those the picker takes off
+    again, because the picker is the hand choice.
 
     The request is derived from the context beside it, field by field, and
     that is not tidiness: `run.run` refuses a request whose fields describe
@@ -583,7 +608,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
                  if index in holding)
     problem = types.SlotProblem(slots=slots, held=held,
                                 excluded=planner.effect_filters.resolved_excluded,
-                                required=planner.effect_filters.required)
+                                required=planner.effect_filters.required,
+                                pinned=favourites.marked_for(hero["id"]))
 
     # The baseline counts every switchable condition as met (AD-036.6): the
     # player's own declarations are merged over it, so a condition they
@@ -763,6 +789,14 @@ def asking_from(planner, goal_id: str) -> Asking | None:
                   nightfarer=hero["name"], relics=owned.relic_count)
 
 
+def _a_tooltip(line: str, details: tuple[str, ...] = ()) -> str:
+    """The sentence and its details, one per row, shown letter for letter."""
+    if not line:
+        return ""
+    rows = "<br>".join(html.escape(row) for row in (line, *details))
+    return f"<span>{rows}</span>"
+
+
 class _ElidingLabel(QLabel):
     """A label that shortens its own text and never asks for room.
 
@@ -781,14 +815,15 @@ class _ElidingLabel(QLabel):
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self._whole = ""
 
-    def set_whole_text(self, text: str) -> None:
+    def set_whole_text(self, text: str, details: tuple[str, ...] = ()) -> None:
+        """`details` go into the tooltip under the sentence, and nowhere else."""
         self._whole = text
         # A tooltip has no text format to set, so Qt decides for itself
         # whether what it is given is markup (SEC-013). Escaped **and**
         # wrapped: without the wrapper an escaped `<` would be shown as the
         # five characters `&lt;` rather than as `<`, because Qt reads a text
         # with no `<` in it as plain.
-        self.setToolTip(f"<span>{html.escape(text)}</span>" if text else "")
+        self.setToolTip(_a_tooltip(text, details))
         # A label with no accessible name of its own reports `text()` to the
         # accessibility bridge -- the elided one -- so a screen reader never
         # got past the ellipsis, and a keyboard user has no hover (DR-023).
@@ -1443,22 +1478,23 @@ class AdvisorBar(QWidget):
         filled = chosen + len(result.held)
         curses = len(result.curses_without_a_figure)
         left_out = len(result.not_counted)
+        said = {"goal_label": label, "slots": slots, "slots_filled": filled,
+                "favourite_effects_unmet": len(result.required_left_out),
+                "favourite_relics_left_out": len(result.pins_left_out),
+                "details": (*result.required_unmet,
+                            *(f"{pin.name}: {pin.because}"
+                              for pin in result.pins_left_out))}
         if slots - filled > 0:
-            situation = Situation(State.SUGGESTED_WITH_AN_EMPTY_SLOT,
-                                  goal_label=label, slots=slots,
-                                  slots_filled=filled,
+            situation = Situation(State.SUGGESTED_WITH_AN_EMPTY_SLOT, **said,
                                   slots_without_a_choice=slots - filled,
                                   empty_slots=result.empty_slots,
                                   no_carrier_for=result.no_carrier_for)
         elif curses or left_out:
-            situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS,
-                                  goal_label=label, slots=slots,
-                                  slots_filled=filled,
+            situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS, **said,
                                   curses_without_a_number=curses,
                                   effects_left_out=left_out)
         else:
-            situation = Situation(State.SUGGESTED, goal_label=label,
-                                  slots=slots, slots_filled=filled)
+            situation = Situation(State.SUGGESTED, **said)
         self._show(situation)
         self.suggestion_changed.emit(result)
 
@@ -1521,7 +1557,7 @@ class AdvisorBar(QWidget):
         """
         self._situation = situation
         working = situation.state in WORKING_STATES
-        self.status.set_whole_text(status_line(situation))
+        self.status.set_whole_text(status_line(situation), situation.details)
         carrier = situation.no_carrier_for
         self.warning.setText(
             f"⚠ {advisor_run.no_carrier_sentence(carrier)}" if carrier else "")
@@ -1531,7 +1567,7 @@ class AdvisorBar(QWidget):
         # carries the sentence too. The AK-280 count of what the player
         # marked stands on the button that changes it (AK-302), not here.
         line = status_line(situation)
-        self.setToolTip(f"<span>{html.escape(line)}</span>" if line else "")
+        self.setToolTip(_a_tooltip(line, situation.details))
         self.filters_button.setToolTip("<span>" + html.escape(CLAUSES.join(
             (FILTERS_TOOLTIP, *marking_clauses(self._filters)))) + "</span>")
         # 4.2 is a run with nothing drawn: the bar comes up with the text, at

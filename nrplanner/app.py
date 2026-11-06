@@ -3240,7 +3240,8 @@ class Planner(QMainWindow):
                 by_slot.get(group.slot_index), may_explain=may_explain,
                 held_favourite_line=(result.favourites_met_line
                                      if group.slot_index == held_favourite_slot
-                                     else ""))
+                                     else ""),
+                pinned=group.slot_index in result.pins_placed)
         for empty in result.empty_slots:
             cards[empty.slot_index].show_no_suggestion(empty.line)
 

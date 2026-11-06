@@ -910,6 +910,9 @@ class AdvisorResult:
     #: The `Favourite` effects the best suggestion does not carry, sorted
     #: (AD-058.5). `explain.required_but_unmet` wrote one sentence for each.
     required_left_out: tuple[int, ...] = ()
+    #: The same sentences `unknowns` carries for them, for the bar's tooltip
+    #: (AK-455: one source, and the bar does not pick through `unknowns`).
+    required_unmet: tuple[str, ...] = ()
     #: Every free slot the best suggestion leaves empty, in slot order. Empty
     #: under `no_carrier_for`: the whole suggestion fell, and that is the
     #: reason given (AD-057.4).

@@ -55,12 +55,19 @@ from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
 from . import effectfilters, effecttext
 from .advisor import goals as advisor_goals
 from .advisor import types
-from .theme import ACCENT, BAD, CURSE, MUTED, PANEL
+from .theme import ACCENT, BAD, CURSE, FAVOURITE, MUTED, PANEL
 
 #: The one line a block shows when the suggestion is already lying in the slot
 #: (`UI_SPEC` §3.2). Everything else falls away with it: there is nothing to
 #: weigh and nothing to change.
 ALREADY_EQUIPPED = "Already equipped — nothing to change here."
+
+#: The line under the name of a relic that is here because it is starred
+#: (AK-437).
+PINNED_LINE = "★ Your favourite — included because it fits."
+
+#: The heading of the stars left out, over the slot groups (AK-439).
+PINS_LEFT_OUT_HEADING = "Favourited relics left out:"
 
 #: The legend for `✦`, once per `Why` dialog and in no block (AK-141).
 CURSE_LEGEND = ("✦ marks a curse. A cost with no number beside it is still a "
@@ -400,6 +407,9 @@ class SuggestionBlock(QFrame):
         self.relic_name = _plain()
         column.addWidget(self.relic_name)
 
+        self.pinned_line = _plain(PINNED_LINE, colour=FAVOURITE, size=SMALL_TEXT)
+        column.addWidget(self.pinned_line)
+
         self.count_line = _plain(colour=MUTED, size=SMALL_TEXT)
         column.addWidget(self.count_line)
 
@@ -433,7 +443,8 @@ class SuggestionBlock(QFrame):
                             may_be_used: bool = True,
                             may_explain: bool = True,
                             curse_tooltip: str = "",
-                            held_favourite_line: str = "") -> None:
+                            held_favourite_line: str = "",
+                            pinned: bool = False) -> None:
         """Draw one slot group, or the one line that replaces it.
 
         `already_equipped` is the window's answer, not this block's: whether
@@ -445,7 +456,8 @@ class SuggestionBlock(QFrame):
         the window's: whether the bar's own `Why` is offered right now
         (`advisorbar.ACTING_STATES`, AK-274). A held slot still explains
         itself -- holding is about applying, not about reading the account --
-        so this never follows `may_be_used`.
+        so this never follows `may_be_used`. `pinned`: the run laid this relic
+        because it is starred (AK-437).
         """
         self.heading.setText(f"Suggested — {goal_label}".upper())
         self.heading.setVisible(not already_equipped)
@@ -453,6 +465,7 @@ class SuggestionBlock(QFrame):
         self.why_button.setVisible(may_explain and not already_equipped)
         self.relic_name.setText(group.relic_name)
         self.relic_name.setVisible(not already_equipped)
+        self.pinned_line.setVisible(pinned and not already_equipped)
         self.count_line.setText(group.count_line)
         self.count_line.setVisible(not already_equipped)
         drawn = [line for line in group.lines if types.drawn_in_the_block(line)]
@@ -476,7 +489,7 @@ class SuggestionBlock(QFrame):
         self.heading.setText("NO SUGGESTION")
         self.heading.setVisible(True)
         for part in (self.use_button, self.why_button, self.relic_name,
-                     self.count_line, self.lines, self.held_favourite,
+                     self.pinned_line, self.count_line, self.lines, self.held_favourite,
                      self.already_equipped):
             part.setVisible(False)
         self.empty_reason.setText(reason)
@@ -571,6 +584,12 @@ class WhyDialog(QDialog):
 
         self.head = _plain(head_sentence(heading))
         column.addWidget(self.head)
+
+        # Over the slot groups, one statement in one label (AK-439).
+        self.pins_left_out = _plain("\n".join(
+            (PINS_LEFT_OUT_HEADING, *(pin.line for pin in result.pins_left_out))))
+        self.pins_left_out.setVisible(bool(result.pins_left_out))
+        column.addWidget(self.pins_left_out)
 
         self.groups: list[tuple[QLabel, QLabel, list[WhyLine]]] = []
         #: Per group, its fold of the numberless lines, `None` for none.

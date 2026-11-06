@@ -527,8 +527,9 @@ def run(request: types.AdvisorRequest, inventory,
     # Under AK-365 the whole suggestion fell, and that has its own sentence.
     left_out = () if no_carrier_for else _required_left_out(problem,
                                                             best_chosen)
-    unknowns += explain.required_but_unmet(left_out, problem, pools, ctx,
-                                           inventory)
+    required_unmet = explain.required_but_unmet(left_out, problem, pools, ctx,
+                                                inventory)
+    unknowns += required_unmet
     if no_carrier_for:
         unknowns += (no_carrier_sentence(no_carrier_for),)
     return types.AdvisorResult(
@@ -548,6 +549,7 @@ def run(request: types.AdvisorRequest, inventory,
         data_note=explain.data_note(ctx),
         generation=request.generation,
         required_left_out=left_out,
+        required_unmet=required_unmet,
         empty_slots=(() if no_carrier_for else explain.empty_slots(
             problem, pools, best_chosen, ctx)),
         pins_placed=tuple(copy.slot_index for copy in placed),

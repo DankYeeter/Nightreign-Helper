@@ -386,3 +386,45 @@ def test_undo_leaves_a_slot_held_since_the_applying_alone(planner):
     keys = keys_of(planner)
     assert keys[held_index] == applied[held_index]
     assert keys[offers[1][0]] == before[offers[1][0]]
+
+
+# --- a hold and a star on one window (AD-059.6) -----------------------------
+
+def test_a_star_comes_back_as_a_choice_apply_all_writes_past_a_hold(planner):
+    """The star's whole road on the real window: store, question, run, slots.
+    The held slot keeps what it holds and the star takes a free one."""
+    from nrplanner.advisor import run as advisor_run
+
+    cards = planner.active_slots()
+    hero_id = planner.current_hero()["id"]
+    hold(cards[0])
+    before = keys_of(planner)
+    in_the_held_slot = getattr(cards[0].current_relic(), "handle", None)
+    star = next(copy for copy in cards[1]._holdable()
+                if copy.handle not in (None, in_the_held_slot))
+    favourites.set_favourite(star, hero_id, True)
+    try:
+        asking = advisorbar.asking_from(planner, "max_damage")
+        frozen = advisor_run.frozen_inventory(asking.inventory,
+                                              asking.request.problem)
+        request = dataclasses.replace(
+            asking.request,
+            inventory_fingerprint=advisor_run.inventory_fingerprint(frozen))
+        result = advisor_run.run(request, frozen, asking.ctx,
+                                 advisorbar.advisor_goals.GOALS)
+
+        assert result.held == asking.request.problem.held
+        assert 0 not in result.pins_placed
+        best = result.suggestions[0]
+        laid = [choice for choice in best.choices
+                if choice.slot_index in result.pins_placed]
+        assert star.handle in {choice.handle for choice in laid}
+
+        a_live_answer(planner, result)
+        planner.apply_all()
+
+        keys = keys_of(planner)
+        assert keys[0] == before[0]
+        assert chalices.slot_key(star) in keys[1:]
+    finally:
+        favourites.set_favourite(star, hero_id, False)

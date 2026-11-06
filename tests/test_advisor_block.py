@@ -1278,3 +1278,74 @@ def test_a_suggestion_after_no_suggestion_loses_the_reason(block):
     assert block.isHidden()
     assert block.empty_reason.text() == ""
     assert block.empty_reason.toolTip() == ""
+
+
+# --- the star on the block and in the dialog (AK-437, AK-439) ----------------
+
+def test_a_relic_laid_for_its_star_says_so(block):
+    """AK-437: under the name, in the star's colour, nothing to press."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group(), pinned=True)
+
+    assert block.pinned_line.isVisibleTo(block)
+    assert block.pinned_line.text() == (
+        "★ Your favourite — included because it fits.")
+    assert advisorblock.FAVOURITE in block.pinned_line.styleSheet()
+
+
+def test_a_relic_the_search_chose_does_not(block):
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+
+    assert not block.pinned_line.isVisibleTo(block)
+
+
+def test_the_star_line_goes_with_the_block_it_stood_in(block):
+    block.show_the_suggestion("Maximise damage", a_mixed_group(), pinned=True)
+
+    block.show_no_suggestion("Nothing.")
+    assert not block.pinned_line.isVisibleTo(block)
+
+    block.show_the_suggestion("Maximise damage", a_mixed_group(), pinned=True,
+                              already_equipped=True)
+    assert not block.pinned_line.isVisibleTo(block)
+
+
+def test_the_dialog_lists_the_stars_left_out_over_the_groups(qapp):
+    """AK-439, AK-456: one row per relic, above the slot groups."""
+    pin = types.PinLeftOut(
+        "Urn", (1, (2,), ()), types.PIN_REJECTED,
+        because="you rejected it for this build",
+        line="Urn (Strength +1) — you rejected it for this build")
+    dialog = a_dialog(qapp, an_answer(a_mixed_group(), pins_left_out=(pin,)))
+    try:
+        assert not dialog.pins_left_out.isHidden()
+        assert dialog.pins_left_out.text() == (
+            "Favourited relics left out:\n"
+            "Urn (Strength +1) — you rejected it for this build")
+        column = dialog.pins_left_out.parentWidget().layout()
+        assert (column.indexOf(dialog.pins_left_out)
+                < column.indexOf(dialog.groups[0][0]))
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_dialog_with_every_star_in_has_no_such_section(qapp):
+    dialog = a_dialog(qapp, an_answer(a_mixed_group()))
+    try:
+        assert dialog.pins_left_out.isHidden()
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_card_draws_the_star_of_the_slot_the_run_laid_it_in(planner):
+    """`pins_placed` reaches the one card it names."""
+    cards = planner.active_slots()
+    answer = an_answer(a_group(a_line("First."), slot=0, relic="First"),
+                       a_group(a_line("Second.", slot=1), slot=1,
+                               relic="Second"),
+                       pins_placed=(1,))
+    planner.show_the_suggestion(answer)
+    try:
+        assert not cards[0].suggestion.pinned_line.isVisibleTo(cards[0].suggestion)
+        assert cards[1].suggestion.pinned_line.isVisibleTo(cards[1].suggestion)
+    finally:
+        planner.show_the_suggestion(None)

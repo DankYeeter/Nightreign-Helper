@@ -41,8 +41,8 @@ from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
 from .theme import (
-    ACCENT, BORDER, CURSE, HOVER_FILL, MUTED, NAME_POINT_SIZE, PANEL,
-    SLOT_COLOURS,
+    ACCENT, BORDER, CURSE, FAVOURITE, HOVER_FILL, MUTED, NAME_POINT_SIZE,
+    PANEL, SLOT_COLOURS,
 )
 
 #: How many cards wide the dialog first asks to be. Not a claim about the
@@ -70,11 +70,6 @@ ICON = 56
 #: The dialog's own layout margin, one side. Named because the opening width
 #: has to add both of them back.
 MARGIN = 14
-
-# Purple against the gold of a selected card: the two states have to be told
-# apart at a glance, and gold's opposite is the one colour the rest of the
-# window never uses.
-FAVOURITE = "#a86fe0"
 
 #: The value row's own spacing between caption and figure (`ValueBlock`),
 #: read again below so `card_width` cannot drift from the layout
@@ -516,7 +511,8 @@ class SlotAdvice:
         condition -- and the one slot left free is how the question says which
         slot it is about, without a field of its own in the key. A Reject is
         about the suggestion and this is the hand choice, so it stays out
-        (AD-057.3).
+        (AD-057.3), and a star does for the same reason: it is not laid here,
+        it only leads the grid.
         """
         window = self._slot.window()
         asking = advisorbar.asking_from(
@@ -533,7 +529,7 @@ class SlotAdvice:
             held=tuple(advisorbar.held_slot(index, card)
                        for index, card in enumerate(cards)
                        if index != open_index),
-            rejected=frozenset())
+            rejected=frozenset(), pinned=())
         request = dataclasses.replace(asking.request, problem=problem)
         known = self._track.ask_and_answer_if_known(
             request, asking.inventory, asking.ctx)
@@ -663,7 +659,7 @@ class RelicCard(cardgrid.HoverCard):
     def __init__(self, item, effect_names: list[str], icon, selected: bool,
                  on_pick, curses: list[tuple[str, str]] | None = None,
                  tooltip: str = "", favourite: bool = False,
-                 on_favourite=None, captions=()):
+                 on_favourite=None, captions=(), hero_label: str = ""):
         super().__init__()
         self.item = item
         self.on_favourite = on_favourite
@@ -736,6 +732,9 @@ class RelicCard(cardgrid.HoverCard):
             star = QLabel("★")
             star.setStyleSheet(
                 f"border: none; color: {FAVOURITE}; font-size: 13px;")
+            star.setToolTip(advisorblock.as_a_tooltip(
+                f"Favourite for {hero_label}: Optimize puts it in the build "
+                f"when it fits."))
             titling.addWidget(star, 0, Qt.AlignTop)
         naming.addLayout(titling, 1)
         header.addLayout(naming, 1)
@@ -905,6 +904,13 @@ class FavouriteMenu(QMenu):
         title = QWidgetAction(self)
         title.setDefaultWidget(heading)
         self.addAction(title)
+
+        meaning = QLabel("Optimize puts it in the build when it fits.")
+        meaning.setStyleSheet(
+            f"color: {MUTED}; font-size: 11px; padding: 0px 8px 2px 8px;")
+        said = QWidgetAction(self)
+        said.setDefaultWidget(meaning)
+        self.addAction(said)
 
         holder = QWidget()
         grid = QGridLayout(holder)
@@ -1506,6 +1512,9 @@ class RelicPicker(QDialog):
             # back on every right-click.
             self._card_cache.pop(id(item), None)
             self._refresh()
+            # A star is part of the question, like a mark (AD-059.7).
+            self.slot.window().advisor_bar.the_build_changed(
+                marking_changed=True)
 
     def _curses(self, item) -> list[tuple[str, str]]:
         """(name, full description) per curse this relic actually rolled."""
@@ -1535,6 +1544,7 @@ class RelicPicker(QDialog):
             and favourites.is_favourite(item, self.hero_id),
             on_favourite=self._open_favourites,
             captions=self._captions(),
+            hero_label=self.hero_label,
         )
 
     def _waiting_area(self) -> QWidget:
@@ -1584,7 +1594,8 @@ class RelicPicker(QDialog):
             + (f" matching “{needle}”" if needle else "")
             + note
             + against
-            + "  ·  right-click a relic to favourite it"
+            + "  ·  right-click a relic to favourite it — Optimize puts "
+              "favourited relics in when they fit"
         )
         self._say_what_was_left_out()
 

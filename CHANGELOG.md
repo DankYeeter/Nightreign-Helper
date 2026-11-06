@@ -16,6 +16,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
   the status line names it.
 - The advisor works out which relics you favourited fit a chalice before it
   searches the other slots, and why the rest do not.
+- A relic you favourited for a Nightfarer now goes into Optimize's suggestion
+  when it fits; the status line counts favourites it could not honour and Why
+  names each with its reason.
 
 ## [1.20.1] - 2026-11-01
 
