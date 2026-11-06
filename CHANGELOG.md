@@ -6,6 +6,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Added
+- Optimize can ask the same question about every vessel of the Nightfarer and
+  rank them: favourite effects met, then favourite relics, then the figure.
+
 ### Changed
 - Optimize no longer suggests a relic that carries an effect or curse you
   marked Avoid; a relic you hold or place yourself stays where you put it.

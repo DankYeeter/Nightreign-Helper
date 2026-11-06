@@ -114,6 +114,10 @@ class HeldRelic:
     because they go into the same `model.compute` call as ordinary effects
     (AD-015): there is no second reckoning for a curse anywhere under
     `advisor/`.
+
+    `colour` and `is_deep` say which slots of another vessel it would fit
+    (AD-062.5). White on a custom relic built in a white slot: any slot of its
+    Deep kind.
     """
 
     relic_id: int
@@ -121,6 +125,8 @@ class HeldRelic:
     effect_ids: tuple[int, ...] = ()
     curse_ids: tuple[int, ...] = ()
     handle: int | None = None
+    colour: int = model.WHITE_SLOT
+    is_deep: bool = False
 
 
 @dataclass(frozen=True)
@@ -873,6 +879,9 @@ class AdvisorResult:
     goal_label: str
     suggestions: tuple[Suggestion, ...] = ()
     baseline: tuple[Baseline, ...] = ()
+    #: The base state's `GoalScore.display` under the asked direction: what a
+    #: vessel with no suggestion shows in the comparison (AK-449).
+    baseline_display: str = ""
     gain: tuple[Marginal, ...] = ()
     held: tuple[HeldSlot, ...] = ()
     unknowns: tuple[str, ...] = ()
@@ -929,6 +938,31 @@ class AdvisorResult:
     #: it to name that cause instead of the bare "nothing to choose from"
     #: (AK-365).
     no_carrier_for: str = ""
+
+
+@dataclass(frozen=True)
+class VesselQuestion:
+    """One vessel of the comparison (AD-062): what to ask about it, or, with
+    `request` `None`, the held relics that keep it from being asked at all."""
+
+    vessel_id: int
+    request: AdvisorRequest | None = None
+    unfit_holds: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class VesselRow:
+    """What the vessel list says of one vessel, read off its whole answer
+    (AD-062.6). Every figure is the run's: `figure` and `value` under the
+    asked direction, `other_value` under the other (AK-463)."""
+
+    vessel_id: int
+    figure: str = ""
+    value: float = 0.0
+    other_value: float = 0.0
+    required_left_out: tuple[int, ...] = ()
+    pins_left_out: tuple[str, ...] = ()
+    unfit_holds: tuple[str, ...] = ()
 
 
 # --- lookups over the shapes above -----------------------------------------

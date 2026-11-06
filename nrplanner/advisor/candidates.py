@@ -330,7 +330,9 @@ def place(items: Sequence, slots: Sequence[types.Slot]
     Its own colour first, a white slot of its Deep kind only then
     (AD-059.2): a relic in a slot of its colour leaves every other relic at
     least the same choice, so going through in any order places as many as any
-    assignment could, and the order only decides who is left over.
+    assignment could, and the order only decides who is left over. A white
+    item, a custom relic built in a white slot, fits any slot of its Deep kind
+    (AD-062.5).
     """
     free = list(slots)
     placed = []
@@ -339,7 +341,9 @@ def place(items: Sequence, slots: Sequence[types.Slot]
         fitting = [slot for slot in free if slot.deep == item.is_deep]
         slot = (next((s for s in fitting if s.colour == item.colour), None)
                 or next((s for s in fitting if s.colour == model.WHITE_SLOT),
-                        None))
+                        None)
+                or (fitting[0] if fitting and item.colour == model.WHITE_SLOT
+                    else None))
         if slot is None:
             rest.append(item)
             continue
@@ -352,7 +356,8 @@ def held_as(copy: types.Candidate) -> types.HeldSlot:
     """A laid copy, in the form the search reads a held slot in."""
     return types.HeldSlot(index=copy.slot_index, relic=types.HeldRelic(
         relic_id=copy.relic_id, name=copy.name, effect_ids=copy.effect_ids,
-        curse_ids=copy.curse_ids, handle=copy.handle))
+        curse_ids=copy.curse_ids, handle=copy.handle, colour=copy.colour,
+        is_deep=copy.is_deep))
 
 
 def _stars_to_lay(inventory, problem: types.SlotProblem

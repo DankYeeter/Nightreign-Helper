@@ -103,6 +103,9 @@ SAMPLES = {
                                    effect_id=7),
     "AdvisorResult": types.AdvisorResult(goal_id="max_damage",
                                          goal_label="Maximise damage"),
+    "VesselQuestion": types.VesselQuestion(1, unfit_holds=("Urn",)),
+    "VesselRow": types.VesselRow(1, "Attack rating 117", 117.0, 900.0, (7,),
+                                 ("Urn",)),
 }
 
 

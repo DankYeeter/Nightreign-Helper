@@ -28,6 +28,7 @@ import dataclasses
 
 import pytest
 
+from nrplanner import model
 from nrplanner.advisor import goals, run, search, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -1356,3 +1357,147 @@ def test_an_unknown_star_reason_is_an_error(game_data, wylder):
 
     with pytest.raises(KeyError):
         run.explain.pins_left_out((left,), advisor.problem([advisor.RED]), ctx)
+
+
+# -- every vessel, the same question (AD-062) --------------------------------
+
+A_VESSEL = {"id": 1, "slots": [advisor.RED, advisor.RED], "deep_slots": []}
+BLUE_VESSEL = {"id": 2, "slots": [advisor.BLUE, advisor.BLUE], "deep_slots": []}
+WHITE_VESSEL = {"id": 3, "slots": [advisor.BLUE, model.WHITE_SLOT],
+                "deep_slots": []}
+
+
+def _a_held(name="Held", colour=advisor.RED, is_deep=False):
+    return types.HeldRelic(relic_id=1, name=name, colour=colour,
+                           is_deep=is_deep, handle=5)
+
+
+def _asked_with_holds(*held):
+    return types.AdvisorRequest(
+        hero_id=1, level=15, goal_id=DAMAGE, weighting_id="even",
+        problem=types.SlotProblem(
+            slots=(types.Slot(0, advisor.RED, False),
+                   types.Slot(1, advisor.RED, False)),
+            held=held, rejected=frozenset({(9, (), ())})))
+
+
+def test_a_row_says_what_optimize_says_there(game_data, wylder):
+    """The guard of AD-062: one number, whichever screen reads it."""
+    inventory, _problem, ctx, request = advisor.a_question(game_data, wylder)
+    result = run.run(request, inventory, ctx, goals.GOALS)
+    row = run.vessel_row(7, result)
+    best = result.suggestions[0].score
+    assert (row.vessel_id, row.figure, row.value) == (7, best.display,
+                                                      best.value)
+    assert row.other_value == goals.MIN_DAMAGE_TAKEN.score(
+        evaluate(request.problem, _chosen(
+            result, inventory, request.problem, ctx), ctx,
+            goal=goals.MIN_DAMAGE_TAKEN), ctx).value
+
+
+def test_a_vessel_with_no_suggestion_shows_its_base_state(game_data):
+    """AK-449: the base state's own figure, formatted once, by the goal."""
+    result = _recluse_sorceries(game_data, "Fire")
+    assert result.suggestions == ()
+    base = next(line for line in result.baseline if line.goal_id == DAMAGE)
+    row = run.vessel_row(7, result)
+    assert row.value == base.value
+    assert row.figure == result.baseline_display != ""
+
+
+@pytest.mark.parametrize("better, worse", [
+    (types.VesselRow(1, value=1.0, other_value=1.0),
+     types.VesselRow(2, value=9.0, other_value=9.0, required_left_out=(4,))),
+    (types.VesselRow(1, value=1.0, other_value=1.0),
+     types.VesselRow(2, value=9.0, other_value=9.0, pins_left_out=("Urn",))),
+    (types.VesselRow(1, value=2.0, other_value=1.0),
+     types.VesselRow(2, value=1.0, other_value=9.0)),
+    (types.VesselRow(1, value=1.0, other_value=2.0),
+     types.VesselRow(2, value=1.0, other_value=1.0)),
+    (types.VesselRow(1, value=0.0, required_left_out=(4, 5)),
+     types.VesselRow(2, value=9.0, unfit_holds=("Urn",))),
+], ids=["effects", "stars", "this direction", "the other", "unfit"])
+def test_one_key_of_the_rank_decides_alone(better, worse):
+    """AK-463, each key on its own: the list's order would say the opposite."""
+    assert run.ranked((worse, better), (2, 1))[0] is better
+
+
+def test_favourite_effects_outrank_stars():
+    """AK-463: effects before stars, whatever the counts."""
+    effect = types.VesselRow(1, required_left_out=(4,))
+    stars = types.VesselRow(2, pins_left_out=("Urn", "Goblet"))
+    assert run.ranked((effect, stars), (1, 2))[0] is stars
+
+
+def test_the_list_decides_only_when_every_key_is_level():
+    first, second = types.VesselRow(1, value=1.0), types.VesselRow(2, value=1.0)
+    assert run.rank_key(first) == run.rank_key(second)
+    assert run.ranked((first, second), (2, 1))[0] is second
+
+
+def test_the_chosen_vessel_is_asked_first_and_unchanged():
+    """AD-062.3: its question is the one just answered, so it is a hit."""
+    asked = _asked_with_holds(types.HeldSlot(1, _a_held()), types.HeldSlot(0))
+    questions = run.vessel_questions(
+        asked, (WHITE_VESSEL, A_VESSEL), A_VESSEL["id"], False)
+    assert questions[0] == types.VesselQuestion(A_VESSEL["id"], asked)
+    assert [question.vessel_id for question in questions] == [1, 3]
+
+
+def test_a_hold_travels_to_its_own_colour_before_a_white_slot():
+    relic = _a_held(colour=advisor.BLUE)
+    asked = _asked_with_holds(types.HeldSlot(1, relic))
+    _chosen_one, other = run.vessel_questions(
+        asked, (A_VESSEL, WHITE_VESSEL), A_VESSEL["id"], False)
+    problem = other.request.problem
+    assert problem.held == (types.HeldSlot(0, relic),)
+    assert problem.slots == run.vessel_slots(WHITE_VESSEL, False)
+    assert problem.rejected == asked.problem.rejected
+
+
+def test_a_slot_held_empty_stays_with_its_vessel():
+    asked = _asked_with_holds(types.HeldSlot(0))
+    _chosen_one, other = run.vessel_questions(
+        asked, (A_VESSEL, BLUE_VESSEL), A_VESSEL["id"], False)
+    assert other.request.problem.held == ()
+
+
+def test_a_vessel_that_cannot_take_the_holds_is_not_asked():
+    """AD-062.5: the row says so instead of a figure that is not comparable."""
+    asked = _asked_with_holds(types.HeldSlot(0, _a_held("Red one")))
+    _chosen_one, other = run.vessel_questions(
+        asked, (A_VESSEL, BLUE_VESSEL), A_VESSEL["id"], False)
+    assert other == types.VesselQuestion(BLUE_VESSEL["id"],
+                                         unfit_holds=("Red one",))
+
+
+def test_a_custom_relic_of_a_white_slot_fits_any_slot_of_its_kind():
+    """AD-062.5: built in a white slot it has no colour to ask for."""
+    custom = _a_held("Custom relic", colour=model.WHITE_SLOT)
+    asked = _asked_with_holds(types.HeldSlot(0, custom))
+    _chosen_one, other = run.vessel_questions(
+        asked, (A_VESSEL, BLUE_VESSEL), A_VESSEL["id"], False)
+    assert other.request.problem.held == (types.HeldSlot(0, custom),)
+
+
+def test_a_deep_relic_does_not_travel_to_an_ordinary_slot():
+    asked = _asked_with_holds(types.HeldSlot(0, _a_held(is_deep=True)))
+    _chosen_one, off, on = run.vessel_questions(
+        asked, (A_VESSEL, {**WHITE_VESSEL, "id": 4},
+                {**WHITE_VESSEL, "id": 5}), A_VESSEL["id"], False)
+    assert off.unfit_holds and on.unfit_holds
+    deep = {"id": 6, "slots": [advisor.BLUE], "deep_slots": [advisor.RED]}
+    _chosen_one, there = run.vessel_questions(
+        asked, (A_VESSEL, deep), A_VESSEL["id"], True)
+    assert there.request.problem.held[0].index == 1
+
+
+def test_the_moved_holds_say_where_each_came_from():
+    """`Switch to it` reads this to carry the slot's own stored key along."""
+    first, second = _a_held("First"), _a_held("Second", colour=advisor.BLUE)
+    moved, unfit = run.held_moved_to(
+        (types.HeldSlot(1, first), types.HeldSlot(0, second)),
+        run.vessel_slots({"slots": [advisor.BLUE, advisor.RED]}, False))
+    assert moved == ((1, types.HeldSlot(1, first)),
+                     (0, types.HeldSlot(0, second)))
+    assert unfit == ()

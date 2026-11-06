@@ -494,7 +494,8 @@ def held_slot(index: int, card) -> types.HeldSlot:
         name=item.name,
         effect_ids=tuple(item.effect_ids),
         curse_ids=tuple(getattr(item, "curse_ids", ()) or ()),
-        handle=getattr(item, "handle", None)))
+        handle=getattr(item, "handle", None),
+        colour=item.colour, is_deep=item.is_deep))
 
 
 def held_swapped_art_ids(held, effects) -> tuple[int, ...]:

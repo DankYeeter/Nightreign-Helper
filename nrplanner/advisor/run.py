@@ -53,7 +53,7 @@ from collections.abc import Callable, Mapping, Sequence
 from .. import model
 from . import candidates, explain, search, types
 from .evaluate import evaluate, evaluate_per_goal
-from .goals import _ranked_on_choice, chosen_label
+from .goals import OTHER_GOAL, _ranked_on_choice, chosen_label
 from .types import never_cancelled
 
 
@@ -537,6 +537,7 @@ def run(request: types.AdvisorRequest, inventory,
         goal_label=goal.label,
         suggestions=tuple(suggestions),
         baseline=_base_lines(base_scores),
+        baseline_display=base_scores[request.goal_id].display,
         gain=_gain_over_the_base_state(goals, ctx, best_built, base_scores),
         held=problem.held,
         unknowns=unknowns,
@@ -608,3 +609,88 @@ def slot_pool(request: types.AdvisorRequest, inventory,
             f"them free: {[slot.index for slot in open_slots]}")
     return candidates.pool(inventory, problem, open_slots[0].index, ctx,
                            goals, request.goal_id, should_cancel)
+
+
+# --- the same question about every vessel (AD-062) --------------------------
+
+def vessel_slots(vessel: Mapping, deep: bool) -> tuple[types.Slot, ...]:
+    """The slots of a vessel not on screen, as `asking_from` reads those of the
+    one that is: the ordinary ones, then the Deep ones when Deep is on."""
+    colours = [(colour, False) for colour in vessel["slots"]]
+    if deep:
+        colours += [(colour, True) for colour in vessel.get("deep_slots") or ()]
+    return tuple(types.Slot(index=index, colour=colour, deep=is_deep)
+                 for index, (colour, is_deep) in enumerate(colours))
+
+
+def held_moved_to(held: Sequence[types.HeldSlot],
+                  slots: Sequence[types.Slot]
+                  ) -> tuple[tuple[tuple[int, types.HeldSlot], ...],
+                             tuple[types.HeldRelic, ...]]:
+    """The held relics laid in another vessel's slots (AD-062.5).
+
+    `(index they are held at here, held slot there)` pairs, and the relics that
+    fit nowhere. A slot held empty stays with its vessel.
+    """
+    held_at = {id(entry.relic): entry.index for entry in held
+               if entry.relic is not None}
+    placed, unfit = candidates.place(
+        [entry.relic for entry in held if entry.relic is not None], slots)
+    return (tuple((held_at[id(relic)],
+                   types.HeldSlot(index=slot.index, relic=relic))
+                  for slot, relic in placed), unfit)
+
+
+def vessel_questions(request: types.AdvisorRequest,
+                     vessels: Sequence[Mapping], chosen_id: int, deep: bool
+                     ) -> tuple[types.VesselQuestion, ...]:
+    """One question per vessel, the chosen one first and unchanged, so that it
+    is the answer already on screen (AD-062.3). The marks, the stars and the
+    rejections travel in the problem as they are."""
+    questions = []
+    for vessel in sorted(vessels, key=lambda vessel: vessel["id"] != chosen_id):
+        if vessel["id"] == chosen_id:
+            questions.append(types.VesselQuestion(chosen_id, request))
+            continue
+        slots = vessel_slots(vessel, deep)
+        moved, unfit = held_moved_to(request.problem.held, slots)
+        if unfit:
+            questions.append(types.VesselQuestion(
+                vessel["id"], unfit_holds=tuple(relic.name for relic in unfit)))
+            continue
+        problem = dataclasses.replace(
+            request.problem, slots=slots,
+            held=tuple(sorted((entry for _, entry in moved),
+                              key=lambda entry: entry.index)))
+        questions.append(types.VesselQuestion(
+            vessel["id"], dataclasses.replace(request, problem=problem)))
+    return tuple(questions)
+
+
+def vessel_row(vessel_id: int, result: types.AdvisorResult) -> types.VesselRow:
+    """What the list says of a vessel: what `Optimize` says there, read off the
+    answer and computed nowhere else (AD-062.6)."""
+    best = result.suggestions[0].score if result.suggestions else None
+    base = {line.goal_id: line.value for line in result.baseline}
+    gain = {line.goal_id: line.gain for line in result.gain}
+    other = OTHER_GOAL.get(result.goal_id)
+    return types.VesselRow(
+        vessel_id=vessel_id,
+        figure=best.display if best else result.baseline_display,
+        value=best.value if best else base.get(result.goal_id, 0.0),
+        other_value=base.get(other, 0.0) + gain.get(other, 0.0),
+        required_left_out=result.required_left_out,
+        pins_left_out=tuple(pin.name for pin in result.pins_left_out))
+
+
+def rank_key(row: types.VesselRow) -> tuple:
+    """The order of AK-463, best first; equal keys are a tie (AK-464 (5))."""
+    return (bool(row.unfit_holds), len(row.required_left_out),
+            len(row.pins_left_out), -row.value, -row.other_value)
+
+
+def ranked(rows: Sequence[types.VesselRow],
+           vessel_ids: Sequence[int]) -> tuple[types.VesselRow, ...]:
+    """The rows best first; the list's own order decides last (AK-463)."""
+    return tuple(sorted(rows, key=lambda row: (
+        rank_key(row), vessel_ids.index(row.vessel_id))))

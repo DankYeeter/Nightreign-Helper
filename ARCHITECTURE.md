@@ -9692,8 +9692,8 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
    `finished(tuple[VesselRow, ...])`, `failed(str)`, `stopped()`. Die Leiste baut ihren Controller mit explizitem
    `ResultCache`. Cache nur im Hauptthread (Bestand), also ohne Lock. **`CACHE_SIZE` bleibt 32:** haelt zwei volle Vergleiche
    samt Vorschlaegen, mehr braucht AK-435 nicht.
-2. Qt-frei in `run.py`: `vessel_questions(asking, vessels, chosen_id, deep)`, `vessel_row(vessel_id, result)`,
-   `ranked(rows, chosen_id)`.
+2. Qt-frei in `run.py`: `vessel_questions(request, vessels, chosen_id, deep)`, `vessel_row(vessel_id, result)`,
+   `rank_key(row)`, `ranked(rows, vessel_ids)` (Liste statt `chosen_id`: das gewaehlte Gefaess entscheidet seit AK-463 nichts mehr).
 3. **Das gewaehlte Gefaess zuerst, ohne Sonderweg:** `AdvisorBar._on_ready` startet den Vergleich; die Frage des gewaehlten
    Gefaesses ist die eben beantwortete, also ein Treffer (11 Treffer gemessen 13,1 ms). Nicht gestartet wird bei einem Treffer aus AD-062.7.
    A6 bleibt damit vom Vergleich unberuehrt.
@@ -9711,18 +9711,19 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
    @dataclass(frozen=True)        # illustrierend
    class VesselRow:
        vessel_id: int
-       figure: str                # Suggestion.score.display, sonst die Grundlinie
-       value: float               # Suggestion.score.value
-       filled: int                # choices + held, wie advisorbar._on_ready
-       slots: int
+       figure: str                # Suggestion.score.display, sonst AdvisorResult.baseline_display
+       value: float               # Suggestion.score.value, sonst die Grundlinie
+       other_value: float         # baseline + gain unter goals.OTHER_GOAL
        required_left_out: tuple[int, ...] = ()
-       pins_left_out: int = 0
+       pins_left_out: tuple[str, ...] = ()   # Namen, fuer `Misses:` (AK-452)
        unfit_holds: tuple[str, ...] = ()
    ```
-   `ranked`: **(unfit zuletzt, weniger offene Wuensche, hoeherer `value`, mehr `filled`, das gewaehlte, Listenreihenfolge).**
-   Wuensche zuerst: gemessen bei Raider unter den Marken des Nutzers Scadutree Grail 119 mit 2 von 6 Favoriten gegen Decrepit Goblet 88 mit
-   6 von 6. A19 nennt den Favoriten Pflicht, A28 fragt nach dem besten Gefaess "fuer die relikte die ich will". **Offen OF-62.** Gleichstand nach
-   AK-432 auf `figure`. `difference` ueber `damage.displayed` wie `explain._signed_delta`.
+   `ranked` (**Nutzerentscheid 07.11.2026, GOAL A28 letzter Punkt, AK-463; loest die fruehere Fassung dieses Punktes ab, OF-62 geschlossen**):
+   **(unfit zuletzt, weniger `required_left_out`, weniger `pins_left_out`, hoeherer `value`, hoeherer `other_value`, Listenreihenfolge).**
+   Der Anlass bleibt gemessen: bei Raider unter den Marken des Nutzers Scadutree Grail 119 mit 2 von 6 Favoriten gegen Decrepit Goblet 88 mit
+   6 von 6. "Das andere Ziel" ist `goals.OTHER_GOAL`: Schaden und Abwehr gegenseitig; `max_attributes` hat keins in der Spec und schaut auf Schaden
+   (Annahme des `developer`, eine Zeile). Der zweite Wert kommt aus der Antwort (`baseline` + `gain`), kein eigener Rechenweg. Gleichstand: alle vier
+   Schluessel gleich (AK-464 (5)). `{difference}` nach AK-449 aus den beiden `value`.
 7. **Wechsel ohne zweiten Lauf:** Ist der Vergleich aktuell, fragt die Leiste nach dem Wechsel `ask_and_answer_if_known` und zeichnet bei
    Treffer wie `_on_ready`. Ohne Holds und ohne Rejects stimmt der Schluessel von selbst. **`Switch to it` uebertraegt** Holds und Rejects ins Zielgefaess
    (`_holds`, `_rejects`, Relikte in die Slots ueber den `Apply`-Weg), sonst waere die Zahl der Zeile nicht die des Vorschlags; das ueberschreibt dort
