@@ -99,6 +99,8 @@ SAMPLES = {
     "Suggestion": types.Suggestion(
         choices=(types.SlotChoice(1, 42, 8, "Other relic"),), score=A_SCORE),
     "EmptySlot": types.EmptySlot(1, types.EMPTY_AVOIDED, (7,)),
+    "PinLeftOut": types.PinLeftOut("Urn", (8, (7,), ()), types.PIN_AVOIDED,
+                                   effect_id=7),
     "AdvisorResult": types.AdvisorResult(goal_id="max_damage",
                                          goal_label="Maximise damage"),
 }

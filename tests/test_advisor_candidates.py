@@ -715,3 +715,63 @@ def test_a_pool_counts_what_the_marks_took_out_of_it(game_data, wylder):
     assert pool.candidates == ()
     assert pool.avoided_by == tuple(sorted({avoided.effect_ids[0], curse}))
     assert pool.rejected_out == 1
+
+
+# -- laying a relic in a slot (AD-059.2) -------------------------------------
+
+def _laid(colour: int, is_deep: bool = False):
+    return types.Candidate(slot_index=0, handle=colour * 10 + is_deep,
+                           relic_id=1, name=f"{colour}", colour=colour,
+                           is_deep=is_deep)
+
+
+def _slot_of(index: int, colour: int, deep: bool = False) -> types.Slot:
+    return types.Slot(index=index, colour=colour, deep=deep)
+
+
+def test_a_relic_takes_its_colour_before_a_white_slot():
+    """Colour first is what makes the placing lossless: a white slot taken
+    first would turn away a second relic that had no other slot."""
+    white = _slot_of(0, model.WHITE_SLOT)
+    red = _slot_of(1, advisor.RED)
+    relic = _laid(advisor.RED)
+
+    assert candidates.place((relic,), (white, red)) == (((red, relic),), ())
+
+
+def test_placing_leaves_out_only_what_no_slot_can_take():
+    white = _slot_of(0, model.WHITE_SLOT)
+    red = _slot_of(1, advisor.RED)
+    first, second, blue = (_laid(advisor.RED), _laid(advisor.RED),
+                           _laid(advisor.BLUE))
+
+    placed, rest = candidates.place((first, second, blue), (red, white))
+
+    assert placed == ((red, first), (white, second))
+    assert rest == (blue,)
+
+
+def test_a_white_slot_takes_only_its_own_deep_kind():
+    deep_white = _slot_of(0, model.WHITE_SLOT, deep=True)
+    relic = _laid(advisor.RED)
+
+    assert candidates.place((relic,), (deep_white,)) == ((), (relic,))
+    deep_relic = _laid(advisor.RED, is_deep=True)
+    assert candidates.place((deep_relic,), (deep_white,))[0] == (
+        (deep_white, deep_relic),)
+
+
+def test_placing_agrees_with_what_a_slot_is_offered(game_data, wylder):
+    """`place` has to state the colour rule, the save's `relics_for` owns it:
+    the two may not come to differ about what fits."""
+    inventory = advisor.make_inventory(game_data, wylder, colour=advisor.RED,
+                                       count=2, deep_count=1,
+                                       other_colour=advisor.BLUE)
+    colours = (advisor.RED, advisor.BLUE, model.WHITE_SLOT)
+    for index, (colour, deep) in enumerate(
+            (colour, deep) for colour in colours for deep in (False, True)):
+        slot = _slot_of(index, colour, deep)
+        offered = {relic.handle for relic in inventory.relics_for(colour, deep)}
+        fits = {relic.handle for relic in inventory.relics
+                if candidates.place((relic,), (slot,))[0]}
+        assert fits == offered

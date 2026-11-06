@@ -14,6 +14,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
   rest.
 - A slot Optimize leaves empty now shows NO SUGGESTION with the reason, and
   the status line names it.
+- The advisor works out which relics you favourited fit a chalice before it
+  searches the other slots, and why the rest do not.
 
 ## [1.20.1] - 2026-11-01
 

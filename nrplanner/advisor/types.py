@@ -175,6 +175,11 @@ class SlotProblem:
     (AD-014.5) -- never a filter over its result. An id in both sets is
     refused: the window keeps them apart, and a problem that asked for both
     would have no answer that is not a lie about one of them.
+
+    `pinned` are the rolls the player starred for this Nightfarer (A28,
+    AD-059), sorted: each goes into the suggestion when it fits, and the run
+    says why when it does not. Not `favourites`' text form: this package is
+    Qt-free, and the window reads the store.
     """
 
     slots: tuple[Slot, ...] = ()
@@ -182,6 +187,7 @@ class SlotProblem:
     excluded: frozenset[int] = frozenset()
     required: frozenset[int] = frozenset()
     rejected: frozenset[Roll] = frozenset()
+    pinned: tuple[Roll, ...] = ()
 
     def __post_init__(self) -> None:
         both = self.excluded & self.required
@@ -812,6 +818,41 @@ class EmptySlot:
     line: str = ""
 
 
+#: Why a starred relic is not in the suggestion (AD-059.5), in the order
+#: `candidates.pin` asks. A roll that carries an avoided id or was rejected:
+PIN_AVOIDED = "avoided"
+PIN_REJECTED = "rejected"
+#: Every copy of the roll lacks a handle, so none can be applied (AD-013.4):
+PIN_NO_COPY = "no_copy"
+#: This vessel has no slot of its colour and Deep kind, or all of them are held:
+PIN_NO_SLOT = "no_slot"
+PIN_SLOTS_HELD = "slots_held"
+#: A stronger starred relic took the last slot it fits:
+PIN_OTHER_PIN = "other_pin"
+#: Placing it would lower how many `Favourite` effects the vessel can carry:
+PIN_BLOCKS_REQUIREMENT = "blocks_requirement"
+
+
+@dataclass(frozen=True)
+class PinLeftOut:
+    """A starred relic the suggestion does not carry, and why (AK-439, AK-456).
+
+    `effect_id` belongs to `PIN_AVOIDED` and `PIN_BLOCKS_REQUIREMENT`, `other`
+    to `PIN_OTHER_PIN`. `because` and `line` are the bar's half sentence and
+    the `Why` dialog's row, written by `explain.py`: it takes the dataset to
+    name an effect, and the window has none to read.
+    """
+
+    name: str
+    roll: Roll
+    reason: str
+    is_deep: bool = False
+    effect_id: int | None = None
+    other: str = ""
+    because: str = ""
+    line: str = ""
+
+
 @dataclass(frozen=True)
 class AdvisorResult:
     """What one run hands back, with everything it does not know (AD-010).
@@ -873,6 +914,12 @@ class AdvisorResult:
     #: under `no_carrier_for`: the whole suggestion fell, and that is the
     #: reason given (AD-057.4).
     empty_slots: tuple[EmptySlot, ...] = ()
+    #: The slots a starred relic was laid in before the search, and the stars
+    #: left out by name and reason, sorted by name (AD-059.4, .5). `held` stays
+    #: what the player holds: a star comes back as an ordinary choice, so
+    #: `Apply all` writes it and the slot count is untouched (QA-284).
+    pins_placed: tuple[int, ...] = ()
+    pins_left_out: tuple[PinLeftOut, ...] = ()
     #: The chosen damage type or attack art, lowered as it stands mid-sentence,
     #: when every suggestion was dropped because nothing owned moves the
     #: ranked figure under it (QA-290); empty otherwise. The status line reads

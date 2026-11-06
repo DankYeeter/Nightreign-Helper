@@ -334,7 +334,8 @@ def no_carrier_sentence(choice: str) -> str:
 
 
 def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
-               pools: Sequence[types.SlotPool], base: model.Build,
+               pools: Sequence[types.SlotPool],
+               placed: Sequence[types.Candidate], base: model.Build,
                ctx: types.GoalContext, goal: types.Goal
                ) -> tuple[types.Suggestion, tuple[types.Candidate, ...],
                           model.Build]:
@@ -346,7 +347,7 @@ def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
     second time for those would be a second `model.compute` of one assignment
     (AD-014.1).
     """
-    chosen = explain.chosen_for(suggestion, pools)
+    chosen = explain.chosen_for(suggestion, pools, placed)
     built = evaluate(problem, chosen, ctx, goal=goal)
     groups = explain.reasons(problem, chosen, base, built, ctx, goal)
     return dataclasses.replace(suggestion, reasons=groups), chosen, built
@@ -358,6 +359,38 @@ def _required_left_out(problem: types.SlotProblem,
     carried = {eid for relic in (*types.held_relics(problem), *chosen)
                for eid in (*relic.effect_ids, *relic.curse_ids)}
     return tuple(sorted(problem.required - carried))
+
+
+def _lay_the_pins(inventory, problem: types.SlotProblem,
+                  ctx: types.GoalContext, goals: Mapping[str, types.Goal],
+                  goal: types.Goal, should_cancel: Callable[[], bool]):
+    """`candidates.pin`, with what it needs to ask about `Favourite` effects.
+
+    Pools of the problem without stars: what they say is which copy carries
+    what, and that does not move with what else is laid. A laid copy still
+    listed elsewhere changes nothing, since what it carries is held by then.
+    """
+    bare = (candidates.pools(inventory, problem, ctx, goals, goal.id,
+                             should_cancel)
+            if problem.pinned and problem.required else ())
+
+    def attainable(asked: types.SlotProblem) -> frozenset[int]:
+        free = {slot.index for slot in types.free_slots(asked)}
+        return search.attainable(asked, [pool for pool in bare
+                                         if pool.slot_index in free])
+
+    return candidates.pin(inventory, problem, ctx, goal, attainable)
+
+
+def _with_the_pins(suggestion: types.Suggestion,
+                   placed: Sequence[types.Candidate]) -> types.Suggestion:
+    """A star comes back as an ordinary choice (AD-059.4), in slot order."""
+    choices = (*suggestion.choices,
+               *(types.SlotChoice(slot_index=copy.slot_index,
+                                  handle=copy.handle, relic_id=copy.relic_id,
+                                  name=copy.name) for copy in placed))
+    return dataclasses.replace(suggestion, choices=tuple(
+        sorted(choices, key=lambda choice: choice.slot_index)))
 
 
 def run(request: types.AdvisorRequest, inventory,
@@ -394,6 +427,12 @@ def run(request: types.AdvisorRequest, inventory,
     meanings. The result's singular fields -- the gain, the curses, what went
     uncounted -- belong to the **best** suggestion, which is the one
     `Apply all` applies.
+
+    **Two problems, kept apart** (AD-059.4). `searched` holds the starred
+    relics as well and is what the pools and the beam read, so the search is
+    smaller and every other slot is measured beside them. `problem` is what
+    the player asked: the base state, the gain and the explanation read that,
+    or the suggestion would not be credited with the stars it brought.
     """
     _refuse_a_request_that_asks_about_another_run(request, inventory, ctx)
     if request.goal_id not in goals:
@@ -402,18 +441,24 @@ def run(request: types.AdvisorRequest, inventory,
     goal = goals[request.goal_id]
     problem = request.problem
 
-    pools = candidates.pools(inventory, problem, ctx, goals, request.goal_id,
+    placed, pins_left_out = _lay_the_pins(inventory, problem, ctx, goals, goal,
+                                          should_cancel)
+    searched = dataclasses.replace(problem, held=tuple(sorted(
+        (*problem.held, *map(candidates.held_as, placed)),
+        key=lambda entry: entry.index)))
+
+    pools = candidates.pools(inventory, searched, ctx, goals, request.goal_id,
                              should_cancel)
     if should_cancel():
         raise search.Cancelled("stopped after the pre-sort, before the search")
-    scorer = search.goal_scorer(problem, ctx, goal)
+    scorer = search.goal_scorer(searched, ctx, goal)
     # A28: the favourites the vessel can carry bind the search, and the free
     # search is the promise "never blocks" against the K limit of its forced
     # branches missing a carrier (AD-058.2, .4).
     found = (search.beam(dataclasses.replace(
-                 problem, required=search.attainable(problem, pools)),
+                 searched, required=search.attainable(searched, pools)),
                  pools, request.budget, scorer, should_cancel)
-             or search.beam(dataclasses.replace(problem, required=frozenset()),
+             or search.beam(dataclasses.replace(searched, required=frozenset()),
                             pools, request.budget, scorer, should_cancel))
 
     bases = evaluate_per_goal(problem, (), ctx, goals)
@@ -425,8 +470,9 @@ def run(request: types.AdvisorRequest, inventory,
     best_chosen: tuple[types.Candidate, ...] = ()
     best_built = base
     for index, suggestion in enumerate(found):
-        explained, chosen, built = _explained(suggestion, problem, pools,
-                                              base, ctx, goal)
+        explained, chosen, built = _explained(
+            _with_the_pins(suggestion, placed), problem, pools, placed, base,
+            ctx, goal)
         suggestions.append(explained)
         if index == 0:
             best_chosen, best_built = chosen, built
@@ -458,6 +504,7 @@ def run(request: types.AdvisorRequest, inventory,
             and best.score.value == base_scores[request.goal_id].value):
         suggestions = []
         best_chosen, best_built = (), base
+        placed, pins_left_out = (), ()
         if request.hit_with and request.damage_type:
             no_carrier_for = _ranked_on_choice(request.hit_with,
                                                request.damage_type)
@@ -503,6 +550,8 @@ def run(request: types.AdvisorRequest, inventory,
         required_left_out=left_out,
         empty_slots=(() if no_carrier_for else explain.empty_slots(
             problem, pools, best_chosen, ctx)),
+        pins_placed=tuple(copy.slot_index for copy in placed),
+        pins_left_out=explain.pins_left_out(pins_left_out, problem, ctx),
         no_carrier_for=no_carrier_for,
     )
 

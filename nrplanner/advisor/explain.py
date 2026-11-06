@@ -715,7 +715,9 @@ def _count_line(effects: int, with_a_figure: int, moved_something: bool
 # --- the lines themselves --------------------------------------------------
 
 def chosen_for(suggestion: types.Suggestion,
-               pools: Sequence[types.SlotPool]) -> tuple[types.Candidate, ...]:
+               pools: Sequence[types.SlotPool],
+               placed: Sequence[types.Candidate] = ()
+               ) -> tuple[types.Candidate, ...]:
     """The copies a suggestion names, back as the candidates they came from.
 
     A `SlotChoice` carries what the window needs to put a relic in a slot --
@@ -728,10 +730,17 @@ def chosen_for(suggestion: types.Suggestion,
     Loud when a choice is in no pool: that means the pools and the suggestion
     are from two different runs, and explaining one with the other would name
     effects that are not in the build.
+
+    A starred relic laid before the search is in no pool: `placed` is where
+    its roll is (AD-059.4).
     """
     by_slot = {pool.slot_index: pool for pool in pools}
+    laid = {copy.slot_index: copy for copy in placed}
     found = []
     for choice in suggestion.choices:
+        if choice.slot_index in laid:
+            found.append(laid[choice.slot_index])
+            continue
         pool = by_slot.get(choice.slot_index)
         if pool is None:
             raise KeyError(
@@ -1353,6 +1362,43 @@ def empty_slots(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
     filled = {copy.slot_index for copy in chosen}
     return tuple(_empty_slot(problem, pool, ctx) for pool in pools
                  if pool.slot_index not in filled)
+
+
+def _pin_because(left: types.PinLeftOut, problem: types.SlotProblem,
+                 ctx: types.GoalContext) -> str:
+    """AK-456's `{reason}`. An unknown reason is a `KeyError`, not a fallback."""
+    effect = ("" if left.effect_id is None
+              else _effect_name(ctx, left.effect_id)
+              or f"effect {left.effect_id}")
+    deep_is_off = left.is_deep and not any(slot.deep for slot in problem.slots)
+    return {
+        types.PIN_AVOIDED: f"it carries “{effect}”, which you avoided",
+        types.PIN_REJECTED: "you rejected it for this build",
+        types.PIN_NO_COPY: "you own no copy that is free",
+        types.PIN_NO_SLOT: ("it is a Deep of Night relic and Deep of Night is "
+                            "off" if deep_is_off else
+                            "this vessel has no slot that fits its colour"),
+        types.PIN_SLOTS_HELD: "every slot it could go in is held",
+        types.PIN_OTHER_PIN: f"“{left.other}” is favourited too and takes the "
+                             f"only slot it could use",
+        types.PIN_BLOCKS_REQUIREMENT: f"placing it would leave “{effect}” "
+                                      f"(Favourite) unmet",
+    }[left.reason]
+
+
+def pins_left_out(left_out: Sequence[types.PinLeftOut],
+                  problem: types.SlotProblem, ctx: types.GoalContext
+                  ) -> tuple[types.PinLeftOut, ...]:
+    """The stars left out, with their sentences (AK-439, AK-456)."""
+    written = []
+    for left in left_out:
+        because = _pin_because(left, problem, ctx)
+        names = [_effect_name(ctx, eid) or f"effect {eid}"
+                 for eid in left.roll[1]]
+        carried = f" ({', '.join(names)})" if names else ""
+        written.append(dataclasses.replace(
+            left, because=because, line=f"{left.name}{carried} — {because}"))
+    return tuple(written)
 
 
 def required_met_by_a_hold(problem: types.SlotProblem,
