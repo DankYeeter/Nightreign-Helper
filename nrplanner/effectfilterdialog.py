@@ -28,6 +28,7 @@ import dataclasses
 from collections.abc import Mapping
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QCheckBox, QDialog, QHeaderView, QLabel,
                                QLineEdit, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout)
@@ -211,10 +212,12 @@ class EffectFilterWindow(QDialog):
     """
 
     def __init__(self, filters: effectfilters.EffectFilters, rows: list[Row],
-                 no_rows_reason: str = "", parent=None) -> None:
+                 no_rows_reason: str = "", parent=None, *,
+                 symbol_of=None) -> None:
         super().__init__(parent)
         self._filters = filters
         self._rows = rows
+        self._symbol_of = symbol_of or (lambda _effect_id: None)
         #: effect id -> (row, Favourite box, Avoid box, Allow box or None, item)
         self._marks: dict[int, tuple] = {}
         #: family key -> (Avoid box, heading item)
@@ -316,6 +319,9 @@ class EffectFilterWindow(QDialog):
     def _add_id_row(self, row: Row, parent, with_allow: bool) -> None:
         item = _Item(parent)
         item.setText(COL_NAME, row.name)
+        symbol = self._symbol_of(row.effect_id)
+        if symbol is not None:
+            item.setIcon(COL_NAME, QIcon(symbol))
         item.setData(COL_NAME, Qt.UserRole, row.effect_id)
         item.setText(COL_TYPE, "Curse" if row.is_curse else "Effect")
         item.setData(COL_COPIES, Qt.DisplayRole, row.copies)

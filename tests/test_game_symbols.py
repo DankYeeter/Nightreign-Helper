@@ -97,3 +97,63 @@ def test_both_spellings_of_a_status_find_its_symbol(pack, label):
 def test_a_type_without_a_symbol_is_no_image(pack):
     assert iconpack.inline_type(pack, "Vigor") == ""
     assert iconpack.type_pixmap(None, "Poison") is None
+
+
+def test_the_dataset_names_the_symbols_the_game_names(game_data):
+    effects = {effect["name"]: effect for effect in game_data["effects"].values()}
+    assert effects["Attacks Inflict Poison"]["icon"] == 20980
+    assert game_data["deep_of_night"]["sigil_icon"] == 19952
+    world = game_data["world_events"]
+    assert {buff["icon"] for buff in world["buffs"]} >= {20720, 20726}
+    fell_omen = world["drops"]["2130"]
+    assert fell_omen and all(drop["icon"] for drop in fell_omen)
+
+
+def test_an_effect_line_of_a_card_shows_its_symbol_and_keeps_its_text(pack):
+    slot = relicslots.RelicSlot(0, False, lambda: None, pack)
+    slot.effect_by_id = {5: {"id": 5, "name": "<b>Odd</b>", "icon": 20206,
+                             "stacks": True}}
+    assert slot._effect_symbol(5) is not None
+    assert slot._effect_symbol(6) is None
+    relic = types.SimpleNamespace(effect_ids=[5], curse_ids=[])
+    assert list(slot.effect_symbols(relic)) == ["<b>Odd</b>"]
+
+
+def test_a_card_line_with_a_symbol_stays_a_plain_text_label(pack):
+    from nrplanner import advisorblock
+    from nrplanner.advisor import types as advisor_types
+
+    line = advisor_types.ReasonLine(0, 5, "<b>Odd</b>: +1")
+    drawn = advisorblock.BlockLine(line, "<b>Odd</b>", False, lambda *_a: None,
+                                   symbol=pack.status(20206))
+    plain = advisorblock.BlockLine(line, "<b>Odd</b>", False, lambda *_a: None)
+    assert drawn.label.text() == plain.label.text() == "<b>Odd</b>: +1"
+    assert len(drawn.findChildren(type(drawn.label))) == len(
+        plain.findChildren(type(plain.label))) + 1
+
+
+def test_game_text_behind_a_symbol_is_escaped(pack, game_data):
+    from nrplanner import eventstab
+
+    tab = eventstab.WorldEventsTab(game_data, pack)
+    tab.boss_icons["<b>Odd</b>"] = 20206
+    pack.manifest["menu"] = {"20206": pack.manifest["status"]["20206"]}
+    assert "&lt;b&gt;" in tab._nightlord("<b>Odd</b>")
+    assert tab._nightlord("no such boss") == "no such boss"
+
+
+def test_the_effects_table_keeps_its_text_and_sorts_on_it(pack, game_data):
+    from nrplanner import effectstab
+
+    tab = effectstab.EffectsTab(game_data, pack)
+    plain = effectstab.EffectsTab(game_data)
+    assert (tab.table.item(0, 0).text() == plain.table.item(0, 0).text())
+    with_a_symbol = [row for row in range(tab.table.rowCount())
+                     if not tab.table.item(row, 0).icon().isNull()]
+    assert with_a_symbol
+    assert plain.table.item(0, 0).icon().isNull()
+    gems = tab._gem_strip((0,))
+    assert gems is None, "this pack carries no gem"
+    pack.manifest["ui"]["MENU_MenuIcon_40480.png"] = "red.png"
+    tab._gem_strips.clear()
+    assert tab._gem_strip((0, 4)) is not None

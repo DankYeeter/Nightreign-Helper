@@ -12,7 +12,7 @@ import collections
 from dataclasses import dataclass, field
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QScrollArea, QVBoxLayout,
@@ -531,6 +531,10 @@ class WeaponDialog(QDialog):
         self.effects_note.setText(self._pool_note)
         for effect in pool:
             box = QCheckBox(" ".join(effect["name"].split()))
+            symbol = (self.icons.status(effect.get("icon"))
+                      if self.icons is not None else None)
+            if symbol is not None:
+                box.setIcon(QIcon(symbol))
             box.setChecked(effect["id"] in self.slot.effect_ids)
             box.setToolTip(effecttext.describe_full(effect))
             # A negative roll comes from the same pool as everything else and

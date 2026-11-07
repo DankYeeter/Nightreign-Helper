@@ -233,6 +233,12 @@ def type_pixmap(icons: IconPack | None, label: str) -> QPixmap | None:
     return icons.ui(TYPE_SPRITES.get(label.lower()))
 
 
+def effect_icon(effects: dict, effect_id: int) -> int | None:
+    """The symbol id of an effect, whichever way the dict keys its ids."""
+    effect = effects.get(effect_id) or effects.get(str(effect_id))
+    return effect.get("icon") if effect else None
+
+
 def sharp(pixmap: QPixmap, size: int) -> QPixmap:
     """A pixmap at `size` logical pixels, rendered for this screen's scale."""
     ratio = QGuiApplication.primaryScreen().devicePixelRatio()

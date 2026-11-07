@@ -36,7 +36,8 @@ from PySide6.QtWidgets import (
     QSizePolicy, QToolButton, QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import advisorbar, advisorblock, cardgrid, effecttext, favourites, model
+from . import (advisorbar, advisorblock, cardgrid, effecttext, favourites,
+               iconpack, model)
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
@@ -671,7 +672,7 @@ class RelicCard(cardgrid.HoverCard):
     def __init__(self, item, effect_names: list[str], icon, selected: bool,
                  on_pick, curses: list[tuple[str, str]] | None = None,
                  tooltip: str = "", favourite: bool = False,
-                 on_favourite=None, captions=(), hero_label: str = ""):
+                 on_favourite=None, captions=(), hero_label: str = "", symbols=None):
         super().__init__()
         self.item = item
         self.on_favourite = on_favourite
@@ -770,8 +771,9 @@ class RelicCard(cardgrid.HoverCard):
             if curse_detail:
                 line.setToolTip(advisorblock.as_a_tooltip(curse_detail))
             self.lines.append(line)
-        for line in self.lines:
-            layout.addWidget(line)
+        shown = [*effect_names, *(curse[0] for curse in curses or [])]
+        for line, name in zip(self.lines, shown):
+            layout.addLayout(iconpack.beside([(symbols or {}).get(name)], line))
 
         if not curses and item.has_curse:
             count = getattr(item, "curse_count", 0) or 0
@@ -836,7 +838,8 @@ class CustomRelicCard(cardgrid.HoverCard):
     relic that has somehow been acquired.
     """
 
-    def __init__(self, effect_names: list[str], selected: bool, on_pick):
+    def __init__(self, effect_names: list[str], selected: bool, on_pick,
+                 symbols=None):
         super().__init__()
         self.setFixedWidth(card_width())
         self.setCursor(Qt.PointingHandCursor)
@@ -874,7 +877,7 @@ class CustomRelicCard(cardgrid.HoverCard):
                 label.setWordWrap(True)
                 label.setStyleSheet(
                     "border: none; color: #cfcfcf; font-size: 11px;")
-                layout.addWidget(label)
+                layout.addLayout(iconpack.beside([(symbols or {}).get(name)], label))
         else:
             hint = QLabel("Pick any effects that can roll in this slot, to "
                           "plan around a relic you have not found yet.")
@@ -987,8 +990,10 @@ class CustomRelicDialog(QDialog):
 
     MAX_EFFECTS = 3
 
-    def __init__(self, parent, choices: list[dict], chosen: list[int]):
+    def __init__(self, parent, choices: list[dict], chosen: list[int],
+                 icons=None):
         super().__init__(parent)
+        self.icons = icons
         self.choices = choices
         self.chosen = list(chosen)[:self.MAX_EFFECTS]
 
@@ -1053,6 +1058,10 @@ class CustomRelicDialog(QDialog):
             mark = "✓ " if eff["id"] in self.chosen else "   "
             entry = QListWidgetItem(f"{mark}{label} — {detail}")
             entry.setData(Qt.UserRole, eff["id"])
+            symbol = (self.icons.status(eff.get("icon"))
+                      if self.icons is not None else None)
+            if symbol is not None:
+                entry.setIcon(QIcon(symbol))
             entry.setToolTip(advisorblock.as_a_tooltip(detail))
             self.list.addItem(entry)
 
@@ -1555,6 +1564,7 @@ class RelicPicker(QDialog):
             on_favourite=self._open_favourites,
             captions=self._captions(),
             hero_label=self.hero_label,
+            symbols=self.slot.effect_symbols(item),
         )
 
     def _waiting_area(self) -> QWidget:
@@ -1620,6 +1630,7 @@ class RelicPicker(QDialog):
             selected=current is not None
             and getattr(current, "relic_id", None) == CUSTOM_RELIC_ID,
             on_pick=self._open_custom,
+            symbols=self.slot.effect_symbols(custom) if custom is not None else None,
         )
         # The dialog measures itself in the order the grid has without an
         # answer (AK-216), and only at the sizing: `_room_for_three_rows`
@@ -1970,8 +1981,7 @@ class RelicPicker(QDialog):
         dialog = CustomRelicDialog(
             self,
             self.slot.rollable_effects(),
-            list(existing.effect_ids) if existing is not None else [],
-        )
+            list(existing.effect_ids) if existing is not None else [], icons=self.icons)
         accepted = dialog.exec()
         dialog.deleteLater()
         if not accepted:

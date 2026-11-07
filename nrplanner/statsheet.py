@@ -119,7 +119,8 @@ def _rate_label(field_name: str) -> str:
     return model.ART_LABELS.get(field_name) or model.label_for(field_name)
 
 
-def breakdown_text(label: str, entries: list, multiplicative: bool) -> str:
+def breakdown_text(label: str, entries: list, multiplicative: bool,
+                   tag_of=lambda _effect_id: "") -> str:
     """The tooltip behind one clicked figure: its sources, one row each (QA-077).
 
     `entries` carry `name` and `own`. A multiplier is shown as its percentage
@@ -133,7 +134,8 @@ def breakdown_text(label: str, entries: list, multiplicative: bool) -> str:
             shown = f"{(entry.own - 1.0) * 100:+.1f}%"
         else:
             shown = f"{entry.own:+g}"
-        rows.append(f"&nbsp;&nbsp;{entry.name} &nbsp; <b>{shown}</b>")
+        rows.append(f"&nbsp;&nbsp;{tag_of(getattr(entry, 'effect_id', None))}"
+                    f"{entry.name} &nbsp; <b>{shown}</b>")
 
     if multiplicative and len(entries) > 1:
         total = 1.0
@@ -180,7 +182,7 @@ class SituationalRow(QFrame):
     always-on roll would.
     """
 
-    def __init__(self, entry, count: int, on_change):
+    def __init__(self, entry, count: int, on_change, symbol=None):
         super().__init__()
         self.effect_id = entry.effect_id
         self.accumulates = entry.accumulates
@@ -208,6 +210,8 @@ class SituationalRow(QFrame):
         self.title.setCursor(Qt.PointingHandCursor)
         self.title.setStyleSheet(f"color: {ACCENT}; border: none;")
         self.title.mousePressEvent = lambda _e: self.check.toggle()
+        if symbol is not None:
+            head.addWidget(iconpack.symbol_label(symbol), 0, Qt.AlignTop)
         head.addWidget(self.title, 1)
 
         if entry.accumulates:
@@ -456,7 +460,7 @@ class StatSheet(QScrollArea):
         # the real one behind it.
         entries = self.last_sources.get(model.real_field(key), [])
         text = breakdown_text(model.label_for(key), entries,
-                              model.real_field(key) in self.last_rates)
+                              model.real_field(key) in self.last_rates, tag_of=self._effect_tag)
         # Offset to the right of the cursor so the number stays readable; the
         # "nothing recorded" sentence has no number beside it to keep clear.
         offset = QPoint(18, 0) if entries else QPoint(0, 0)
@@ -492,9 +496,28 @@ class StatSheet(QScrollArea):
                     for entry in self.last_sources.get(scoped, [])]
             for entry in entries:
                 rows.append(f"&nbsp;&nbsp;&nbsp;&nbsp;"
-                            f"<span style='color:{MUTED}'>{entry.name} "
+                            f"<span style='color:{MUTED}'>{self._effect_tag(entry.effect_id)}"
+                            f"{entry.name} "
                             f"{(entry.own - 1.0) * 100:+.1f}%</span>")
         return rows
+
+    def _effect_symbol(self, effect_id: int):
+        """An effect's status symbol, or None."""
+        return self.planner.icons.status(iconpack.effect_icon(
+            self.planner.data["effects"], effect_id))
+
+    def _effect_tag(self, effect_id: int) -> str:
+        """The `<img>` of an effect's status symbol, for this sheet's rich text."""
+        return iconpack.inline(self.planner.icons, "status", iconpack.effect_icon(
+            self.planner.data["effects"], effect_id))
+
+    def _tag_of_name(self, name: str) -> str:
+        """The same for a line that only knows its effect by name."""
+        effects = self.planner.data["effects"].values()
+        icon = next((effect.get("icon") for effect in effects
+                     if name in (effect.get("name"), effecttext.name(effect))),
+                    None)
+        return iconpack.inline(self.planner.icons, "status", icon)
 
     def _type_tag(self, label: str) -> str:
         """The `<img>` of a damage type or status, for this sheet's rich text."""
@@ -945,8 +968,7 @@ class StatSheet(QScrollArea):
             for entry in entries:
                 row = SituationalRow(
                     entry, declared.get(entry.effect_id, 0),
-                    self._situational_changed,
-                )
+                    self._situational_changed, symbol=self._effect_symbol(entry.effect_id))
                 self.situational_rows[entry.effect_id] = row
                 self.qual_rows_layout.addWidget(row)
         self.qual_rows.setVisible(bool(entries))
@@ -1162,9 +1184,10 @@ class StatSheet(QScrollArea):
                 if label is None:
                     # A number nobody named is not shown as a number at all
                     # (AK-295 point 3): the effects that carry it, and A7.
-                    carriers = sorted({entry.name for entry
-                                       in build.sources.get(fname, ())})
-                    lines.append(f"<div>{', '.join(carriers)}: "
+                    carriers = {entry.name: self._effect_tag(entry.effect_id)
+                                for entry in build.sources.get(fname, ())}
+                    named = [tag + name for name, tag in sorted(carriers.items())]
+                    lines.append(f"<div>{', '.join(named)}: "
                                  f"{effecttext.UNLABELLED}</div>")
                     continue
                 # Damage taken and resource costs read the other way round:
@@ -1225,7 +1248,7 @@ class StatSheet(QScrollArea):
                 shown = f"<s>{name}</s>" if dead else name
                 lines.append(
                     f"<div style='margin-bottom:6px'>"
-                    f"<span style='color:{head}'>{shown}</span>"
+                    f"<span style='color:{head}'>{self._tag_of_name(name)}{shown}</span>"
                     f"<div style='color:#cfcfcf; font-size:11px'>{detail}</div>"
                     f"<div style='color:{BAD if dead else MUTED}; "
                     f"font-size:10px'>{why}</div>"
@@ -1252,7 +1275,9 @@ class StatSheet(QScrollArea):
                 detail = effecttext.describe_full(eff)
                 lines.append(
                     f"<div style='margin-bottom:6px'>"
-                    f"<span style='color:{BAD}'>✦ {effecttext.name(eff)}</span>"
+                    f"<span style='color:{BAD}'>✦ "
+                    f"{iconpack.inline(self.planner.icons, 'status', eff.get('icon'))}"
+                    f"{effecttext.name(eff)}</span>"
                     f"<div style='color:{MUTED}; font-size:11px'>{detail}</div>"
                     f"<div style='color:{MUTED}; font-size:10px'>from {source}</div>"
                     f"</div>"

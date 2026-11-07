@@ -398,6 +398,8 @@ class RelicSlot(QFrame):
             eff = self.effect_by_id.get(eid)
             # Game text goes into rich text as text, never as markup (SEC-021).
             name = html.escape(effecttext.name(eff) if eff else f"<{eid}>")
+            tag = (iconpack.inline(self.icons, "status", eff.get("icon"))
+                   if eff else "")
             mark = ("" if not eff or (eff["stacks"]
                                       and not model.accumulates(eff))
                     else "  ⚠")
@@ -408,11 +410,11 @@ class RelicSlot(QFrame):
             if eff is not None and not effecttext.works_for(eff, self.hero_name):
                 who = html.escape(effecttext.owner(eff)) or "another Nightfarer"
                 lines.append(
-                    f"<div style='color:{CURSE}'>&bull; <s>{name}</s>"
+                    f"<div style='color:{CURSE}'>&bull; {tag}<s>{name}</s>"
                     f" — not working ({who} only)</div>"
                 )
                 continue
-            lines.append(f"<div style='color:{colour}'>&bull; {name}{mark}</div>")
+            lines.append(f"<div style='color:{colour}'>&bull; {tag}{name}{mark}</div>")
         if not lines:
             lines = ["<div style='color:#8a8a8a'>no rolled effects</div>"]
         lines.extend(self.curse_lines(item))
@@ -434,7 +436,9 @@ class RelicSlot(QFrame):
             for cid in curse_ids:
                 eff = self.effect_by_id.get(cid)
                 name = html.escape(effecttext.name(eff) if eff else f"<{cid}>")
-                out.append(f"<div style='color:{CURSE}'>✦ {name}</div>")
+                tag = (iconpack.inline(self.icons, "status", eff.get("icon"))
+                       if eff else "")
+                out.append(f"<div style='color:{CURSE}'>✦ {tag}{name}</div>")
             return out
         if getattr(item, "has_curse", False):
             count = getattr(item, "curse_count", 0) or 0
@@ -476,6 +480,7 @@ class RelicSlot(QFrame):
             curse_tooltip=self._suggested_curse_tooltip(choice),
             held_favourite_line=held_favourite_line, pinned=pinned,
             names=names, favourited=favourited,
+            symbol_of=self._effect_symbol,
             relic_icon=getattr(self._suggested_copy(choice), "icon", None))
 
     def show_no_suggestion(self, reason: str) -> None:
@@ -542,6 +547,22 @@ class RelicSlot(QFrame):
         self.chip.setPixmap(slot_chip(self.icons, colour, None, HEADER_CHIP,
                                       self.deep))
         self.populate()
+
+    def _effect_symbol(self, effect_id: int):
+        """An effect's status symbol, or None."""
+        effect = self.effect_by_id.get(effect_id)
+        if effect is None or self.icons is None:
+            return None
+        return self.icons.status(effect.get("icon"))
+
+    def effect_symbols(self, item) -> dict:
+        """Name as a card shows it -> symbol, over rolls and curses alike."""
+        symbols = {}
+        for effect_id in (*item.effect_ids, *(getattr(item, "curse_ids", ()) or ())):
+            symbol = self._effect_symbol(effect_id)
+            if symbol is not None:
+                symbols[effecttext.name(self.effect_by_id[effect_id])] = symbol
+        return symbols
 
     def effect_names(self, item) -> list[str]:
         return [

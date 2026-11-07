@@ -316,7 +316,7 @@ class WhyLine(QWidget):
 
     def __init__(self, line: types.ReasonLine,
                  filters: effectfilters.EffectFilters,
-                 parent: QWidget | None = None) -> None:
+                 parent: QWidget | None = None, *, symbol=None) -> None:
         super().__init__(parent)
         self.line = line
         self._filters = filters
@@ -328,6 +328,8 @@ class WhyLine(QWidget):
         self.label = _plain(line.text)
         self._base_font = QFont(self.label.font())
         row.addWidget(self.bullet, 0, Qt.AlignTop)
+        if symbol is not None:
+            row.addWidget(iconpack.symbol_label(symbol), 0, Qt.AlignTop)
         row.addWidget(self.label, 1)
         filters.changed.connect(self._redraw)
         self._redraw()
@@ -399,7 +401,8 @@ class BlockLine(QWidget):
     """One line of the block: bullet, text, X (AK-420), plain text throughout."""
 
     def __init__(self, line: types.ReasonLine, name: str, favourited: bool,
-                 walk, parent: QWidget | None = None) -> None:
+                 walk, parent: QWidget | None = None, *,
+                 symbol=None) -> None:
         super().__init__(parent)
         self.line = line
         row = QHBoxLayout(self)
@@ -411,6 +414,8 @@ class BlockLine(QWidget):
         _dress(_styled(line, None), self.bullet, self.label, self.label.font())
         self.avoid = AvoidButton(line, name, favourited, walk)
         row.addWidget(self.bullet, 0, Qt.AlignTop)
+        if symbol is not None:
+            row.addWidget(iconpack.symbol_label(symbol), 0, Qt.AlignTop)
         row.addWidget(self.label, 1)
         row.addWidget(self.avoid, 0, Qt.AlignTop)
 
@@ -545,7 +550,8 @@ class SuggestionBlock(QFrame):
                             pinned: bool = False,
                             names=None,
                             favourited: frozenset[int] = frozenset(),
-                            relic_icon: int | None = None) -> None:
+                            relic_icon: int | None = None,
+                            symbol_of=None) -> None:
         """Draw one slot group, or the one line that replaces it.
 
         `already_equipped` is the window's answer, not this block's: whether
@@ -569,6 +575,7 @@ class SuggestionBlock(QFrame):
         self.reject_button.setToolTip(as_a_tooltip(
             f"{REJECT_TOOLTIP} {REJECT_PINNED_TOOLTIP}" if pinned
             else REJECT_TOOLTIP))
+        self._symbol_of = symbol_of or (lambda _effect_id: None)
         self.relic_name.setText(group.relic_name)
         self.relic_name.setVisible(not already_equipped)
         art = self._icons.item(relic_icon) if self._icons is not None else None
@@ -599,7 +606,8 @@ class SuggestionBlock(QFrame):
         for line in lines:
             drawn = BlockLine(line, names.get(line.effect_id,
                                               f"effect {line.effect_id}"),
-                              line.effect_id in favourited, self._walk_the_xs)
+                              line.effect_id in favourited, self._walk_the_xs,
+                              symbol=self._symbol_of(line.effect_id))
             drawn.avoid.clicked.connect(
                 lambda _checked=False, effect_id=line.effect_id:
                 self.avoid_requested.emit(effect_id))
@@ -769,7 +777,8 @@ class WhyDialog(QDialog):
             # would make the dialog taller than that label was (T-250b).
             # The numberless ones go into a second holder under their fold
             # (AK-372), in the order they had.
-            lines = [WhyLine(line, filters) for line in group.lines]
+            lines = [WhyLine(line, filters, symbol=self._symbol_of(line.effect_id))
+                     for line in group.lines]
             column.addWidget(_stacked(
                 [line for line in lines if not is_numberless(line.line)]))
             folded = [line for line in lines if is_numberless(line.line)]
@@ -834,6 +843,13 @@ class WhyDialog(QDialog):
         self.close_button.clicked.connect(self.accept)
         row.addWidget(self.close_button)
         outer.addLayout(row)
+
+    def _symbol_of(self, effect_id: int):
+        """An effect's status symbol, or None."""
+        if self._icons is None:
+            return None
+        return self._icons.status(
+            iconpack.effect_icon(self._effects, effect_id))
 
     def showEvent(self, event) -> None:
         """AK-379: the card's dialog stands on its slot's group, title at the

@@ -1068,6 +1068,10 @@ class EffectsTab(QWidget):
                         item.setToolTip(UNREACHABLE_TIP)
                 else:
                     item = QTableWidgetItem(str(value))
+                if c == 0 and self.icons is not None:
+                    symbol = self.icons.status(eff.get("icon"))
+                    if symbol is not None:
+                        item.setIcon(QIcon(symbol))
                 if c == COL_COLOURS:
                     strip = self._gem_strip(tuple(colours))
                     if strip is not None:

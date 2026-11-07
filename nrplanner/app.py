@@ -3611,6 +3611,10 @@ class Planner(QMainWindow):
         dialog.exec()
         dialog.deleteLater()
 
+    def _symbol_of_effect(self, effect_id: int):
+        """An effect's status symbol, or None."""
+        return self.icons.status(iconpack.effect_icon(self.effects, effect_id))
+
     def open_effect_filters(self) -> None:
         """The effect filter window (AK-302/AK-303), over what is owned now.
 
@@ -3630,7 +3634,8 @@ class Planner(QMainWindow):
             if self.save_holds_no_relics
             else effectfilterdialog.NO_SAVE_WAS_READ)
         dialog = effectfilterdialog.EffectFilterWindow(
-            self.effect_filters, rows, reason, self)
+            self.effect_filters, rows, reason, self,
+            symbol_of=self._symbol_of_effect)
         dialog.exec()
         dialog.deleteLater()
 
