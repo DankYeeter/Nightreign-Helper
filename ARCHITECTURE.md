@@ -923,6 +923,9 @@ abgesichert.
 
 ### AD-023 — Das Invarianzargument aus Nachtrag III gilt nur für Multiplikatoren des Grundzustands; für Kandidaten, die selbst eine Angriffsrate mitbringen, kann W6 die Reihenfolge drehen (2026-09-02, Status: aktiv; **korrigiert Nachtrag III**)
 
+*Ergaenzt 07.11.2026 (Nutzerentscheidung, AD-063 Punkt 4): die Richtung `Balanced` ist das Produkt der
+beiden Zahlen, ausdruecklich gewuenscht und ohne Wechselkurs; die uebrigen Richtungen bleiben unberuehrt.*
+
 **Kontext:** Der `ui-ux-designer` hat beim Schreiben der Spec einen Fehler in
 meiner Begründung gefunden. Nachtrag III behauptete, der Berater-Bau sei ab W5
 nicht mehr von der Spielmessung (W6) abhängig, weil eine flache
@@ -1738,7 +1741,10 @@ damit **richtiger als ihre Begründung** — dieselbe Lage wie bei QA-101.
 ### Nachtrag II 2026-09-02 — Antworten des Nutzers zu OF-12, OF-13, F2 (AD-017, AD-018)
 
 **OF-13 — erledigt, wie vorgeschlagen:** zielfremde Flüche werden genannt,
-nicht abgewertet. AD-015 bleibt unverändert in Kraft.
+nicht abgewertet. AD-015 bleibt unverändert in Kraft. *Ergaenzt 07.11.2026
+(AD-063 Punkt 4): unter `Balanced` zaehlt ein Fluch, der HP oder Schaden kostet,
+im Rang mit, weil der Spieler genau diese Zahl gewaehlt hat; unter den
+uebrigen Richtungen gilt OF-13 wie bisher.*
 **OF-12 — erledigt, aber anders als vorgeschlagen:** siehe AD-017. Meine
 Nicht-tun-Regel 15 („Haltezustand nicht persistieren") galt unter der
 Annahme, der Halt sei reiner Sitzungszustand ohne Ort; unter der Antwort des
@@ -9813,6 +9819,16 @@ Vergleich pausiert, solange der Picker offen ist; (c) `qa-engineer` A18-Nachweis
 3. **Grenzen je Effekt** stehen in `model.STACK_LIMITS` (EMEVD-Lesart aus T-337, keine Spielprobe) und
    gelten in der Rechnung, im Stacks-Feld und in der ×-Zahl. Fuer 6500500 ohne Skriptbeleg bleiben die
    beiden Anschlaege der Bedienelemente (10 wegen A6, 99 als Tippfehler-Stopp).
+4. **`goals.BALANCED`: Wert = `_max_damage` x `_min_damage_taken`.** Der Nutzer will Schaden und Abwehr
+   zugleich maximieren und von dort selbst fein nachstellen: kein Regler, keine Schwelle. Das Produkt
+   zweier positiver Zahlen braucht weder Wechselkurs noch Basis, darum bleibt die Regel aus AD-023 und
+   OF-13 fuer die anderen Richtungen stehen. Die Abwehrzahl ist schon positiv: `_min_damage_taken`
+   liefert effektive HP und weist Raten bis null ab. Die Schadenszahl ist die der ganzen Waffe, auch wenn
+   `Hit with` oder `Damage type` gesetzt sind: sie sind unter dieser Richtung verborgen (AK-337), und eine
+   Art, die die Waffe nicht fuehrt, truege den Wert auf null. Gemessen 07.11.2026 (offscreen, 324 Relikte,
+   sechs freie Plaetze, Median aus drei): Wylder's Chalice 2,33 s, Raider's Goblet 3,12 s, langsamstes
+   der elf Raider-Gefaesse 3,09 s (Einzellauf), gegen A6 je Gefaess 6 s; dieselben Faelle unter
+   `max_damage` 2,15 und 2,50 s, also 8 und 25 % darueber.
 
 ---
 

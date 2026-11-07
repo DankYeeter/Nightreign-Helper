@@ -9792,7 +9792,7 @@ Drehfeld; ein Hinweistext im Fehlerfall ausser der roten Schrift.
 
 #### Nachtrag T-338 (developer), 2026-11-07 — Waffen-Icon in der Kachel, AK-474 (nur nachgetragen)
 
-*Naechste freie AK: AK-477.*
+*Naechste freie AK: AK-478.*
 
 #### Nachtrag T-339 (developer), 2026-11-07 — Stack-Effekte, Grenzen, Ziel `Balanced` (nur nachgetragen)
 
@@ -9809,6 +9809,13 @@ im Stacks-Feld (AK-470), in der ×-Zahl der Statistik-Seite und in der Rechnung.
 Verlassen des Feldes auf die Grenze gesetzt, ihr Tooltip nennt sie (`How many times this is true right
 now, at most {n}`). 6500500 hat keinen Skriptbeleg: Filter bis 10, ×-Zahl bis 99, Rechnung ungedeckelt.
 Akzeptanz: `5` im Feld von 7060200 ist rot und zaehlt als leer, `4` gilt; ×100000 wird ×4.
+
+**AK-477 Richtung `Balanced`.** Eintrag `Balanced` in `GOAL_ORDER` hinter dem Paar aus A3, vor
+`Maximise offensive attributes`; damit auch `Sort by` und eine Wertezeile `Balanced` auf jeder Karte
+(AK-256, AK-258), dort in Prozent gegen den Grundzustand (`+12.3 %`), Chip `BEST FOR BALANCE`. Kein
+Regler, keine Schwelle (Nutzer 07.11.2026). `Hit with` und `Damage type` bleiben unter ihr verborgen
+(AK-337) und wirken nicht; im `Why` sagt eine Attributzeile unter ihr keinen Betrag, weil ein Produkt
+keinen lesbaren Abstand hat. Tiebreak im Gefaessvergleich ist die Schadenszahl (`OTHER_GOAL`).
 
 **AK-474 Symbol der Waffe in der Kachel `Weapon damage`.** Eine belegte `WeaponTile` zeigt das
 Symbol der Waffe (`icons.item_icon(weapon["icon"])`, 28 x 28 logisch wie in der Waehleliste des

@@ -46,6 +46,7 @@ HELD_FUSE_SECONDS = 30.0
 BASE_LINES = (
     ("max_damage", 100.0, "AR"),
     ("min_damage_taken", 900.0, "effective HP"),
+    (advisor_goals.BALANCED.id, 90000.0, ""),
     ("max_attributes", 40.0, advisor_goals.ATTRIBUTE_POINT_UNIT),
 )
 

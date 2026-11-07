@@ -327,6 +327,10 @@ class AdvisorRequest:
 
 # --- the answer ------------------------------------------------------------
 
+#: Between the figures of a `GoalScore.display` that holds two (`goals.BALANCED`).
+FIGURES_JOIN = " / "
+
+
 @dataclass(frozen=True)
 class GoalScore:
     """What one goal makes of one build (AD-004).

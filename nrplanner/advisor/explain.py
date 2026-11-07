@@ -301,8 +301,8 @@ def _line(contribution: _Contribution, built: model.Build,
         return f"{contribution.effect_name}: {body}"
     if delta:
         cost = ", counted against it" if delta < 0 else ""
-        return (f"{contribution.effect_name}: {body} → "
-                f"{rating} {_signed_delta(delta)}{cost}")
+        amount = f" → {rating} {_signed_delta(delta)}" if rating else ""
+        return f"{contribution.effect_name}: {body}{amount}{cost}"
     cost = ", counted against it" if _is_a_cost(key, own, built) else ""
     return f"{contribution.effect_name}: {body}{cost}"
 
@@ -324,8 +324,12 @@ def _rating_word(score: types.GoalScore) -> str:
     `GoalScore.display` already ends in the figure a tile would print for
     this direction -- the words in front of it are the one place that names
     it, so this reads them back rather than asking `damage` a second time
-    which word an armament earns (AD-002).
+    which word an armament earns (AD-002). Empty for a display of two figures
+    (`goals.BALANCED`): its amount is a product nobody could read, so an
+    attribute line says only whether it cost anything.
     """
+    if types.FIGURES_JOIN in score.display:
+        return ""
     word, _, _ = score.display.rpartition(" ")
     return word
 

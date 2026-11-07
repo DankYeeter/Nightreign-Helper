@@ -142,6 +142,7 @@ def a_slot(planner):
 #: would see the difference (AK-259 point 2).
 BASELINE = (("max_damage", 100.0, "AR", ()),
             ("min_damage_taken", 900.0, "effective HP", ()),
+            (advisor_goals.BALANCED.id, 90000.0, "", ()),
             ("max_attributes", 40.0, advisor_goals.ATTRIBUTE_POINT_UNIT, ()))
 
 #: How many value rows a card carries: one per direction, never a number
@@ -1521,7 +1522,7 @@ def test_the_read_direction_decides_which_group_leads(slot):
     exactly the one case out of three that a case might have picked.
     """
     items = slot.available_items()
-    for read in advisorbar.GOAL_ORDER:
+    for read in TOP_OF:
         dialog = three_tops(slot, read=read)
         try:
             assert dialog.ranking.pool.rank_by == "max_damage"

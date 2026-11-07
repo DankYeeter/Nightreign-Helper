@@ -38,6 +38,7 @@ from tests import weapon_damage_cases as cases
 DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
 ATTRIBUTES = "max_attributes"
+BALANCED = goals.BALANCED.id
 
 
 @pytest.fixture(scope="module")
@@ -899,13 +900,13 @@ def test_a_copy_the_save_gives_no_handle_for_is_still_in_the_fingerprint(
 
 # -- the cache --------------------------------------------------------------
 
-@pytest.mark.parametrize("goal_id", [DAMAGE, SURVIVAL, ATTRIBUTES])
+@pytest.mark.parametrize("goal_id", [DAMAGE, SURVIVAL, BALANCED, ATTRIBUTES])
 @pytest.mark.parametrize("deep", [False, True])
 def test_a_hit_is_what_a_fresh_run_would_have_said(game_data, wylder,
                                                    goal_id, deep):
     """AD-007: the cache is a speed-up and not a second way to compute.
 
-    Six combinations, and the denominator is the point: three directions
+    Eight combinations, and the denominator is the point: four directions
     times both Deep settings. Held against a **fresh** run of the same
     question rather than against the stored object, so the claim is that the
     cache does not answer differently from computing again -- which is also
@@ -931,18 +932,18 @@ def test_a_hit_is_what_a_fresh_run_would_have_said(game_data, wylder,
         "float that only one of them rounded")
 
 
-def test_all_six_combinations_of_direction_and_deep_are_covered():
+def test_all_eight_combinations_of_direction_and_deep_are_covered():
     """The denominator of the case above, so that dropping one is visible.
 
     It did its work when AD-032 added the third direction (T-191): the
     parametrization above went on covering two and this case said so.
     """
     combinations = [(goal_id, deep)
-                    for goal_id in (DAMAGE, SURVIVAL, ATTRIBUTES)
+                    for goal_id in (DAMAGE, SURVIVAL, BALANCED, ATTRIBUTES)
                     for deep in (False, True)]
 
-    assert len(combinations) == 6
-    assert set(goals.GOALS) == {DAMAGE, SURVIVAL, ATTRIBUTES}, (
+    assert len(combinations) == 8
+    assert set(goals.GOALS) == {DAMAGE, SURVIVAL, BALANCED, ATTRIBUTES}, (
         f"the registry holds {sorted(goals.GOALS)}, so the case above no "
         f"longer covers every direction")
 

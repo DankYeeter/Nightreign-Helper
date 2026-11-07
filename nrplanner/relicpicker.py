@@ -154,6 +154,7 @@ HERO_ICON = 44
 VALUE_CAPTIONS = {
     "max_damage": "Damage",
     "min_damage_taken": "Damage taken",
+    advisor_goals.BALANCED.id: advisor_goals.BALANCED.label,
     "max_attributes": "Offensive attributes",
 }
 
@@ -171,6 +172,7 @@ VALUE_CAPTIONS = {
 DIRECTION_NOUNS = {
     "max_damage": "damage",
     "min_damage_taken": "survival",
+    advisor_goals.BALANCED.id: "balance",
     "max_attributes": "attributes",
 }
 
@@ -386,6 +388,16 @@ class Ranking:
                 return baseline.unit
         raise KeyError(f"this pool carries no baseline for goal {goal_id!r}")
 
+    def text_of(self, gain: float, goal_id: str) -> str:
+        """A gain as a card says it. `balanced` as a percentage of its base
+        state: a product of an attack rating and effective HP is positive and
+        is no number anyone could read a difference of."""
+        if goal_id != advisor_goals.BALANCED.id:
+            return gain_text(gain, self.unit(goal_id))
+        base = next(line.value for line in self.pool.baseline
+                    if line.goal_id == goal_id)
+        return gain_text(gain / base * 100, "%")
+
     def top_handles(self, goal_id: str) -> frozenset:
         """Handles earning AK-46's chip under one direction, or none.
 
@@ -402,12 +414,11 @@ class Ranking:
                  for candidate in self.pool.candidates]
         if not pairs:
             return frozenset()
-        unit = self.unit(goal_id)
-        top = gain_text(max(gain for _handle, gain in pairs), unit)
+        top = self.text_of(max(gain for _handle, gain in pairs), goal_id)
         if top == NO_CHANGE or top.startswith("-"):
             return frozenset()
         return frozenset(handle for handle, gain in pairs
-                         if gain_text(gain, unit) == top)
+                         if self.text_of(gain, goal_id) == top)
 
     def texts_for(self, item) -> list[str]:
         """The value rows of one card, both directions, in order."""
@@ -415,7 +426,7 @@ class Ranking:
         for goal_id in VALUE_DIRECTIONS:
             gain = self.gain(item, goal_id)
             rows.append(NO_FIGURE if gain is None
-                        else gain_text(gain, self.unit(goal_id)))
+                        else self.text_of(gain, goal_id))
         return rows
 
 

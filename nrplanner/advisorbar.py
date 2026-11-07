@@ -83,8 +83,9 @@ FIGURES_VISIBLE_MS = 3000
 #: (QA-228). Where each one stands is still a decision: `max_attributes` goes
 #: last because the two before it are `GOAL.md` A3's pair and the player
 #: already knows their order, and because this tuple is also the order of the
-#: value rows on every relic card (AK-257, AK-258).
-GOAL_ORDER = ("max_damage", "min_damage_taken", "max_attributes")
+#: value rows on every relic card (AK-257, AK-258). `balanced` stands right
+#: behind the pair it is made of.
+GOAL_ORDER = ("max_damage", "min_damage_taken", "balanced", "max_attributes")
 
 #: Widest the direction box may get (§3.1). The tighter of the two boxes a
 #: direction label has to fit -- the picker's `Sort by` has 220 px -- so a

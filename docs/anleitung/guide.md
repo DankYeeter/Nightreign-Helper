@@ -102,15 +102,19 @@ six slots.
   What is in the build is untouched by any of this.
 
 **Advisor** — the row between the build list and the relic slots. Pick a
-direction — **Maximise damage**, **Minimise damage taken** or **Maximise
-offensive attributes** — then **Optimize** works out, for every slot that is
+direction — **Maximise damage**, **Minimise damage taken**, **Balanced** or
+**Maximise offensive attributes** — then **Optimize** works out, for every slot that is
 not held, the best relic your save has for it and shows the suggestion inside
 each slot card: nothing is put in a slot until you say so. A relic that carries
 an effect or curse you marked **Avoid**, or that you pressed **Reject** on, is
 never suggested; a relic you starred is put in when it fits (see **Filters**,
 **Favourites** and *Taking an effect or a relic out of a suggestion* below).
 The same run also compares your vessels (see *Comparing vessels* below).
-**Maximise damage**
+**Balanced** looks for damage and survival at once: it ranks by attack rating
+times effective HP, so one percent more of either counts the same, and there is
+nothing to set; from its suggestion you adjust by hand. It always reads the
+whole armament.
+**Maximise damage**, **Balanced**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count
 effects with the condition *when Two-Handing* only while it is on **2H**.

@@ -20,6 +20,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   not tried in play.
 
 ### Added
+- **A new direction, Balanced.** It looks for damage and survival at once: it
+  ranks by attack rating times effective HP, so one percent more of either
+  counts the same, and there is nothing to set. It has its own row on every
+  relic card, as a percentage, and its own entry under Sort by.
 - The armament tiles under Weapon damage now show the armament's symbol above
   its name. Tiles grow a little taller; empty tiles stay as they were.
 
