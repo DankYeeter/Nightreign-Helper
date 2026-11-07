@@ -734,20 +734,21 @@ The tables are read, not operated, so nothing on this tab responds to a click.
 
 ![Red variants](../screenshots/depth_weighting.png)
 
-How many red, empowered variants a Deep of Night run puts on the map, and of
-what. A red variant is always the same enemy re-tuned — never a different one
-— and they appear as individuals scattered through the map, several per camp.
+What a Deep of Night run turns red, read straight from the game's data. A red
+variant is the same enemy made stronger, never a different one; the files do
+not say by how much, so the tab gives no strength figure.
 
-One row per sort of place or population that can be red: ordinary enemies in
-camps and ruins, named minibosses, mixed-boss arena locations, field bosses
-& arena locations, merchants, unidentified enemies. One column per Depth,
-showing the game's own placement counts — on the default map, 87 red variants
-at Depth 1 rising to 100 at Depth 5, and the boss tiers only join the pool
-from Depth 2 on. A map selector covers the Shifting Earths and the Great
-Hollow, which runs noticeably hotter than Limveld.
-
-These counts are not published anywhere else — they are read straight out of
-the game's data.
+- **Per Depth** — one bar per Depth, split by sort (ordinary enemies, named
+  minibosses, mixed-boss arenas, field bosses & arenas, merchants, others),
+  with the exact counts in the table under it. The counts are fixed: every run
+  on that map and Depth places exactly these numbers. On Default Limveld that
+  is 87 at Depth 1, 96 at Depth 2–3 and 100 at Depth 4–5.
+- **What going deeper adds** — what each step adds, e.g. the field bosses and
+  boss arenas that only turn red from Depth 2 on.
+- **Every map** — all six maps side by side at the deepest Depth; the Great
+  Hollow runs hottest.
+- **Field bosses that can be red** — the named field bosses the game can turn
+  red, each name once.
 
 ---
 
@@ -947,9 +948,7 @@ the flat totals rather than being applied unconditionally; and where a chain fro
 the menu to the underlying data cannot be closed, the tab says so on itself.
 
 The figures that genuinely are not in the files are the Deep of Night rating
-table (see [Deep of Night](#5-deep-of-night)), part of the Red variants intro
-— the weapon-drop and Everdark Sovereign lines (see [Red
-variants](#6-red-variants)) — and part of the World Events prose (see [World
+table (see [Deep of Night](#5-deep-of-night)), and part of the World Events prose (see [World
 Events](#7-world-events)). None of them is marked *confirmed in game* or
 *community-reported* on screen — that distinction lives only in this
 document.

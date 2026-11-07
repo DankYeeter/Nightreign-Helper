@@ -200,15 +200,93 @@ def test_the_two_boss_rows_are_named_after_places_and_not_after_a_cast(tab):
 
 
 def test_the_tab_opens_with_what_a_red_variant_is(tab):
-    """AK-98: the answer used to sit in a clause halfway down the intro.
+    """AK-98, kept short (2026-11-07): the answer is the first bullet.
 
     And the limit stands beside the answer: the files carry counts and
     categories, and no strength figure at all.
     """
     lines = tabtext.labels(tab)
     assert lines[0] == depthstab.HEADING
-    assert lines[1] == depthstab.QUESTION
+    assert lines[1].startswith("• Same enemy")
     assert "do not say by how much" in lines[1]
     everything = tabtext.everything(tab)
-    assert everything.count("the same enemy") == 1, (
+    assert everything.count("Same enemy") == 1, (
         "the sentence saying what a red variant is stands twice")
+
+
+#: What the files cannot back, taken off the tab on 2026-11-07. The weapon
+#: drop was community-reported; the Everdark and concealment line is the Deep
+#: of Night tab's, read there from the game's depth table.
+UNBACKED = ("always drop a weapon", "unique-tier", "Everdark Sovereign",
+            "hide points of interest")
+
+
+def test_nothing_the_files_cannot_back_is_on_the_tab(tab):
+    everything = tabtext.everything(tab)
+    left = [phrase for phrase in UNBACKED if phrase in everything]
+    assert not left, f"the tab still says {left}"
+
+
+def test_the_bars_add_up_to_the_table(tab, game_data):
+    """Every depth bar is the table's column, segment by segment."""
+    for index in range(tab.map_box.count()):
+        tab.map_box.setCurrentIndex(index)
+        shown = shown_rows(tab)
+        total = shown.pop("Total red variants on the map")
+        bars = tab.depth_bars.rows
+        assert [label for label, _s, _h in bars] == headers(tab)[
+            FIRST_DEPTH_COLUMN:]
+        for column, (_label, segments, _h) in enumerate(bars):
+            values = [value for value, _colour in segments]
+            figures = [int(f) if f != "—" else 0
+                       for f in (row[column] for row in shown.values())]
+            assert values == figures, (
+                f"{tab.map_box.currentText()}: bar {column} is {values}, "
+                f"the table says {figures}")
+            assert sum(values) == int(total[column])
+
+
+def test_the_map_bars_hold_every_map_at_the_deepest_depth(tab, game_data):
+    mutations = game_data["deep_of_night"]["mutations"]
+    deepest = tab.depth_groups[-1][0]
+    expected = {}
+    for index in range(tab.map_box.count()):
+        group = tab.map_box.itemData(index)
+        expected[tab.map_box.itemText(index)] = sum(
+            expected_counts(mutations, group, cats, tab.depths)[deepest]
+            for _label, cats in GROUPS)
+    drawn = {label: sum(v for v, _c in segments)
+             for label, segments, _h in tab.map_bars.rows}
+    assert drawn == expected
+    highlighted = [label for label, _s, on in tab.map_bars.rows if on]
+    assert highlighted == [tab.map_box.currentText()]
+
+
+def test_what_going_deeper_adds_is_the_difference_of_the_columns(tab):
+    """The change line is read off the table's own columns."""
+    from tests.tabtext import plain
+    for index in range(tab.map_box.count()):
+        tab.map_box.setCurrentIndex(index)
+        total = shown_rows(tab)["Total red variants on the map"]
+        text = plain(tab.changes.text())
+        for before, after, header in zip(
+                total, total[1:], headers(tab)[FIRST_DEPTH_COLUMN + 1:]):
+            delta = int(after) - int(before)
+            if delta:
+                assert f"{header}: {delta:+d}" in text, (
+                    f"{tab.map_box.currentText()}: {header} {delta:+d} is "
+                    f"not in {text!r}")
+
+
+def test_the_field_boss_names_are_the_kind_120_places(tab, game_data):
+    """Each name once, and only names whose place carries kind 120."""
+    expected = sorted({
+        entry["name"].strip() for entry in game_data["subbosses"].values()
+        if 120 in (entry.get("categories") or [])
+        and (entry.get("name") or "").strip()})
+    assert expected, "this dataset names no kind-120 place"
+    lines = tabtext.labels(tab)
+    shown = [line[2:] for line in lines
+             if line.startswith("• ") and line[2:] in expected]
+    assert shown == expected
+    assert f"FIELD BOSSES THAT CAN BE RED ({len(expected)})" in lines

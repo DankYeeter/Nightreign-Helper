@@ -9854,3 +9854,17 @@ Nutzerauftrag, ohne Vorgabe des `ui-ux-designer`; Masse sind Entscheidungen des 
   Namen. Keine waagrechte Bildlaufleiste.
 - **Akzeptanz:** bei 100, 125 und 150 % kein Label mehr abgeschnitten als ohne Symbolsatz (`PrintWindow`,
   alle sieben Tabs und Picker, Windows 11, Basisskalierung 125 %).
+
+#### Nachtrag Red-variants-Umbau, 2026-11-07 — Zahlen statt Prosa (AK-420)
+
+**AK-420** Der Tab `Red variants` zeigt nur, was die Spieldaten belegen, kurz
+und als Grafik: Ueberschrift `RED VARIANTS`, zwei Stichpunkte (gleicher Gegner,
+staerker, ohne Staerkezahl; feste Anzahl je Karte und Tiefe), ein Balken je
+Tiefengruppe nach Sorte gestapelt mit der Tabelle als Legende und exakten
+Zahlen, `WHAT GOING DEEPER ADDS` aus den Spaltendifferenzen, alle sechs Karten
+auf der tiefsten Tiefe nebeneinander und die Feldboss-Namen der Orte mit
+Mutationsart 120, jeder Name einmal. Entfallen: die Waffen-Drop-Zeile (nicht
+in den Dateien) und die Everdark-/Verdeckungs-Zeile (steht belegt im
+`Deep of Night`-Tab). Ersetzt den Wortlaut von AK-98; AK-100 (Spalten nur
+zusammenlegen, wo die Daten sich wiederholen) und AK-325/AK-326 bleiben.
+Waechter: `tests/test_red_variants_display.py`.

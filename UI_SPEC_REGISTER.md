@@ -603,3 +603,4 @@ gemessen (AK-371 war die hoechste vergebene).
 | AK-417 | Tausch-Relikte (Zauber, Art) nur auf der Startwaffe: ein Chip `RELIC` plus Satz; Revenant ohne Chip | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
 | AK-418 | Chips nur aus Bestandstoken, Icon 40 px, Tooltip/Zugaenglichkeitsname, Mindestbreite, Bilder per `grab()` | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
 | AK-419 | Spieltext als Text, nie Markup (SEC-019); Saetze englisch (A8) | UI_SPEC Nachtrag T-335r | T-335r, 2026-10-31 | — |
+| AK-420 | Red variants: zwei Stichpunkte, Balken je Tiefe, Zuwachs je Stufe, Kartenvergleich, Feldboss-Namen (Art 120); keine unbelegten Saetze | UI_SPEC Nachtrag Red-variants-Umbau | 2026-11-07 | AK-98 (Wortlaut) |
