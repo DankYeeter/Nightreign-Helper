@@ -40,7 +40,7 @@ import sys
 import pytest
 
 from nrplanner import effecttext, model
-from nrplanner.advisor import candidates, explain, goals, search, types
+from nrplanner.advisor import candidates, explain, goals, run, search, types
 from nrplanner.advisor.evaluate import evaluate
 
 from tests import advisor_cases as advisor
@@ -2377,6 +2377,8 @@ def test_a_favourite_that_acts_on_the_enemy_says_it_moves_no_number(game_data):
     ctx = advisor.context(game_data, raider)
     goal = goals.GOALS[DAMAGE]
     for effect_id in sorted(model.ON_THE_ENEMY_EFFECT_IDS):
+        if not effecttext.works_for(game_data["effects"][str(effect_id)], "Raider"):
+            continue
         problem = dataclasses.replace(advisor.problem([advisor.RED]),
                                       required=frozenset({effect_id}))
         chosen = (a_copy(0, 1, "Relic", [effect_id]),)
@@ -2396,18 +2398,19 @@ def test_a_favourite_that_acts_on_the_enemy_says_it_moves_no_number(game_data):
 def test_no_favourite_that_waits_on_a_qa_321_cause_says_it_always_counts(
         game_data, wylder, armament):
     """All of them, undeclared as `asking_from` leaves them: a weapon type, a
-    weapon count, an enemy ailment, and whatever acts on the enemy."""
+    weapon count, an enemy ailment, whatever acts on the enemy, and whatever
+    works only for another Nightfarer."""
     ctx = advisor.context(game_data, wylder, reference=armament)
     goal = goals.GOALS[DAMAGE]
     wep_type = armament.weapon.get("wep_type")
     asked = 0
     for effect in game_data["effects"].values():
-        if not (model.is_conditional(effect, wep_type)
-                and effecttext.works_for(effect, wylder["name"])
-                and (effect["id"] in model.ON_THE_ENEMY_EFFECT_IDS
-                     or effecttext.counts_armaments(effect)
-                     or "triggerOnWepType" in effect["modifiers"]
-                     or effecttext.ailment_awaited(effect))):
+        if (effecttext.works_for(effect, wylder["name"])
+                and not (model.is_conditional(effect, wep_type)
+                         and (effect["id"] in model.ON_THE_ENEMY_EFFECT_IDS
+                              or effecttext.counts_armaments(effect)
+                              or "triggerOnWepType" in effect["modifiers"]
+                              or effecttext.ailment_awaited(effect)))):
             continue
         asked += 1
         problem = dataclasses.replace(advisor.problem([advisor.RED]),
@@ -2420,6 +2423,30 @@ def test_no_favourite_that_waits_on_a_qa_321_cause_says_it_always_counts(
         assert not any("always counts" in line.text
                        for group in groups for line in group.lines), effect["name"]
     assert asked
+
+
+def test_a_favourite_of_another_nightfarer_says_so_in_a_real_answer(
+        game_data, wylder, armament):
+    """QA-321, fourth cause: favourites hold for every Nightfarer, so a run on
+    Wylder offers and binds a relic carrying Raider's effect."""
+    foreign = next(effect for effect in game_data["effects"].values()
+                   if effecttext.owner(effect) == "Raider")
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    owned = advisor.make_inventory(game_data, wylder, count=1, handles=[100],
+                                   rolls=[[foreign["id"]]])
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  required=frozenset({foreign["id"]}))
+    frozen = run.frozen_inventory(owned, problem)
+
+    result = run.run(advisor.request_for(problem, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    line, = [line for group in result.suggestions[0].reasons
+             for line in group.lines if line.effect_id == foreign["id"]]
+    assert line.silence == types.SILENT_ANOTHER_NIGHTFARER
+    name, = effect_names(game_data, [foreign["id"]])
+    assert line.text == (f"{name}: you favourited it, but it only works for "
+                         f"Raider, so it moves no number.")
 
 
 def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):

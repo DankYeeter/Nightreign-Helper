@@ -629,8 +629,15 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
                     "no name here and counted for nothing.",
                     types.SILENT_NOT_IN_THE_DATA)
     effect = ctx.data["effects"][str(effect_id)]
-    # AK-383: AK-290.2 holds only for an effect that counts. One that acts on
-    # the enemy never does, and no condition parks it (`model.NO_SWITCH`).
+    hero = str(ctx.hero.get("name", ""))
+    # AK-383: AK-290.2 holds only for an effect that counts. One of another
+    # Nightfarer or one that acts on the enemy never does, and no condition
+    # parks either (`model.compute_qualitative`).
+    if effect_id in problem.required and not effecttext.works_for(effect, hero):
+        nightfarer = effecttext.owner(effect) or "another Nightfarer"
+        return said(f"{name}: you favourited it, but it only works for "
+                    f"{nightfarer}, so it moves no number.",
+                    types.SILENT_ANOTHER_NIGHTFARER)
     if (effect_id in problem.required
             and effect_id in model.ON_THE_ENEMY_EFFECT_IDS):
         return said(f"{name}: you favourited it, but it acts on the enemy, so "
@@ -665,7 +672,6 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     marked = _marked_line(candidate, effect_id, name, problem, is_curse=False)
     if marked is not None:
         return marked
-    hero = str(ctx.hero.get("name", ""))
     if not effecttext.works_for(effect, hero):
         owner = effecttext.owner(effect)
         return said(
