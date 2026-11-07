@@ -1100,3 +1100,121 @@ def test_a_row_is_drawn_with_room_for_its_second_line(planner, told):
     assert (planner.chalice_list.sizeHintForRow(index.row())
             >= advisorbar.VESSEL_ROW_HEIGHT)
     assert not planner.chalice_list.grab().isNull()
+
+
+# --- QA-324: the hand on the way to the best row ------------------------------
+
+def _a_stored_build_in_one_hand(planner, vessel_id: int) -> None:
+    """A relic stored on that vessel, in `1H`, and back to where we were."""
+    here = planner.chalice_list.currentRow()
+    planner.chalice_list.setCurrentRow(_row_of(planner, vessel_id))
+    card = planner.active_slots()[1]
+    relics.equip(card, [copy for copy in card._holdable()
+                        if copy.handle is not None][-1])
+    planner.chalice_list.setCurrentRow(here)
+
+
+def _stored_hand(planner, vessel_id: int) -> bool:
+    return chalices.load(planner.current_hero()["id"], vessel_id)[3]
+
+
+def test_undo_after_a_switch_with_a_hold_puts_the_hand_back(planner, told):
+    _hold_a_relic(planner)
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    target_id = _best_fitting(planner)
+    _a_stored_build_in_one_hand(planner, target_id)
+    keys_there = relics.stored_keys(planner, target_id)
+    assert not _stored_hand(planner, target_id)
+
+    planner.switch_button.click()
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert _stored_hand(planner, target_id)
+
+    planner.undo_apply()
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert not _stored_hand(planner, target_id)
+    assert relics.stored_keys(planner, target_id) == keys_there
+
+
+def test_a_switch_without_holds_leaves_the_stored_hand_alone(planner, told):
+    target_id = planner.hero_vessels[-1]["id"]
+    _a_stored_build_in_one_hand(planner, target_id)
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert planner.current_vessel()["id"] == target_id
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert bar.answer is not None and not bar.has_been_applied()
+    assert not _stored_hand(planner, target_id)
+
+
+def test_applying_after_a_switch_writes_the_hand_and_undo_takes_it_back(
+        planner, told, monkeypatch):
+    target = planner.hero_vessels[-1]
+    _a_stored_build_in_one_hand(planner, target["id"])
+    keys_there = relics.stored_keys(planner, target["id"])
+    here = planner.chalice_list.currentRow()
+    planner.chalice_list.setCurrentRow(_row_of(planner, target["id"]))
+    index, copy = next(
+        (index, copy) for index, card in enumerate(planner.active_slots())
+        if card.current_relic() is None
+        for copy in card._holdable() if copy.handle is not None)
+    planner.chalice_list.setCurrentRow(here)
+    planner.stat_sheet.hand_switch.setChecked(True)
+
+    def with_a_choice(request, *rest):
+        answer = told(request, *rest)
+        return dataclasses.replace(answer, suggestions=(dataclasses.replace(
+            answer.suggestions[0], choices=(types.SlotChoice(
+                slot_index=index, handle=copy.handle,
+                relic_id=copy.relic_id, name=copy.name),)),))
+
+    bar = planner.advisor_bar
+    monkeypatch.setattr(bar._controller, "_answer", with_a_choice)
+    monkeypatch.setattr(bar.comparison._controller, "_answer", with_a_choice)
+    _compared(planner)
+
+    planner.switch_button.click()
+    assert not _stored_hand(planner, target["id"])
+    bar.apply_all_requested.emit()
+    assert _stored_hand(planner, target["id"])
+
+    planner.undo_apply()
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert not _stored_hand(planner, target["id"])
+    assert relics.stored_keys(planner, target["id"]) == keys_there
+
+
+def test_a_switch_from_a_third_row_shows_what_its_row_promised(planner, told):
+    """The hand and the holds of the question, not of the row that is open."""
+    origin = planner.current_vessel()
+    _card, copy = _hold_a_relic(planner)
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    target_id = _best_fitting(planner)
+    third = next(vessel for vessel in planner.hero_vessels
+                 if vessel["id"] not in (origin["id"], target_id))
+    planner.chalice_list.setCurrentRow(_row_of(planner, third["id"]))
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert planner.switch_button.toolTip().startswith("Moves your held relics")
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    target = next(vessel for vessel in planner.hero_vessels
+                  if vessel["id"] == target_id)
+    assert planner.current_vessel()["id"] == target_id
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert bar.answer.suggestions[0].score.value == told.value_of[
+        run.vessel_slots(target, True)]
+    index, = planner.held_slot_indices()
+    assert planner.active_slots()[index].current_relic().handle == copy.handle
+
+    planner.undo_apply()
+    planner.chalice_list.setCurrentRow(_row_of(planner, origin["id"]))
+    assert planner.active_slots()[0].current_relic().handle == copy.handle
+    assert planner.active_slots()[0].hold_button.isChecked()

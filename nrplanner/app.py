@@ -645,7 +645,7 @@ class Planner(QMainWindow):
         self._slots_before_applying: list[str] | None = None
         #: AK-454: the holds and rejections of both vessels before `Switch to
         #: it` moved them, for `Undo apply`. Goes with the slots above.
-        self._holds_before_switching: tuple[dict, dict] | None = None
+        self._before_switching: tuple[dict, dict, bool] | None = None
         self._switch_target: int | None = None
         # Which slots the player is holding, per (Nightfarer, vessel, Deep),
         # and which copy each hold was made on (AD-017.2). Session state of
@@ -1748,15 +1748,8 @@ class Planner(QMainWindow):
         self.switch_button.setToolTip(
             "Moves your held relics and rejections to this vessel and replaces "
             "the slots saved there. Undo apply puts them back."
-            if self._carried_by_a_switch() else
+            if comparing is not None and comparing.carries else
             "Opens this vessel with its suggestion.")
-
-    def _carried_by_a_switch(self) -> bool:
-        """Would `Switch to it` move anything from the vessel now open?"""
-        cards = self._all_slots()
-        return bool(self.rejected_rolls()) or any(
-            cards[index].current_relic() is not None
-            for index in self.held_slot_indices())
 
     def _vessel_row_chosen(self, *_) -> None:
         """AK-435: a click opens the vessel, with its answer if it is known."""
@@ -1764,36 +1757,48 @@ class Planner(QMainWindow):
         if not self._restoring:
             self.advisor_bar.show_the_answer_if_known()
 
+    def _open_row(self, row: int) -> None:
+        with QSignalBlocker(self.chalice_list):
+            self.chalice_list.setCurrentRow(row)
+        self.apply_chalice()
+
+    def _row_of_vessel(self, vessel_id: int) -> int:
+        return next(index for index in range(self.chalice_list.count())
+                    if (self.chalice_list.item(index).data(Qt.UserRole) or {}
+                        ).get("id") == vessel_id)
+
     def _switch_to_the_best(self) -> None:
         """`Switch to it` (AK-435, AK-454, AD-062.7): the vessel the comparison
-        named, the holds and rejections moved along so that the row's figure is
-        the figure of the suggestion. The hand comes along too: the row was
-        compared in it, whichever one that vessel was stored with.
+        named, in the state its row was compared in, so that the row's figure
+        is the figure of the suggestion. That is the holds and rejections of
+        the vessel the comparison was asked from, whichever row is open now,
+        and the hand of the question (QA-324).
+
+        Nothing is written without `Undo apply`: without holds or rejections
+        the target's stored hand stays until the player applies something.
         """
-        row = next(index for index in range(self.chalice_list.count())
-                   if (self.chalice_list.item(index).data(Qt.UserRole) or {}
-                       ).get("id") == self._switch_target)
-        vessel = self.chalice_list.item(row).data(Qt.UserRole)
-        carries = (self._carried_by_a_switch()
-                   and self.advisor_bar.comparison_knows(vessel["id"]))
-        cards = self._all_slots()
-        holds_from, rejects_from = self._hold_key(), self._reject_key()
-        holds = self._holds.get(holds_from, {})
-        moved = () if not carries else advisor_run.held_moved_to(
-            [held_slot(index, cards[index]) for index in sorted(holds)],
-            advisor_run.vessel_slots(vessel, self.deep_check.isChecked()))[0]
-        kept_keys = {there.index: cards[here].saved_key()
-                     for here, there in moved}
-        moved_from = {here for here, _there in moved}
-        hand = self.stat_sheet.hand_switch.isChecked()
         bar = self.advisor_bar
+        comparing = bar.comparing
+        row = self._row_of_vessel(self._switch_target)
+        vessel = self.chalice_list.item(row).data(Qt.UserRole)
+        hand = comparing.questions[vessel["id"]].two_handed
         with bar.while_the_player_applies_it():
-            with QSignalBlocker(self.chalice_list):
-                self.chalice_list.setCurrentRow(row)
-            self.apply_chalice()
-            if self.stat_sheet.hand_switch.isChecked() != hand:
-                self._set_two_handed(hand)
-                self.recompute()
+            if self.current_vessel()["id"] != comparing.asked_vessel:
+                self._open_row(self._row_of_vessel(comparing.asked_vessel))
+            carries = comparing.carries and bar.comparison_knows(vessel["id"])
+            cards = self._all_slots()
+            holds_from, rejects_from = self._hold_key(), self._reject_key()
+            holds = self._holds.get(holds_from, {})
+            moved = () if not carries else advisor_run.held_moved_to(
+                [held_slot(index, cards[index]) for index in sorted(holds)],
+                advisor_run.vessel_slots(vessel, self.deep_check.isChecked()))[0]
+            kept_keys = {there.index: cards[here].saved_key()
+                         for here, there in moved}
+            moved_from = {here for here, _there in moved}
+            self._open_row(row)
+            hand_there = self.stat_sheet.hand_switch.isChecked()
+            if hand_there != hand:
+                self._show_this_hand_without_storing_it(hand)
             if carries:
                 before, kept = self._move_the_holds(
                     holds_from, rejects_from, moved, kept_keys, moved_from)
@@ -1801,9 +1806,19 @@ class Planner(QMainWindow):
             bar.the_build_changed()
         elif carries:
             self._slots_before_applying = before
-            self._holds_before_switching = kept
+            self._before_switching = (*kept, hand_there)
             bar.the_suggestion_was_applied()
             self.show_the_suggestion(bar.answer)
+        elif hand_there != hand:
+            self._before_switching = ({}, {}, hand_there)
+
+    def _show_this_hand_without_storing_it(self, hand: bool) -> None:
+        self._set_two_handed(hand)
+        self._restoring = True
+        try:
+            self.recompute()
+        finally:
+            self._restoring = False
 
     def _move_the_holds(self, holds_from, rejects_from, moved, kept_keys,
                         moved_from) -> tuple[list[str], tuple[dict, dict]]:
@@ -3143,7 +3158,7 @@ class Planner(QMainWindow):
         since.
         """
         self._slots_before_applying = None
-        self._holds_before_switching = None
+        self._before_switching = None
         self.show_the_suggestion(result)
         card, self._focus_after_asking = self._focus_after_asking, None
         if card is not None:
@@ -3414,8 +3429,7 @@ class Planner(QMainWindow):
         before = self._slots_before_applying
         if before is None:
             return
-        switched, self._holds_before_switching = (
-            self._holds_before_switching, None)
+        switched, self._before_switching = self._before_switching, None
         if switched is not None:
             self._put_back_what_a_switch_moved(before, switched)
             return
@@ -3428,13 +3442,15 @@ class Planner(QMainWindow):
         self.show_the_suggestion(self.advisor_bar.answer)
 
     def _put_back_what_a_switch_moved(self, before: list[str],
-                                      switched: tuple[dict, dict]) -> None:
-        """AK-454: slots, holds and rejections as they were. The answer goes:
-        it was the answer to the question with them moved."""
-        for store, kept in zip((self._holds, self._rejects), switched):
+                                      switched: tuple[dict, dict, bool]) -> None:
+        """AK-454, QA-324: slots, holds, rejections and hand as they were. The
+        answer goes: it was the answer to the question with them moved."""
+        holds, rejects, hand = switched
+        for store, kept in ((self._holds, holds), (self._rejects, rejects)):
             for key, value in kept.items():
                 self._set_or_drop(store, key, value)
         self._slots_before_applying = None
+        self._set_two_handed(hand)
         self._put_these_keys_in_the_slots(before)
         self._show_the_rejects()
         self.advisor_bar.the_build_changed()
