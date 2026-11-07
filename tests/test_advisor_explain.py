@@ -32,7 +32,10 @@ five fields, instead of hunting the dataset for one and hoping it stays.
 from __future__ import annotations
 
 import dataclasses
+import os
 import pathlib
+import subprocess
+import sys
 
 import pytest
 
@@ -2606,3 +2609,20 @@ def test_a_filled_slot_has_no_empty_slot_entry(game_data, wylder):
 
     assert explain.empty_slots(problem, (pool,), (copy,),
                                advisor.context(game_data, wylder)) == ()
+
+
+def test_a_stat_swap_keeps_its_lines_in_one_order_across_processes():
+    """`swap_deltas` walked a set of names, whose order follows PYTHONHASHSEED:
+    the Why lines of one effect stood in another order on every start."""
+    driver = (
+        "import sys; sys.path.insert(0, sys.argv[1]); "
+        "from nrplanner import model; "
+        "print(*model.swap_deltas({model.SWAP_FIELD: {"
+        "'1': {'Arcane': 1, 'Mind': 1, 'Vigor': -1, 'Strength': -1}, "
+        "'12': {'Arcane': 9, 'Mind': 9, 'Vigor': -9, 'Strength': -9}}}, 12))")
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    for seed in ("1", "2"):
+        done = subprocess.run(
+            [sys.executable, "-c", driver, str(repo)], capture_output=True,
+            text=True, env=dict(os.environ, PYTHONHASHSEED=seed), check=True)
+        assert done.stdout.split() == ["Vigor", "Mind", "Strength", "Arcane"]

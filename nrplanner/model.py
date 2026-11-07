@@ -941,7 +941,7 @@ def swap_deltas(effect: dict, level: int) -> dict[str, int]:
     span = hi - lo
     t = 0.0 if span <= 0 else (level - lo) / span
     out: dict[str, int] = {}
-    for attr in set(low) | set(high):
+    for attr in ATTRIBUTE_ORDER:
         a, b = low.get(attr, 0), high.get(attr, 0)
         value = round(a + (b - a) * t)
         if value:
