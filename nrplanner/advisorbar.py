@@ -43,11 +43,11 @@ import enum
 import html
 
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import (QBoxLayout, QComboBox, QFrame, QHBoxLayout,
                                QStyle, QStyledItemDelegate,
-                               QStyleOptionViewItem,
+                               QStyleOptionViewItem, QToolTip,
                                QLabel, QProgressBar, QPushButton, QScrollArea,
                                QSizePolicy, QVBoxLayout, QWidget)
 
@@ -756,6 +756,13 @@ VESSEL_ROW_HEIGHT = 38
 COMPARE_POINT_PX = 11
 
 
+def _small_font(font: QFont) -> QFont:
+    """The font of a vessel row's second line."""
+    small = QFont(font)
+    small.setPixelSize(COMPARE_POINT_PX)
+    return small
+
+
 class VesselRowDelegate(QStyledItemDelegate):
     """A vessel row with a second text line under its name (AK-432).
 
@@ -767,13 +774,13 @@ class VesselRowDelegate(QStyledItemDelegate):
         size = super().sizeHint(option, index)
         if index.data(Qt.UserRole) is not None:
             size.setHeight(max(size.height(), VESSEL_ROW_HEIGHT))
+        # QA-341: a row takes the width of the list and elides, so its text
+        # never widens the list past the viewport into a sideways scroll bar.
+        size.setWidth(0)
         return size
 
-    def paint(self, painter, option, index) -> None:
-        line = index.data(VESSEL_LINE_ROLE)
-        if line is None:
-            super().paint(painter, option, index)
-            return
+    def _laid_out(self, option, index):
+        """The row's style option and the rect its two lines are drawn in."""
         item = QStyleOptionViewItem(option)
         self.initStyleOption(item, index)
         style = item.widget.style()
@@ -781,6 +788,31 @@ class VesselRowDelegate(QStyledItemDelegate):
                                    item.widget) + 1
         area = style.subElementRect(QStyle.SE_ItemViewItemText, item,
                                     item.widget).adjusted(margin, 0, -margin, 0)
+        return item, area
+
+    def helpEvent(self, event, view, option, index):  # noqa: N802 - Qt naming
+        """QA-341: where the second line is cut, the tooltip carries it whole,
+        under the name it starts with."""
+        line = index.data(VESSEL_LINE_ROLE)
+        tip = index.data(Qt.ToolTipRole)
+        if event.type() != QEvent.ToolTip or line is None or not tip:
+            return super().helpEvent(event, view, option, index)
+        item, area = self._laid_out(option, index)
+        whole = "".join(line)
+        if QFontMetrics(_small_font(item.font)).horizontalAdvance(
+                whole) <= area.width():
+            return super().helpEvent(event, view, option, index)
+        name, _, rest = tip.partition("\n")
+        QToolTip.showText(event.globalPos(), f"{name}\n{whole}\n{rest}", view)
+        return True
+
+    def paint(self, painter, option, index) -> None:
+        line = index.data(VESSEL_LINE_ROLE)
+        if line is None:
+            super().paint(painter, option, index)
+            return
+        item, area = self._laid_out(option, index)
+        style = item.widget.style()
         name, item.text = item.text, ""
         style.drawControl(QStyle.CE_ItemViewItem, item, painter, item.widget)
 
@@ -793,12 +825,12 @@ class VesselRowDelegate(QStyledItemDelegate):
         painter.drawText(top, Qt.AlignLeft | Qt.AlignBottom,
                          item.fontMetrics.elidedText(name, Qt.ElideRight,
                                                      area.width()))
-        small = QFont(item.font)
-        small.setPixelSize(COMPARE_POINT_PX)
+        small = _small_font(item.font)
         painter.setFont(small)
         metrics = QFontMetrics(small)
         below = area.adjusted(0, area.height() // 2, 0, 0)
         accent, muted = line
+        accent = metrics.elidedText(accent, Qt.ElideRight, below.width())
         lead = metrics.horizontalAdvance(accent)
         painter.setPen(marked if selected else QColor(ACCENT))
         painter.drawText(below, Qt.AlignLeft | Qt.AlignTop, accent)

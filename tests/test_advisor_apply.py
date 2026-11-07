@@ -22,8 +22,10 @@ import dataclasses
 import html
 
 import pytest
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QPushButton
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QHelpEvent
+from PySide6.QtWidgets import (QApplication, QListWidget, QListWidgetItem,
+                               QPushButton, QToolTip)
 
 from nrplanner import advisorbar, advisorblock, chalices, effectfilters, inventory
 from nrplanner import app as appmod
@@ -1135,6 +1137,39 @@ def test_a_row_is_drawn_with_room_for_its_second_line(planner, told):
     assert (planner.chalice_list.sizeHintForRow(index.row())
             >= advisorbar.VESSEL_ROW_HEIGHT)
     assert not planner.chalice_list.grab().isNull()
+
+
+def _tooltip_of_row(listed: QListWidget, row: int) -> str:
+    """What the tooltip says on a hover over that row."""
+    centre = listed.visualItemRect(listed.item(row)).center()
+    QApplication.sendEvent(listed.viewport(), QHelpEvent(
+        QEvent.ToolTip, centre, listed.viewport().mapToGlobal(centre)))
+    told = QToolTip.text()
+    QToolTip.hideText()
+    return told
+
+
+def test_a_narrow_list_elides_its_rows_and_has_no_sideways_scroll(qapp):
+    """QA-341: a row ends in an ellipsis inside the viewport, and a row drawn
+    shorter than it reads gives its whole line in the tooltip."""
+    listed = QListWidget()
+    listed.setItemDelegate(advisorbar.VesselRowDelegate(listed))
+    for line in (("BEST  AR +22 % / Defense +102 %", ""), ("", "AR +1 %")):
+        item = QListWidgetItem("Raider's Goblet of a long name")
+        item.setData(Qt.UserRole, {"id": len(line[0])})
+        item.setData(advisorbar.VESSEL_LINE_ROLE, line)
+        item.setToolTip("Raider's Goblet of a long name\nSlots: Red")
+        listed.addItem(item)
+    listed.resize(150, 200)
+    listed.show()
+    QApplication.processEvents()
+    assert listed.horizontalScrollBar().maximum() == 0
+    assert _tooltip_of_row(listed, 0) == (
+        "Raider's Goblet of a long name\nBEST  AR +22 % / Defense +102 %\n"
+        "Slots: Red")
+    assert _tooltip_of_row(listed, 1) == (
+        "Raider's Goblet of a long name\nSlots: Red")
+    listed.close()
 
 
 # --- QA-324: the hand on the way to the best row ------------------------------
