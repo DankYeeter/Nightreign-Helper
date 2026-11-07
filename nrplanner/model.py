@@ -809,6 +809,13 @@ def satisfied_by_weapon(field_name: str, value, wep_type) -> bool:
     return value == wep_type
 
 
+#: The eight effects `accumulates` names, for the search, which has the relic's
+#: ids and not the records. `tests/test_stack_effects_count_once.py` holds the
+#: list against the dataset.
+STACK_EFFECT_IDS = frozenset({6060300, 6060400, 6060500, 6060600, 6500500,
+                              7060000, 7060100, 7060200})
+
+
 def accumulates(effect: dict) -> bool:
     """Does this effect gain a stack each time something happens?
 
@@ -1126,6 +1133,24 @@ def _exclusive_text(kept: dict, dropped: dict, copies: int) -> str:
             f"only one will apply")
 
 
+def _first_carriers(effects: list[dict], build: "Build") -> list[dict]:
+    """`effects` with each stack effect on its first carrier only, the others
+    reported. Not `stacks=False` on the effect: that would drop the copies a
+    declared count expands to, the count itself (measured, T-337)."""
+    kept: list[dict] = []
+    carriers: dict[int, int] = {}
+    for eff in effects:
+        if accumulates(eff):
+            carriers[eff["id"]] = carriers.get(eff["id"], 0) + 1
+            if carriers[eff["id"]] > 1:
+                build.warnings.append(Warning(
+                    "duplicate",
+                    _exclusive_text(eff, eff, carriers[eff["id"]])))
+                continue
+        kept.append(eff)
+    return kept
+
+
 def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = None,
             weapon: dict | None = None,
             weapons_held: list[dict] | None = None,
@@ -1147,7 +1172,10 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     `declared` maps effect id to how many times the player says its condition
     is met right now. A gated effect is otherwise left out of every total,
     because the sheet has no way to know. Declaring one counts it exactly as
-    though that many copies were equipped.
+    though that many copies were equipped. For a stack effect (`accumulates`)
+    the count belongs to the effect and not to the relic: the first carrier
+    takes it, a further one is reported and counts for nothing (user decision
+    2026-11-07, T-339).
 
     `want_qualitative=False` leaves `qualitative` and `situational` empty and
     changes nothing else. The advisor's beam scores thousands of builds and
@@ -1179,6 +1207,7 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     # A declared effect is replaced by the number of copies asked for, rather
     # than kept alongside them: leaving the original in would make the first
     # copy of an isStrongestEffect look like a duplicate of it and be dropped.
+    effects = _first_carriers(effects, build)
     live = {int(k): int(v) for k, v in (declared or {}).items() if int(v) > 0}
     if live:
         expanded: list[dict] = []

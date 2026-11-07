@@ -68,6 +68,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from .. import model
 from . import candidates, types
 from .evaluate import evaluate
 from .types import Cancelled, never_cancelled
@@ -140,6 +141,15 @@ class _State:
     #: sorted -- a tuple, because the forced branches iterate it and a set's
     #: order would follow the hash seed (QA-059, QA-142).
     unmet: tuple[int, ...] = ()
+    #: The stack effects the build carries so far (`_stack_effects`).
+    stacked: frozenset[int] = frozenset()
+
+
+def _stack_effects(copy) -> frozenset[int]:
+    """What on this copy `model.compute` counts on one carrier only."""
+    return frozenset(effect_id for effect_id in (*copy.effect_ids,
+                                                 *copy.curse_ids)
+                     if effect_id in model.STACK_EFFECT_IDS)
 
 
 def _carries(copy, effect_id: int) -> bool:
@@ -314,7 +324,8 @@ def _floor_in_the_group(state: _State, group: frozenset[int],
 
 
 def _branches(state: _State, offers: Sequence[types.Candidate],
-              floor: int, width: int) -> list[types.Candidate]:
+              floor: int, width: int, *,
+              second_carriers: bool = False) -> list[types.Candidate]:
     """The first `width` copies this state may still put in this slot.
 
     The first K **available** ones, not the first K of the list with some of
@@ -326,10 +337,17 @@ def _branches(state: _State, offers: Sequence[types.Candidate],
     The symmetry floor is read the same way and for the same reason. A
     candidate below it is not a narrower choice, it is the same build already
     reachable with the two slots the other way round.
+
+    A second carrier of a stack effect is not offered at all (user decision
+    2026-11-07, T-339), even where the rest of the relic would earn the slot;
+    only a favourite's forced branch passes `second_carriers`, because there
+    the player asked for that relic.
     """
     out: list[types.Candidate] = []
     for rank, offer in enumerate(offers):
         if rank < floor or offer.handle in state.spent:
+            continue
+        if not second_carriers and _stack_effects(offer) & state.stacked:
             continue
         out.append(offer)
         if len(out) == width:
@@ -372,7 +390,8 @@ def _successors(state: _State, offers: Sequence[types.Candidate], floor: int,
     handles = {offer.handle for offer in branches}
     for effect in state.unmet:
         for offer in _branches(state, carriers.get(effect, ()), 0,
-                               budget.candidates_per_slot):
+                               budget.candidates_per_slot,
+                               second_carriers=True):
             if offer.handle not in handles:
                 handles.add(offer.handle)
                 branches.append(offer)
@@ -384,7 +403,8 @@ def _successors(state: _State, offers: Sequence[types.Candidate], floor: int,
         grown.append(_State(chosen=chosen,
                             spent=state.spent | {offer.handle},
                             score=scorer.score(chosen),
-                            unmet=_still_unmet(state.unmet, offer)))
+                            unmet=_still_unmet(state.unmet, offer),
+                            stacked=state.stacked | _stack_effects(offer)))
     return grown
 
 
@@ -512,7 +532,9 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
                   if not any(_carries(relic, eid)
                              for relic in types.held_relics(problem)))
     live = [_State(chosen=(), spent=types.held_handles(problem),
-                   score=scorer.score(()), unmet=unmet)]
+                   score=scorer.score(()), unmet=unmet,
+                   stacked=frozenset().union(
+                       *map(_stack_effects, types.held_relics(problem))))]
     if not _can_still_be_met(unmet, carriers, live[0].spent):
         return ()
     for level, slot in enumerate(free):

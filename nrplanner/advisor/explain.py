@@ -164,7 +164,9 @@ def _attributed(chosen: Sequence[types.Candidate], base: model.Build,
     costs 8 % less.
 
     A condition declared n times is n entries for one copy (`model.compute`);
-    its line says what all n moved, the figure the build was ranked on.
+    its line says what all n moved, the figure the build was ranked on. A stack
+    effect is such a condition and `model.compute` keeps it to one carrier, so
+    a second carrier finds nothing left to claim and reads as a second copy.
     """
     added = _added(base, built)
     claimed = [False] * len(added)

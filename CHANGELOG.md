@@ -6,6 +6,14 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Changed
+- **A stack effect now counts on one relic only.** "Attack power increased for
+  each Night Invader defeated" and the seven other effects that stack per event
+  count their stacks once, however many relics carry them. Optimize no longer
+  suggests a second carrier unless a favourite needs that relic, and one you
+  place yourself is flagged and moves no figure. Figures that used to count two
+  carriers fall (Raider, two stacks: all damage +14.5 % where it was +31.1 %).
+
 ### Added
 - The armament tiles under Weapon damage now show the armament's symbol above
   its name. Tiles grow a little taller; empty tiles stay as they were.

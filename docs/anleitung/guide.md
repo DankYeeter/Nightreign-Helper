@@ -245,6 +245,9 @@ defeated", also has a **Stacks** field: type how many stacks Optimize and the
 figures in the relic picker should count, a whole number from 0 to 10, 0 to not
 count it at all, or leave it empty to use the count ticked on the stat sheet
 (one if it is not ticked there). Anything else turns red and counts as empty.
+Stacks belong to the effect and not to the relic: a second relic carrying the
+same stack effect adds nothing, so Optimize does not suggest one unless a
+favourite needs that relic, and one you place yourself moves no figure.
 The value is saved and changes nothing on the stat sheet; **Why** lists the
 values you set. A search field above the list filters by name, with the same syntax as the
 relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
@@ -580,7 +583,7 @@ actually does and how likely you are to roll it.
 | **Colours** | Which relic colours can roll it. |
 | **Pools** | How many draw pools contain it. |
 | **Avg / Best chance** | How likely on one roll of the selected colour and mode. Where an effect comes from several pools you get its average and its best. |
-| **Stacks** | Whether a second copy adds anything. Read from the game's own mutual-exclusion keys, not guessed from a shared category. |
+| **Stacks** | Whether a second copy adds anything. Read from the game's own mutual-exclusion keys, not guessed from a shared category; an effect that stacks per event counts on one relic (*Strongest only*). |
 | **Comes with curse** | Whether rolling it drags a curse along — *sometimes* or *always cursed*. |
 | **What it does** | The game's own caption paired with the derived numbers. |
 

@@ -9789,7 +9789,17 @@ Drehfeld; ein Hinweistext im Fehlerfall ausser der roten Schrift.
 
 #### Nachtrag T-338 (developer), 2026-11-07 — Waffen-Icon in der Kachel, AK-474 (nur nachgetragen)
 
-*Naechste freie AK: AK-475.*
+*Naechste freie AK: AK-476.*
+
+#### Nachtrag T-339 (developer), 2026-11-07 — Stack-Effekte, Grenzen, Ziel `Balanced` (nur nachgetragen)
+
+**AK-475 Ein Traeger je Stack-Effekt.** Die Zahl n gilt je Effekt (alle 8 mit `model.accumulates`):
+der erste Traeger zaehlt n-mal, jeder weitere zaehlt nicht und steht als Warnung
+`{name} x{k} — only one will apply` auf der Statistik-Seite. In der Slot-Karte traegt der Effekt `⚠`
+wie ein nicht stapelbarer; die Spalte `Stacks` im Reiter Effekte sagt `Strongest only`. `Why` sagt am
+zweiten Traeger `another copy of it is already counted`. Optimize legt keinen zweiten Traeger, ausser
+ein Favorit braucht genau dieses Relikt. Akzeptanz: Raider, Stufe 15, zwei Traeger 7060200, n=2:
+Faktor 1,1449, wie mit einem.
 
 **AK-474 Symbol der Waffe in der Kachel `Weapon damage`.** Eine belegte `WeaponTile` zeigt das
 Symbol der Waffe (`icons.item_icon(weapon["icon"])`, 28 x 28 logisch wie in der Waehleliste des

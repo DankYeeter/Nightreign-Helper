@@ -9799,6 +9799,18 @@ Vergleich pausiert, solange der Picker offen ist; (c) `qa-engineer` A18-Nachweis
 
 **OF-63 (`director` → `ui-ux-designer`), Luecken der Spec gegen diesen Entwurf:** (a) AK-432 "Kopfzahl des `Why`-Dialogs" gibt es nicht, Quelle ist `Suggestion.score.display`; (b) der Satz "{difference} more than this one" passt nicht, wenn `BEST` wegen OF-62 die **kleinere** Zahl hat; (c) Zeile mit `unfit_holds` und ein Satz fuer gehaltene Relikte ohne Platz fehlen; (d) AK-443 nennt nur leere Slots: sind alle sechs gefuellt und 2 von 6 Favoriten offen (41 von 110 gemessen), sagt die Leiste nichts; (e) AK-433 "`Cancel` bricht den Vergleich ab": waehrend des Vergleichs steht die Leiste schon auf `Optimize`, ohne `Cancel`; ein neuer Lauf bricht ab, Bedarf fuer mehr? (f) AK-435(a)(c) bei Holds oder Rejects: Zeilenklick zeigt 4.1 (AD-062.7).
 
+### AD-063 — Stack-Effekte zaehlen auf einem Traeger (2026-11-07, Status: aktiv; Nutzerentscheidung, T-339, Diagnose T-337)
+
+1. **n gilt je Effekt.** `model._first_carriers` laesst von jedem der 8 Effekte mit
+   `model.accumulates` nur den ersten Traeger in die Rechnung; weitere stehen als Warnung `duplicate`.
+   `stacks` bleibt `true`: `False` wuerde auch die Kopien verwerfen, zu denen `declared` einen Effekt
+   ausdehnt, also die Zahl selbst (gemessen T-337).
+2. **Die Suche legt keinen zweiten Traeger** (`search._branches`), auch nicht, wenn der Rest des
+   Relikts den Platz verdiente: "nur jeweils einmal liefern". Ausnahme ist der erzwungene Zweig eines
+   Favoriten, sonst koennte ein Favorit an dieser Regel scheitern, obwohl `attainable` ihn zusagt.
+   `model.STACK_EFFECT_IDS` steht als Liste, weil die Suche nur Effekt-Ids kennt; der Test
+   `tests/test_stack_effects_count_once.py` haelt sie gegen den Datensatz.
+
 ---
 
 *Ab hier steht, was aus den Entscheidungen folgt: der Umsetzungsschnitt, die

@@ -434,7 +434,9 @@ class RelicSlot(QFrame):
             eff = self.effect_by_id.get(eid)
             # Game text goes into rich text as text, never as markup (SEC-021).
             name = html.escape(effecttext.name(eff) if eff else f"<{eid}>")
-            mark = "" if not eff or eff["stacks"] else "  ⚠"
+            mark = ("" if not eff or (eff["stacks"]
+                                      and not model.accumulates(eff))
+                    else "  ⚠")
             colour = DEBUFF if eff and eff.get("is_curse") else "#cfcfcf"
             # An effect belonging to another Nightfarer is doing nothing at
             # all here. Say so on the slot rather than letting it sit among
