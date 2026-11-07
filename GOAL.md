@@ -641,3 +641,7 @@ Entschieden per Fragewerkzeug am 06.11.2026:
 - **Fremde Favoriten (Nutzer, 07.11.2026):** Ein Effekt-Favorit eines anderen
   Nightfarers wird beim aktuellen Helden ignoriert: kein Slot, nicht als fehlend
   gezaehlt; die Marke bleibt gespeichert.
+- **Bezug der Zahl (Nutzer, 07.11.2026):** *"was sagt mir "90" als wert ? ich habe
+  keine baseline, keinen bezug."* Die Zahl in Chalice-Liste und Leiste steht mit
+  Einheit und Prozent gegenueber dem Stand ohne Relikte, z. B. `AR 90 (+61 %)`;
+  der Ausgangswert steht im Tooltip.
