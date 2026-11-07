@@ -13,6 +13,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
   waits for it, and a new question or closing the window stops it.
 - The vessel list shows each vessel's figure and marks the best one; Switch to it
   opens it with its suggestion and brings held relics and rejections along.
+- The filter window, its tooltips and Why now say what Avoid and the favourite
+  star really do, and a favourite that went missing says how to get it back.
 
 ### Changed
 - Optimize no longer suggests a relic that carries an effect or curse you

@@ -979,7 +979,9 @@ def test_an_excluded_effect_says_so_before_every_other_filling(game_data,
                              built, ctx, goals.GOALS[DAMAGE])
 
     line, = groups[0].lines
-    assert line.text == f"{name}: you avoided it, so it is not counted."
+    assert line.text == (
+        f"{name}: you avoided it. This relic is in the build because you "
+        f"chose it, and the effect is left out of the figure.")
     assert line.silence == types.SILENT_EXCLUDED
     assert not line.is_curse
     assert name not in explain.not_counted(built)
@@ -1004,7 +1006,9 @@ def test_an_excluded_curse_is_named_as_excluded_not_as_a_price(game_data,
                              goals.GOALS[DAMAGE])
 
     line, = groups[0].lines
-    assert line.text == f"{name}: you avoided it, so it is not counted."
+    assert line.text == (
+        f"{name}: you avoided it. This relic is in the build because you "
+        f"chose it, and the effect is left out of the figure.")
     assert line.silence == types.SILENT_EXCLUDED
     assert line.is_curse and types.drawn_in_the_block(line)
 

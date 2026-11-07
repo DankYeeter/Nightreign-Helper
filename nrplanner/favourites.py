@@ -1,9 +1,9 @@
 """Per-Nightfarer relic favourites.
 
 A favourite is a relic the player has marked as wanted for one or more
-Nightfarers. It changes nothing about the build; it only pulls that relic to
-the front of the picker so a good roll does not have to be hunted for again in
-a grid of two hundred.
+Nightfarers. It leads the picker, so a good roll does not have to be hunted for
+again in a grid of two hundred, and Optimize puts it in the build when it fits
+(A28, `advisor.types.SlotProblem.pinned`).
 
 Kept in the same QSettings the artwork variants use, so it survives restarts
 without adding a file of its own.

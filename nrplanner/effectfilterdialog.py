@@ -50,8 +50,9 @@ TITLE = "Effect filters"
 #: (`2 favourited · 1 avoided · 1 family avoided`, the widest the counter
 #: gets, AK-316.5) after giving it `setWordWrap` -- still 608 x 642, where
 #: the unwrapped label had forced 814 x 642 and stayed there once the
-#: clause was gone.
-OPENING_SIZE = (608, 642)
+#: clause was gone. AK-445 (offscreen, Fusion, 07.11.2026): the legend takes
+#: 39 px more with the star's sentence, the tree keeps its 449 px.
+OPENING_SIZE = (608, 681)
 
 COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_NAME, COL_TYPE, COL_COPIES = range(6)
 HEADINGS = ("Favourite", "Avoid", "Allow", "Name", "Type", "Copies")
@@ -62,21 +63,25 @@ COPIES_DEFINITION = ("Copies counts relics you own that carry this effect or "
                      "curse — not game-data entries (that count is on the "
                      "Effects & chances tab).")
 
-#: AK-317.1: what the three marks do here, and that none is the relic star.
-MARKS_EXPLANATION = ("Favourite: every suggestion must include this effect. "
-                     "Avoid: it never counts — on a family header, it avoids "
-                     "every member below unless one is set to Allow. Allow "
-                     "lets that one member back in without allowing the rest "
-                     "of the family. These marks steer Optimize only — they "
-                     "are not the star on a relic.")
+#: AK-445: what the three marks do here, and how they differ from the star.
+MARKS_EXPLANATION = ("Favourite: every suggestion must carry this effect. "
+                     "Avoid: no suggestion uses a relic that carries it — on "
+                     "a family header, every member below, unless one is set "
+                     "to Allow. Allow lets that one member back in without "
+                     "allowing the rest of the family. These marks apply to "
+                     "every Nightfarer. They are separate from the ★ you can "
+                     "give a relic in the relic picker: that is per "
+                     "Nightfarer, and Optimize puts a favourited relic in "
+                     "when it fits.")
 SEARCH_PLACEHOLDER = ("Filter by effect or curse — supports AND, OR, NOT and "
                       "\"quoted phrases\"")
 FAVOURITE_TOOLTIP = ("Every suggestion must carry this effect through at "
                      "least one owned copy.")
-AVOID_TOOLTIP = "This effect counts in no suggestion or ranking."
+AVOID_TOOLTIP = "No suggestion uses a relic that carries this effect."
 #: AK-317.2-4.
-FAMILY_AVOID_TOOLTIP = ("Every effect in this family counts in no suggestion "
-                        "or ranking, unless a member below is set to Allow.")
+FAMILY_AVOID_TOOLTIP = ("No suggestion uses a relic that carries an effect "
+                        "of this family, unless a member below is set to "
+                        "Allow.")
 #: AK-317 Nachtrag: always clickable, one tooltip for both states.
 ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
                  "is avoided. It matters only once the family header is set "

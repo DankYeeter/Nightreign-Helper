@@ -561,10 +561,12 @@ def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
     player looking for a reason that is their own decision (AD-036.3); a
     required one that moved no figure is in the build because they asked
     for it, and that is the whole reason the copy was suggested (AK-290.2).
-    Wording `UI_SPEC` AK-290.1 and AK-290.2, verbatim.
+    Wording `UI_SPEC` AK-458 and AK-290.2, verbatim. No suggestion offers a
+    copy with an avoided effect (AD-057), so this copy is the player's own.
     """
     if effect_id in problem.excluded:
-        text = f"{name}: you avoided it, so it is not counted."
+        text = (f"{name}: you avoided it. This relic is in the build because "
+                f"you chose it, and the effect is left out of the figure.")
         silence = types.SILENT_EXCLUDED
     elif effect_id in problem.required:
         text = f"{name}: you favourited it, so it always counts."
@@ -1272,6 +1274,10 @@ def required_but_unmet(left_out: Sequence[int],
     then says so and, when Deep is the whole reason, names it (AD-036.4 stays
     silent about colour: a copy can fail several open slots for different
     colours at once, and naming one would read as the only one).
+
+    "No suggestion can meet that" stands only where the player owns no copy
+    (AK-462); where every owned copy was turned down the sentence names the
+    way back (AK-461), because the player can change it.
     """
     def named(effect_id: int) -> str:
         return _effect_name(ctx, effect_id) or f"effect {effect_id}"
@@ -1282,24 +1288,61 @@ def required_but_unmet(left_out: Sequence[int],
         if any(eid in copy.effect_ids or eid in copy.curse_ids
                for pool in pools for copy in pool.candidates):
             lines.append(
-                f"No combination of the copies you own carries {named(eid)}, "
-                f"which you favourited — no suggestion can meet that.")
+                f"Your copies can carry “{named(eid)}”, which you favourited, "
+                f"but not together with the favourites this suggestion "
+                f"already meets.")
             continue
         owned = [relic for relic in inventory.relics
                  if eid in relic.effect_ids or eid in relic.curse_ids]
         if not owned:
             lines.append(
-                f"No copy you own carries {named(eid)}, which you "
+                f"No copy you own carries “{named(eid)}”, which you "
                 f"favourited — no suggestion can meet that.")
             continue
         noun = "copy" if len(owned) == 1 else "copies"
+        turned_down = _every_copy_turned_down(owned, problem, ctx)
+        if turned_down:
+            lines.append(f"You own {len(owned)} {noun} carrying "
+                         f"“{named(eid)}”, which you favourited, but "
+                         f"{turned_down}")
+            continue
         reason = (" (Deep of Night is off)"
                   if no_deep_slot_in_play
                   and all(relic.is_deep for relic in owned) else "")
         lines.append(
-            f"You own {len(owned)} {noun} carrying {named(eid)}, but "
+            f"You own {len(owned)} {noun} carrying “{named(eid)}”, but "
             f"none fits the open slots{reason}.")
     return tuple(lines)
+
+
+def _every_copy_turned_down(owned: Sequence, problem: types.SlotProblem,
+                            ctx: types.GoalContext) -> str:
+    """How `required_but_unmet` ends where the player turned every copy down.
+
+    Empty where a copy is left that merely does not fit: then the bare
+    "none fits" stays true. Avoid is AK-461; `Reject` and both at once are
+    sentences of the same form, pointing at `Suggest again` (AK-430).
+    """
+    avoided = {eid for relic in owned
+               for eid in problem.excluded.intersection(
+                   (*relic.effect_ids, *relic.curse_ids))}
+    carrying = [relic for relic in owned if not problem.excluded.isdisjoint(
+        (*relic.effect_ids, *relic.curse_ids))]
+    if not all(types.unwanted(problem, relic) for relic in owned):
+        return ""
+    one = len(owned) == 1
+    it = "it" if one else "them"
+    names = _named_at_most_two(ctx, sorted(
+        avoided, key=lambda eid: _effect_name(ctx, eid) or ""))
+    if len(carrying) == len(owned):
+        return (f"{'it' if one else 'each'} also carries an effect you "
+                f"avoided: {names}. Remove the avoid under Filters to use {it}.")
+    if not carrying:
+        return (f"you rejected {it} for this build. Use Suggest again to bring "
+                f"{it} back.")
+    return (f"each is rejected for this build or also carries an effect you "
+            f"avoided: {names}. Use Suggest again, or remove the avoid under "
+            f"Filters, to use them.")
 
 
 def _named_at_most_two(ctx: types.GoalContext,

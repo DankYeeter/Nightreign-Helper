@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QLabel
+from PySide6.QtWidgets import QTreeWidget, QApplication, QLabel
 
 from nrplanner import effectfilterdialog as dlg
 from nrplanner import effectfilters, effecttext, inventory
@@ -302,15 +302,29 @@ def test_the_frozen_save_names_its_rows_out_of_the_dataset(qapp, filters,
     assert by_id[7330000].family == by_id[7080000].family == "Improved Attack Power"
 
 
+def test_the_longer_legend_leaves_the_tree_its_height(window):
+    """AK-445, AK-303."""
+    window.show()
+    QApplication.processEvents()
+    assert window.findChildren(QTreeWidget)[0].height() == 449
+
+
 def test_marks_explanation_label_is_present_and_unfocusable(window):
-    """AK-317.1: the window carries the exact wording, and the label cannot
+    """AK-445: the window carries the exact wording, and the label cannot
     take keyboard focus (it must not join the tab order)."""
     assert dlg.MARKS_EXPLANATION == (
-        "Favourite: every suggestion must include this effect. Avoid: it "
-        "never counts — on a family header, it avoids every member below "
-        "unless one is set to Allow. Allow lets that one member back in "
-        "without allowing the rest of the family. These marks steer "
-        "Optimize only — they are not the star on a relic.")
+        "Favourite: every suggestion must carry this effect. Avoid: no "
+        "suggestion uses a relic that carries it — on a family header, every "
+        "member below, unless one is set to Allow. Allow lets that one member "
+        "back in without allowing the rest of the family. These marks apply "
+        "to every Nightfarer. They are separate from the ★ you can give a "
+        "relic in the relic picker: that is per Nightfarer, and Optimize puts "
+        "a favourited relic in when it fits.")
+    assert dlg.AVOID_TOOLTIP == (
+        "No suggestion uses a relic that carries this effect.")
+    assert dlg.FAMILY_AVOID_TOOLTIP == (
+        "No suggestion uses a relic that carries an effect of this family, "
+        "unless a member below is set to Allow.")
     labels = [label for label in window.findChildren(QLabel)
               if label.text() == dlg.MARKS_EXPLANATION]
     assert len(labels) == 1

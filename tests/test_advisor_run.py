@@ -29,7 +29,7 @@ import dataclasses
 import pytest
 
 from nrplanner import model
-from nrplanner.advisor import goals, run, search, types
+from nrplanner.advisor import explain, goals, run, search, types
 from nrplanner.advisor.evaluate import evaluate
 
 from tests import advisor_cases as advisor
@@ -350,7 +350,7 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
                for s in result.suggestions), (
         "the favourite that can be met went missing with the one that cannot")
     assert result.unknowns[-1] == (
-        f"No copy you own carries {name(nobody_carries)}, which you "
+        f"No copy you own carries “{name(nobody_carries)}”, which you "
         f"favourited — no suggestion can meet that.")
     assert result.required_left_out == (nobody_carries,)
 
@@ -361,8 +361,8 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
     left_out, = result.required_left_out
     assert left_out in {rolls[0][0], rolls[1][0]}
     assert result.unknowns[-1] == (
-        f"No combination of the copies you own carries {name(left_out)}, "
-        f"which you favourited — no suggestion can meet that.")
+        f"Your copies can carry “{name(left_out)}”, which you favourited, "
+        f"but not together with the favourites this suggestion already meets.")
 
     met = a_run(dataclasses.replace(problem,
                                     required=frozenset({rolls[0][0]})))
@@ -502,7 +502,7 @@ def test_a_required_effect_owned_only_deep_says_so_when_deep_is_off(
 
     assert len(result.suggestions[0].choices) == 2
     assert result.unknowns[-1] == (
-        f"You own 2 copies carrying {name(deep_effect)}, but none fits the "
+        f"You own 2 copies carrying “{name(deep_effect)}”, but none fits the "
         f"open slots (Deep of Night is off).")
     assert result.required_left_out == (deep_effect,)
 
@@ -1501,3 +1501,70 @@ def test_the_moved_holds_say_where_each_came_from():
     assert moved == ((1, types.HeldSlot(1, first)),
                      (0, types.HeldSlot(0, second)))
     assert unfit == ()
+
+
+# -- every owned carrier turned down (AK-461, the same for `Reject`) ----------
+
+EFFECTS = {"data": {"effects": {
+    str(eid): {"name": name} for eid, name in (
+        (1, "Wanted"), (2, "Zebra"), (3, "Apple"), (4, "Mango"))}}}
+
+
+def _a_copy(*effect_ids, relic_id=1, curse_ids=()):
+    return run.OfferedCopy(handle=relic_id, relic_id=relic_id, name="Relic",
+                           colour=0, is_deep=False, effect_ids=effect_ids,
+                           curse_ids=curse_ids)
+
+
+def _unmet(*copies, avoid=(), rejected=(), pools=()):
+    problem = types.SlotProblem(excluded=frozenset(avoid),
+                                rejected=frozenset(rejected))
+    ctx = types.GoalContext(data=EFFECTS["data"], hero={}, level=1,
+                            reference=None, weighting=goals.DEFAULT_WEIGHTING)
+    inventory = run.FrozenInventory(relics=copies, offers={})
+    line, = explain.required_but_unmet((1,), problem, pools, ctx, inventory)
+    return line
+
+
+def test_one_carrier_avoided_names_the_way_back():
+    assert _unmet(_a_copy(1, 2), avoid={2}) == (
+        "You own 1 copy carrying “Wanted”, which you favourited, but it also "
+        "carries an effect you avoided: “Zebra”. Remove the avoid under "
+        "Filters to use it.")
+
+
+def test_several_carriers_avoided_names_them_alphabetically():
+    assert _unmet(_a_copy(1, 2, relic_id=1), _a_copy(1, 3, relic_id=2),
+                  _a_copy(1, relic_id=3, curse_ids=(4,)),
+                  avoid={2, 3, 4}) == (
+        "You own 3 copies carrying “Wanted”, which you favourited, but each "
+        "also carries an effect you avoided: “Apple”, “Mango” and 1 more. "
+        "Remove the avoid under Filters to use them.")
+
+
+def test_a_carrier_left_that_merely_does_not_fit_keeps_the_old_sentence():
+    assert _unmet(_a_copy(1, 2, relic_id=1), _a_copy(1, relic_id=2),
+                  avoid={2}) == (
+        "You own 2 copies carrying “Wanted”, but none fits the open slots.")
+
+
+def test_a_rejected_carrier_points_at_suggest_again():
+    one = _a_copy(1, relic_id=1)
+    other = _a_copy(1, 3, relic_id=2)
+    assert _unmet(one, rejected={types.roll_of(one)}) == (
+        "You own 1 copy carrying “Wanted”, which you favourited, but you "
+        "rejected it for this build. Use Suggest again to bring it back.")
+    assert _unmet(one, other, rejected={types.roll_of(one),
+                                        types.roll_of(other)}) == (
+        "You own 2 copies carrying “Wanted”, which you favourited, but you "
+        "rejected them for this build. Use Suggest again to bring them back.")
+
+
+def test_carriers_avoided_and_rejected_name_both_ways_back():
+    one = _a_copy(1, relic_id=1)
+    assert _unmet(one, _a_copy(1, 2, relic_id=2),
+                  rejected={types.roll_of(one)}, avoid={2}) == (
+        "You own 2 copies carrying “Wanted”, which you favourited, but each is "
+        "rejected for this build or also carries an effect you avoided: "
+        "“Zebra”. Use Suggest again, or remove the avoid under Filters, to use "
+        "them.")
