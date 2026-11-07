@@ -280,7 +280,9 @@ relic can differ from the game's own stat sheet.
 below a health threshold, on a dodge, after drinking a Flask — are counted by
 the Advisor as if the condition held. (The stat sheet is different: there
 they stay out of the totals until you switch them on; see "About the
-switches" below.) Three kinds count only where your build can meet them: the
+switches" below.) Effects that land on the enemy, such as "[Raider] Hit With
+Character Skill to Reduce Enemy Attack Power", read "On the enemy" and count
+nowhere. Three kinds count only where your build can meet them: the
 "3+ … Equipped" effects (above); weapon-type buffs such as Improved Dagger
 Attack Power, which count only for the weapon type of the selected tile; and
 effects that wait for a poisoned, scarlet-rotted or frostbitten enemy, which
@@ -328,7 +330,7 @@ suggestion cards do it without leaving the card.
   works out, the line reads `Stopped. “{name}” stays avoided.` The tooltip
   says "Avoid “{name}” — no suggestion will use a relic that carries it. Undo
   in Filters." Taking it back is Filters, search for the effect, uncheck
-  **Avoid**. The ✕ buttons of the cards form one Tab stop; the arrow keys move
+  **Avoid**. The ✕ buttons of a card form one Tab stop; the arrow keys move
   between them.
 - **Reject**, beside **Why this relic**, means "not this relic": "Do not
   suggest this relic, or any copy with the same effects, for this build."
