@@ -888,6 +888,9 @@ class AdvisorResult:
     #: The base state's `GoalScore.display` under the asked direction: what a
     #: vessel with no suggestion shows in the comparison (AK-449).
     baseline_display: str = ""
+    #: The same display with no relic at all, held ones left out: what the
+    #: figure is read against (`GOAL.md` A28), the stat sheet's grey `Base`.
+    no_relics_display: str = ""
     gain: tuple[Marginal, ...] = ()
     held: tuple[HeldSlot, ...] = ()
     unknowns: tuple[str, ...] = ()
@@ -960,7 +963,8 @@ class VesselQuestion:
 class VesselRow:
     """What the vessel list says of one vessel, read off its whole answer
     (AD-062.6). Every figure is the run's: `figure` and `value` under the
-    asked direction, `other_value` under the other (AK-463)."""
+    asked direction, `other_value` under the other (AK-463), `base_figure` the
+    asked direction with no relic at all (`GOAL.md` A28)."""
 
     vessel_id: int
     figure: str = ""
@@ -969,6 +973,7 @@ class VesselRow:
     required_left_out: tuple[int, ...] = ()
     pins_left_out: tuple[str, ...] = ()
     unfit_holds: tuple[str, ...] = ()
+    base_figure: str = ""
 
 
 # --- lookups over the shapes above -----------------------------------------

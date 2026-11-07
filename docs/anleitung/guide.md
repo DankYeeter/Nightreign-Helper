@@ -370,16 +370,21 @@ vessel, its cards and its suggestion stay as they were.
 - **BEST is not always the highest number.** The ranking looks first at how
   many of your favourite effects the vessel meets, then at how many of your
   starred relics it takes in, then at the figure for the chosen goal, and last
-  at the figure for the other direction (damage or damage taken). A row that
-  misses favourites adds `· 1 favourite missing` (`2 favourites missing`); its
-  tooltip names them after `Misses:`.
+  at the figure for the other direction (damage or damage taken). The tooltip
+  of a row that misses favourites names them after `Misses:`.
+- **The figure says what it is measured against.** It comes with its unit and
+  the change from the same reckoning with no relics at all, held ones left
+  out, for example `AR 90 (+61 %)`: `AR` for attack rating, `Spell` for spell
+  damage, `Art` for weapon art, `EHP` for effective HP, `pts` for offensive
+  attributes. A multiplier stays `×1.23 (+23 %)`. The tooltip says the figure
+  without relics. Where that is 0, no percentage is shown.
 - The line above the list says what was found: `This is the best of {total}
-  vessels for {goal}: {figure}.`; `Best of {total} for {goal}: {name}
-  ({figure}, {difference} more than this one).`; where the best vessel has the
-  same figure, `… same as this one, but it meets more of your favourites)` or
-  `… same as this one, but better for {other})`; where it has a smaller figure
+  vessels for {goal}: {figure}.`; `Best of {total} for {goal}: {name} —
+  {figure}, {difference} more than this one.`; where the best vessel has the
+  same figure, `… same as this one, but it meets more of your favourites.` or
+  `… same as this one, but better for {other}.`; where it has a smaller figure
   because it meets more favourites, `… {difference} less than this one, but it
-  meets more of your favourites)`; and for a tie `{k} vessels tie for best at
+  meets more of your favourites.`; and for a tie `{k} vessels tie for best at
   {figure}: {name}, {name}` (`All {total} vessels tie at {figure}.` if all do).
 - A vessel that has no room for the relics you hold shows `Your held relics do
   not fit`, no figure, and is never BEST.

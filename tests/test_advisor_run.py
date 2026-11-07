@@ -28,7 +28,7 @@ import dataclasses
 
 import pytest
 
-from nrplanner import model
+from nrplanner import damage, model
 from nrplanner.advisor import explain, goals, run, search, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -1418,6 +1418,33 @@ def test_a_row_says_what_optimize_says_there(game_data, wylder):
         evaluate(request.problem, _chosen(
             result, inventory, request.problem, ctx), ctx,
             goal=goals.MIN_DAMAGE_TAKEN), ctx).value
+
+
+def test_a_row_knows_the_figure_without_relics_held_ones_left_out(game_data,
+                                                                  wylder):
+    """GOAL.md A28: the sheet's grey `Base`, from the same reckoning; a held
+    relic does not count towards it, while the base state of the search does."""
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
+    empty = evaluate(problem, (), ctx, goal=goals.MAX_DAMAGE)
+    bare, _now = damage.equipped(ctx.reference, ctx.reference.slot_index, empty,
+                                 ctx.hero, ctx.data)
+    expected = f"Attack rating {damage.displayed(bare.final_headline)}"
+
+    result = run.run(request, inventory, ctx, goals.GOALS)
+    assert run.vessel_row(7, result).base_figure == expected
+
+    choice = result.suggestions[0].choices[0]
+    held_problem = dataclasses.replace(problem, held=(types.HeldSlot(
+        index=choice.slot_index,
+        relic=next(types.HeldRelic(
+            relic_id=copy.relic_id, name=copy.name,
+            effect_ids=tuple(copy.effect_ids), handle=copy.handle,
+            colour=copy.colour, is_deep=copy.is_deep)
+            for copy in inventory.relics if copy.handle == choice.handle)),))
+    held = run.run(advisor.request_for(held_problem, ctx, inventory), inventory,
+                   ctx, goals.GOALS)
+    assert held.baseline_display != expected, "the hold has to move the base"
+    assert run.vessel_row(7, held).base_figure == expected
 
 
 def test_a_vessel_with_no_suggestion_shows_its_base_state(game_data):

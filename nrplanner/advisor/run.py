@@ -541,6 +541,9 @@ def run(request: types.AdvisorRequest, inventory,
         suggestions=tuple(suggestions),
         baseline=_base_lines(base_scores),
         baseline_display=base_scores[request.goal_id].display,
+        no_relics_display=goal.score(evaluate(
+            dataclasses.replace(problem, held=()), (), ctx,
+            want_qualitative=False, goal=goal), ctx).display,
         gain=_gain_over_the_base_state(goals, ctx, best_built, base_scores),
         held=problem.held,
         unknowns=unknowns,
@@ -683,7 +686,8 @@ def vessel_row(vessel_id: int, result: types.AdvisorResult) -> types.VesselRow:
         value=best.value if best else base.get(result.goal_id, 0.0),
         other_value=base.get(other, 0.0) + gain.get(other, 0.0),
         required_left_out=result.required_left_out,
-        pins_left_out=tuple(pin.name for pin in result.pins_left_out))
+        pins_left_out=tuple(pin.name for pin in result.pins_left_out),
+        base_figure=result.no_relics_display)
 
 
 def rank_key(row: types.VesselRow) -> tuple:

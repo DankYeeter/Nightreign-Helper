@@ -541,6 +541,50 @@ def _number_of(figure: str) -> str:
     return last if any(letter.isdigit() for letter in last) else "—"
 
 
+#: `GOAL.md` A28: the word a figure is measured in, short enough for the narrow
+#: row, by what the goal calls the figure.
+FIGURE_UNITS = (("weapon art", "Art {}"), ("attack rating", "AR {}"),
+                ("spell", "Spell {}"), ("effective hp", "EHP {}"),
+                ("offensive attributes", f"{{}} {advisor_goals.ATTRIBUTE_POINT_UNIT}"))
+
+
+def _number_with_unit(figure: str) -> str:
+    """`Attack rating 90` as the row says it: `AR 90`. A multiplier has its `×`."""
+    number = _number_of(figure)
+    name = figure.split(" (")[0].lower()
+    return next((unit.format(number) for word, unit in FIGURE_UNITS
+                 if word in name and number[0].isdigit()), number)
+
+
+def _shown(figure: str) -> float | None:
+    """The number a figure puts on screen, or `None` where it has none."""
+    number = _number_of(figure).lstrip("×")
+    return float(number) if number[0].isdigit() else None
+
+
+def _with_its_base(row: types.VesselRow) -> str:
+    """`GOAL.md` A28: `AR 90 (+61 %)`, against the row's figure with no relics.
+    Of the numbers on screen, so that the reader's own sum comes out; a base of
+    nothing has no percentage."""
+    said = _number_with_unit(row.figure)
+    now, base = _shown(row.figure), _shown(row.base_figure)
+    if now is None or not base:
+        return said
+    return f"{said} ({round((now / base - 1) * 100):+d} %)"
+
+
+def comparison_base(comparing: Comparing) -> str:
+    """What the status line's tooltip adds to it (`GOAL.md` A28): the rows of
+    one question share their base, because no relic of any vessel is in it."""
+    base = comparing.ranked()[0].base_figure if (
+        comparing.state is Compared.DONE) else ""
+    return _without_relics(base)
+
+
+def _without_relics(base_figure: str) -> str:
+    return f"Without relics: {base_figure}." if base_figure else ""
+
+
 def _difference(best: types.VesselRow, here: types.VesselRow) -> str:
     """AK-449 `{difference}`, or empty where it would read `0`."""
     gap = abs(best.value - here.value)
@@ -578,15 +622,16 @@ def comparison_status(comparing: Comparing, chosen_id: int,
     best, here = rows[0], comparing.rows[chosen_id]
     tied = [row.vessel_id for row in rows if comparing.is_best(row)]
     if len(tied) > 1:
-        line = (f"All {total} vessels tie at {best.figure}." if len(tied) == total
-                else f"{len(tied)} vessels tie for best at {best.figure}: "
+        said = _with_its_base(best)
+        line = (f"All {total} vessels tie at {said}." if len(tied) == total
+                else f"{len(tied)} vessels tie for best at {said}: "
                      + _names_cut([names[vessel] for vessel in tied], 2))
         if chosen_id in tied:
             return line, None
         return line, worn_id if worn_id in tied else tied[0]
     if best.vessel_id == chosen_id:
         return (f"This is the best of {total} vessels for {goal}: "
-                f"{best.figure}."), None
+                f"{_with_its_base(best)}."), None
 
     gap = _difference(best, here)
     if here.unfit_holds:
@@ -600,14 +645,17 @@ def comparison_status(comparing: Comparing, chosen_id: int,
     else:
         clause = ((f", {gap} less than this one" if gap else "")
                   + ", but it meets more of your favourites")
-    return (f"Best of {total} for {goal}: {names[best.vessel_id]} "
-            f"({best.figure}{clause})."), best.vessel_id
+    return (f"Best of {total} for {goal}: {names[best.vessel_id]} — "
+            f"{_with_its_base(best)}{clause}."), best.vessel_id
 
 
 def vessel_line(comparing: Comparing | None,
                 vessel_id: int) -> tuple[str, str] | None:
     """The second text line of a row, as (`ACCENT` part, `MUTED` part), or
-    `None` where the row has none (AK-433, AK-451, AK-452, AK-465)."""
+    `None` where the row has none (AK-433, AK-451, AK-465). Missing favourites
+    stand in the tooltip: with the percentage they outgrow the row (measured
+    219 px at the opening width, `BEST  AR 118 (+111 %)  ·  2 favourites missing`
+    221, with `EHP` 227)."""
     if comparing is None:
         return None
     row = comparing.rows.get(vessel_id)
@@ -616,16 +664,10 @@ def vessel_line(comparing: Comparing | None,
                                                  Compared.RUNNING) else None)
     if row.unfit_holds:
         return "", "Your held relics do not fit"
-    number = _number_of(row.figure)
-    missing = len(row.required_left_out) + len(row.pins_left_out)
-    if missing:
-        number_rest = (f"{CLAUSES}{missing} "
-                       f"favourite{'' if missing == 1 else 's'} missing")
-    else:
-        number_rest = ""
+    number = _with_its_base(row)
     if comparing.state is Compared.DONE and comparing.is_best(row):
-        return f"BEST  {number}", number_rest
-    return "", number + number_rest
+        return f"BEST  {number}", ""
+    return "", number
 
 
 def _rank_of(comparing: Comparing, row: types.VesselRow) -> int:
@@ -648,6 +690,8 @@ def vessel_compared_lines(comparing: Comparing | None, vessel_id: int,
     if comparing.state is Compared.DONE:
         lines.append(f"Compared: {row.figure} for {comparing.goal_label} — rank "
                      f"{_rank_of(comparing, row)} of {len(comparing.vessel_ids)}.")
+    if row.base_figure:
+        lines.append(_without_relics(row.base_figure))
     missing = [*map(effect_name, row.required_left_out), *row.pins_left_out]
     if missing:
         lines.append(f"Misses: {_names_cut(missing, 4)}.")

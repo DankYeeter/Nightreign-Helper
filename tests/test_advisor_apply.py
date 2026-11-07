@@ -865,7 +865,7 @@ class _ToldRuns:
         return types.AdvisorResult(
             goal_id=request.goal_id, goal_label="Maximise damage",
             suggestions=(types.Suggestion(choices=(), score=score),),
-            held=request.problem.held)
+            held=request.problem.held, no_relics_display="Attack rating 50")
 
 
 def _spin_until(what, seconds: float = 20.0) -> None:
@@ -950,6 +950,20 @@ def test_a_click_shows_the_answer_of_that_vessel_without_a_run(planner, told):
     planner.chalice_list.setCurrentRow(_row_of(planner, planner.hero_vessels[-1]["id"]))
     assert planner.compare_status.text().startswith("This is the best of ")
     assert planner.switch_button.isHidden()
+
+
+def test_the_list_and_the_status_line_read_against_no_relics(planner, told):
+    """GOAL.md A28, at the window."""
+    _compared(planner)
+    best = planner.hero_vessels[-1]
+    value = int(told.value_of[run.vessel_slots(best, True)])
+    percent = round((value / 50 - 1) * 100)
+    assert _line_of(planner, best["id"]) == (f"BEST  AR {value} (+{percent} %)", "")
+    assert f"AR {value} (+{percent} %)" in planner.compare_status.text()
+    assert planner.compare_status.toolTip().endswith(
+        "Without relics: Attack rating 50.")
+    assert "Without relics: Attack rating 50." in planner.chalice_list.item(
+        _row_of(planner, best["id"])).toolTip()
 
 
 def test_a_switch_without_holds_opens_the_best_with_its_answer(planner, told):
@@ -1096,7 +1110,7 @@ def test_what_outdates_it_at_the_window(planner, told, what_changes):
         "Out of date — use Optimize again to compare.")
     assert planner.switch_button.isHidden()
     lines = [_line_of(planner, vessel["id"]) for vessel in planner.hero_vessels]
-    assert all(line[0] == "" and line[1].isdigit() for line in lines)
+    assert all(line[0] == "" and line[1].startswith("AR ") for line in lines)
 
 
 def test_cancel_takes_the_comparison_off_the_list(planner, told):

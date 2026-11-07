@@ -29,7 +29,8 @@ from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
 from .advisorbar import (COMPARE_POINT_PX, VESSEL_LINE_ROLE, AdvisorBar,
                          RejectedList, VesselRowDelegate, asking_from,
-                         comparison_status, held_slot, vessel_accessible_name,
+                         comparison_base, comparison_status, held_slot,
+                         vessel_accessible_name,
                          vessel_compared_lines, vessel_line)
 from .effectstab import EffectsTab
 from .iconpack import IconPack
@@ -1742,7 +1743,8 @@ class Planner(QMainWindow):
                               {vessel["id"]: vessel["name"]
                                for vessel in self.hero_vessels}))
         self.compare_status.setText(line)
-        self.compare_status.setToolTip(line)
+        base = "" if comparing is None else comparison_base(comparing)
+        self.compare_status.setToolTip(f"{line} {base}" if base else line)
         self.compare_status.setVisible(bool(line))
         self.switch_button.setVisible(self._switch_target is not None)
         self.switch_button.setToolTip(self._what_the_switch_does(comparing))

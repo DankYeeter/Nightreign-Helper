@@ -40,6 +40,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
   (most favourite effects met, then favourite relics, then the figure);
   Switch to it opens that vessel with its suggestion and brings held relics
   and rejections along.
+- The vessel figure now says what it means: its unit and the change from the
+  same reckoning with no relics, for example `AR 90 (+61 %)`. The tooltip gives
+  the figure without relics.
 - The filter window, its tooltips and Why now say what Avoid and the star
   really do, and a favourite that went missing says how to get it back.
 

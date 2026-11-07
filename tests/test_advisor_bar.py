@@ -25,6 +25,8 @@ from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 
 from nrplanner import advisorbar, effecttext, favourites
 from nrplanner.advisor import goals, types
+from nrplanner.advisor.evaluate import evaluate
+from tests import advisor_cases as advisor
 from tests import rendered
 from tests.advisor_row_at_the_window import NARROW_DESKTOPS
 
@@ -2374,7 +2376,7 @@ def _status(*rows, chosen=1, worn=None):
 def test_the_chosen_vessel_being_the_best_offers_nothing():
     """AK-450 (1)."""
     assert _status(_row(1, 120), _row(2, 100), _row(3, 90), _row(4, 80)) == (
-        "This is the best of 4 vessels for Maximise damage: Attack rating 120.",
+        "This is the best of 4 vessels for Maximise damage: AR 120.",
         None)
 
 
@@ -2383,8 +2385,8 @@ def test_a_better_vessel_is_named_with_the_difference():
     rows = (_row(1, 100, required_left_out=(5,)), _row(2, 118), _row(3, 90),
             _row(4, 80))
     assert _status(*rows) == (
-        "Best of 4 for Maximise damage: Chalice (Attack rating 118, 18 more "
-        "than this one).", 2)
+        "Best of 4 for Maximise damage: Chalice — AR 118, 18 more than this "
+        "one.", 2)
 
 
 def test_the_same_value_with_more_favourites_says_so():
@@ -2392,8 +2394,8 @@ def test_the_same_value_with_more_favourites_says_so():
     rows = (_row(1, 100, pins_left_out=("Urn",)), _row(2, 100), _row(3, 90),
             _row(4, 80))
     assert _status(*rows) == (
-        "Best of 4 for Maximise damage: Chalice (Attack rating 100, same as "
-        "this one, but it meets more of your favourites).", 2)
+        "Best of 4 for Maximise damage: Chalice — AR 100, same as this one, "
+        "but it meets more of your favourites.", 2)
 
 
 def test_the_same_value_and_favourites_is_decided_by_the_other_direction():
@@ -2401,8 +2403,8 @@ def test_the_same_value_and_favourites_is_decided_by_the_other_direction():
     rows = (_row(1, 100, other=5.0), _row(2, 100, other=9.0), _row(3, 90),
             _row(4, 80))
     assert _status(*rows) == (
-        "Best of 4 for Maximise damage: Chalice (Attack rating 100, same as "
-        "this one, but better for Minimise damage taken).", 2)
+        "Best of 4 for Maximise damage: Chalice — AR 100, same as this one, "
+        "but better for Minimise damage taken.", 2)
 
 
 def test_a_smaller_value_is_explained_by_the_favourites():
@@ -2410,8 +2412,8 @@ def test_a_smaller_value_is_explained_by_the_favourites():
     rows = (_row(1, 118, required_left_out=(5,)), _row(2, 100), _row(3, 90),
             _row(4, 80))
     assert _status(*rows) == (
-        "Best of 4 for Maximise damage: Chalice (Attack rating 100, 18 less "
-        "than this one, but it meets more of your favourites).", 2)
+        "Best of 4 for Maximise damage: Chalice — AR 100, 18 less than this "
+        "one, but it meets more of your favourites.", 2)
 
 
 @pytest.mark.parametrize("best, here, clause", [
@@ -2423,7 +2425,14 @@ def test_a_difference_that_reads_zero_is_left_out(best, here, clause):
     left_out = {"required_left_out": (5,)} if best < here else {}
     rows = (_row(1, here, **left_out), _row(2, best), _row(3, 1), _row(4, 1))
     assert _status(*rows)[0] == (
-        f"Best of 4 for Maximise damage: Chalice (Attack rating 100{clause}).")
+        f"Best of 4 for Maximise damage: Chalice — AR 100{clause}.")
+
+
+def test_the_difference_is_that_of_the_numbers_on_screen():
+    """QA-333: 118.16 and 113.18 stand as 118 and 113, and 5 is what that says."""
+    rows = (_row(1, 113.18, figure="Attack rating 113"),
+            _row(2, 118.16, figure="Attack rating 118"), _row(3, 1), _row(4, 1))
+    assert "AR 118, 5 more than this one." in _status(*rows)[0]
 
 
 def test_a_multiplier_differs_in_two_places():
@@ -2431,7 +2440,7 @@ def test_a_multiplier_differs_in_two_places():
     rows = (_row(1, 1.2, figure="Attack multipliers ×1.20"),
             _row(2, 1.42, figure="Attack multipliers ×1.42"), _row(3, 0.0),
             _row(4, 0.0))
-    assert "(Attack multipliers ×1.42, 0.22 more than this one)" in _status(*rows)[0]
+    assert "— ×1.42, 0.22 more than this one." in _status(*rows)[0]
     assert advisorbar.vessel_line(_comparing(*rows), 2) == ("BEST  ×1.42", "")
 
 
@@ -2439,7 +2448,7 @@ def test_a_tie_needs_every_key_of_the_rank_level():
     """AK-464 (5): with the chosen one among them, no button."""
     rows = (_row(1, 100), _row(2, 100), _row(3, 90), _row(4, 80))
     assert _status(*rows) == (
-        "2 vessels tie for best at Attack rating 100: Urn, Chalice", None)
+        "2 vessels tie for best at AR 100: Urn, Chalice", None)
 
 
 def test_a_tie_without_the_chosen_goes_to_the_worn_then_the_first():
@@ -2452,16 +2461,16 @@ def test_a_tie_without_the_chosen_goes_to_the_worn_then_the_first():
 def test_three_names_of_a_tie_are_cut_and_all_of_them_are_one_sentence():
     rows = (_row(1, 100), _row(2, 100), _row(3, 100), _row(4, 80))
     assert _status(*rows)[0] == (
-        "3 vessels tie for best at Attack rating 100: Urn, Chalice …and 1 more")
+        "3 vessels tie for best at AR 100: Urn, Chalice …and 1 more")
     rows = (_row(1, 100), _row(2, 100), _row(3, 100), _row(4, 100))
-    assert _status(*rows) == ("All 4 vessels tie at Attack rating 100.", None)
+    assert _status(*rows) == ("All 4 vessels tie at AR 100.", None)
 
 
 def test_an_unfit_vessel_opened_compares_with_no_figure_of_its_own():
     rows = (_row(1, 100), types.VesselRow(2, unfit_holds=("Urn",)), _row(3, 90),
             _row(4, 80))
     assert _status(*rows, chosen=2) == (
-        "Best of 4 for Maximise damage: Urn (Attack rating 100).", 1)
+        "Best of 4 for Maximise damage: Urn — AR 100.", 1)
 
 
 @pytest.mark.parametrize("state, reason, line", [
@@ -2482,30 +2491,29 @@ def test_the_states_around_the_result(state, reason, line):
 def test_best_waits_for_the_last_row():
     """AK-433: open rows show dots, and no mark flickers on the way."""
     running = _comparing(_row(1, 100), state=advisorbar.Compared.RUNNING)
-    assert advisorbar.vessel_line(running, 1) == ("", "100")
+    assert advisorbar.vessel_line(running, 1) == ("", "AR 100")
     assert advisorbar.vessel_line(running, 2) == ("", "…")
     done = _comparing(_row(1, 100), _row(2, 90))
-    assert advisorbar.vessel_line(done, 1) == ("BEST  100", "")
-    assert advisorbar.vessel_line(done, 2) == ("", "90")
+    assert advisorbar.vessel_line(done, 1) == ("BEST  AR 100", "")
+    assert advisorbar.vessel_line(done, 2) == ("", "AR 90")
 
 
 def test_no_comparison_no_line_and_outdated_keeps_the_figures_without_best():
     """AK-453, AK-432."""
     assert advisorbar.vessel_line(None, 1) is None
     outdated = _comparing(_row(1, 100), state=advisorbar.Compared.OUTDATED)
-    assert advisorbar.vessel_line(outdated, 1) == ("", "100")
+    assert advisorbar.vessel_line(outdated, 1) == ("", "AR 100")
     assert advisorbar.vessel_line(outdated, 2) is None
 
 
-def test_missing_favourites_are_on_the_line_even_on_best():
-    """AK-452, AK-465: effects and stars counted together; `BEST` is apart."""
+def test_missing_favourites_stand_in_the_tooltip_not_on_the_line():
+    """AK-452, AK-465 since `GOAL.md` A28: the line has no room for them."""
     one = _row(1, 100, pins_left_out=("Urn",))
     two = _row(2, 90, required_left_out=(5,), pins_left_out=("Urn",))
     comparing = _comparing(one, two)
-    assert advisorbar.vessel_line(comparing, 1) == (
-        "BEST  100", "  ·  1 favourite missing")
-    assert advisorbar.vessel_line(comparing, 2) == (
-        "", "90  ·  2 favourites missing")
+    assert advisorbar.vessel_line(comparing, 1) == ("BEST  AR 100", "")
+    assert advisorbar.vessel_line(comparing, 2) == ("", "AR 90")
+    assert "Misses: 5, Urn." in advisorbar.vessel_compared_lines(comparing, 2, str)
 
 
 def test_the_row_of_a_vessel_that_cannot_take_the_holds():
@@ -2698,3 +2706,61 @@ def test_an_outdated_comparison_answers_for_no_vessel(comparing_bar):
     _answered(comparing_bar)
     comparing_bar.the_comparison_is_out_of_date()
     assert comparing_bar.show_the_answer_if_known() is False
+
+
+@pytest.mark.parametrize("figure, base, said", [
+    ("Attack rating 90", "Attack rating 56", "AR 90 (+61 %)"),
+    ("Fire attack rating 90", "Fire attack rating 45", "AR 90 (+100 %)"),
+    ("Spell damage (Weapon art) 90", "Spell damage (Weapon art) 60",
+     "Spell 90 (+50 %)"),
+    ("Weapon art (Spell Parry) 90", "Weapon art (Spell Parry) 60",
+     "Art 90 (+50 %)"),
+    ("Effective HP 1100", "Effective HP 1000", "EHP 1100 (+10 %)"),
+    ("Offensive attributes 33", "Offensive attributes 30", "33 pts (+10 %)"),
+    ("Attack multipliers ×1.23", "Attack multipliers ×1.00", "×1.23 (+23 %)"),
+    ("Attack rating 50", "Attack rating 100", "AR 50 (-50 %)"),
+    ("Fire attack rating 90", "Fire attack rating 0", "AR 90"),
+    ("Attack rating 90", "", "AR 90"),
+    ("Spell damage not counted", "Spell damage not counted", "—"),
+], ids=["ar", "typed", "spell", "art", "ehp", "points", "factor", "down",
+        "base-zero", "no-base", "no-figure"])
+def test_the_figure_says_its_unit_and_how_far_it_is_from_no_relics(figure, base,
+                                                                   said):
+    """GOAL.md A28: what "90" means; a base of 0 has no percentage."""
+    row = _row(1, 90, figure=figure, base_figure=base)
+    assert advisorbar.vessel_line(
+        _comparing(row, state=advisorbar.Compared.RUNNING), 1) == ("", said)
+
+
+def test_every_direction_says_a_unit_the_row_can_read(game_data, wylder):
+    """The unit is read off the goal's own wording, so that wording is held."""
+    _inventory, problem, ctx, _request = advisor.a_question(game_data, wylder)
+    said = {}
+    for goal in goals.GOALS.values():
+        figure = goal.score(evaluate(problem, (), ctx, goal=goal), ctx).display
+        said[goal.id] = advisorbar.vessel_line(_comparing(
+            _row(1, 1, figure=figure), state=advisorbar.Compared.RUNNING), 1)[1]
+    assert said["max_damage"].startswith("AR ")
+    assert said["min_damage_taken"].startswith("EHP ")
+    assert said["max_attributes"].endswith(" pts")
+
+
+def test_the_sentence_and_the_tooltips_carry_the_percent_and_the_base():
+    """GOAL.md A28: the base itself stands in the tooltip."""
+    rows = (_row(1, 100, base_figure="Attack rating 50"),
+            _row(2, 118, base_figure="Attack rating 50"),
+            _row(3, 90, base_figure="Attack rating 50"),
+            _row(4, 80, base_figure="Attack rating 50"))
+    comparing = _comparing(*rows)
+    assert advisorbar.comparison_status(comparing, 1, None, NAMES)[0] == (
+        "Best of 4 for Maximise damage: Chalice — AR 118 (+136 %), 18 more "
+        "than this one.")
+    assert advisorbar.comparison_status(comparing, 2, None, NAMES)[0] == (
+        "This is the best of 4 vessels for Maximise damage: AR 118 (+136 %).")
+    assert advisorbar.vessel_line(comparing, 2) == ("BEST  AR 118 (+136 %)", "")
+    assert "Without relics: Attack rating 50." in (
+        advisorbar.vessel_compared_lines(comparing, 3, str))
+    assert advisorbar.comparison_base(comparing) == (
+        "Without relics: Attack rating 50.")
+    comparing.state = advisorbar.Compared.OUTDATED
+    assert advisorbar.comparison_base(comparing) == ""
