@@ -9,13 +9,15 @@ derived stays in the project's documents -- none of it belongs on screen.
 
 from __future__ import annotations
 
+import html
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QScrollArea,
     QVBoxLayout, QWidget,
 )
 
-from . import tabheader
+from . import iconpack, tabheader
 from .eventlore import LORE, UNANNOUNCED
 from .theme import ACCENT, BORDER, PANEL
 
@@ -40,6 +42,12 @@ def _prose(text: str) -> QLabel:
     label.setWordWrap(True)
     label.setStyleSheet("color: #d8d8d8; font-size: 12px;")
     return label
+
+
+def _marked(tag: str, text: str) -> str:
+    """Game text after a symbol. The `<img>` turns the label into rich text,
+    where the text is markup unless it is escaped (SEC-021)."""
+    return tag + html.escape(text, quote=False) if tag else text
 
 
 def _stat(text: str) -> QLabel:
@@ -70,8 +78,11 @@ def _grants_an_amount(line: str) -> bool:
 
 
 class WorldEventsTab(QWidget):
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, icons=None):
         super().__init__()
+        self.icons = icons
+        self.boss_icons = {boss["name"]: boss.get("icon")
+                           for boss in data.get("bosses", [])}
         section = data.get("world_events") or {}
         self.events = section.get("events", [])
         self.unknowns = section.get("unknowns", [])
@@ -178,7 +189,8 @@ class WorldEventsTab(QWidget):
         gate = self.gating.get(str(event["log_id"]))
         if gate:
             bosses = "   ·   ".join(
-                f"{b['name']} {b['share']:g}%" for b in gate["bosses"])
+                self._nightlord(b["name"]) + f" {b['share']:g}%"
+                for b in gate["bosses"])
             column.addWidget(_stat(bosses))
             day1 = gate.get("day1_patterns", 0)
             day2 = gate.get("day2_patterns", 0)
@@ -296,6 +308,11 @@ class WorldEventsTab(QWidget):
                 label.setStyleSheet(f"color: {UNKNOWN}; font-size: 11px;")
                 column.addWidget(label)
 
+    def _nightlord(self, name: str) -> str:
+        """A Nightlord's name with its symbol, where it has one."""
+        return _marked(iconpack.inline(self.icons, "menu",
+                                       self.boss_icons.get(name)), name)
+
     def _drop_summary(self, drops: list[dict]) -> str:
         """One line for what the fight itself can pay out."""
         kinds = {"power": 0, "talisman": 0, "weapon": 0, "item": 0}
@@ -329,7 +346,8 @@ class WorldEventsTab(QWidget):
             column.addWidget(_prose(entry["penalty"]))
         bosses = entry.get("nightlords")
         if bosses:
-            text = "Every Nightlord." if bosses == ["Any"] else ", ".join(bosses)
+            text = "Every Nightlord." if bosses == ["Any"] else ", ".join(
+                self._nightlord(name) for name in bosses)
             column.addWidget(_prose(f"Nightlords: {text}"))
         if entry.get("note"):
             label = QLabel(f"<b>Note:</b> {entry['note']}")

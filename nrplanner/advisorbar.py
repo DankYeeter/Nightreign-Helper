@@ -42,6 +42,7 @@ import dataclasses
 import enum
 import html
 
+from PySide6.QtGui import QIcon
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import (QBoxLayout, QComboBox, QFrame, QHBoxLayout,
@@ -50,7 +51,8 @@ from PySide6.QtWidgets import (QBoxLayout, QComboBox, QFrame, QHBoxLayout,
                                QLabel, QProgressBar, QPushButton, QScrollArea,
                                QSizePolicy, QVBoxLayout, QWidget)
 
-from . import damage, effecttext, favourites, model, weapons, weaponslots
+from . import (damage, effecttext, favourites, iconpack, model, weapons,
+               weaponslots)
 from .advisorblock import FoldButton
 from .advisor import goals as advisor_goals
 from .advisor import run as advisor_run
@@ -1362,7 +1364,7 @@ class AdvisorBar(QWidget):
     def __init__(self, asking, parent: QWidget | None = None, *,
                  controller: AdvisorController | None = None,
                  comparison: VesselComparison | None = None,
-                 filters=None, data=None) -> None:
+                 filters=None, data=None, icons=None) -> None:
         super().__init__(parent)
         self._asking = asking
         #: The two marked sets (`effectfilters.EffectFilters`), read for the
@@ -1500,6 +1502,10 @@ class AdvisorBar(QWidget):
         self.damage_type_box.insertSeparator(self.damage_type_box.count())
         for damage_type, label in weapons.DAMAGE_LABELS.items():
             self.damage_type_box.addItem(label, damage_type)
+            symbol = iconpack.type_pixmap(icons, label)
+            if symbol is not None:
+                self.damage_type_box.setItemIcon(
+                    self.damage_type_box.count() - 1, QIcon(symbol))
         self._remember_the_choice(self.damage_type_box, DAMAGE_TYPE_KEY)
         question.addWidget(self.damage_type_box)
 

@@ -16,6 +16,7 @@ import re
 import statistics
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QAbstractItemView, QFrame, QHeaderView, QLabel, QScrollArea, QTableWidget,
     QTableWidgetItem, QVBoxLayout, QWidget,
@@ -155,8 +156,11 @@ def _cell(text: str) -> QTableWidgetItem:
 class DeepTab(QWidget):
     HEADER_WIDTH = 190
 
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, icons=None):
         super().__init__()
+        self.icons = icons
+        self.relic_icons = {relic["name"]: relic.get("icon")
+                            for relic in data.get("relics", [])}
         self.deep = data.get("deep_of_night") or {}
         self.scaling = self.deep.get("scaling", [])
         self.labels = self.deep.get("field_labels", {})
@@ -226,6 +230,11 @@ class DeepTab(QWidget):
         if any(tiers):
             rows.append("Relic tier")
         table = self._table(rows)
+        symbol = (self.icons.item(self.deep.get("sigil_icon"))
+                  if self.icons is not None else None)
+        if symbol is not None:
+            table.setVerticalHeaderItem(
+                2, QTableWidgetItem(QIcon(symbol), sigil))
 
         for column in range(len(self.depth_names)):
             table.setItem(0, column, _cell(bands.get(column + 1, "-")))
@@ -235,7 +244,11 @@ class DeepTab(QWidget):
             table.setItem(1, column, _cell(f"x{reward['multiplier']:g}"))
             table.setItem(2, column, _cell(str(reward["sigils"])))
             if len(rows) > 3:
-                table.setItem(3, column, _cell(tiers[column] or "-"))
+                tier = _cell(tiers[column] or "-")
+                symbol = self._top_tier_symbol(reward)
+                if symbol is not None:
+                    tier.setIcon(QIcon(symbol))
+                table.setItem(3, column, tier)
         box.addWidget(_fit(table))
 
         # The two figures of this table that carried no reference at all
@@ -304,6 +317,17 @@ class DeepTab(QWidget):
         found.sort(key=lambda t: (order.index(t.split()[-1])
                                  if t.split()[-1] in order else len(order), t))
         return ", ".join(found)
+
+    def _top_tier_symbol(self, reward: dict):
+        """The symbol of the best relic a depth hands out, for its tier cell."""
+        if self.icons is None:
+            return None
+        for tier in ("Grand", "Polished", "Delicate"):
+            for name in reward.get("items", []):
+                symbol = self.icons.item(self.relic_icons.get(name))
+                if tier in name and symbol is not None:
+                    return symbol
+        return None
 
     def _rating_bands(self) -> dict[int, str]:
         """Depth -> the rating band that puts you in it, from the game's text."""

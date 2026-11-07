@@ -8,7 +8,7 @@ import pathlib
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication, QIcon, QPixmap
-from PySide6.QtWidgets import QLabel
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
 
 from . import paths
 
@@ -245,7 +245,21 @@ def sharp(pixmap: QPixmap, size: int) -> QPixmap:
 def symbol_label(pixmap: QPixmap, size: int = INLINE_ICON) -> QLabel:
     """A symbol standing beside a plain-text label (AK-29: names are no markup)."""
     label = QLabel()
+    label.setTextFormat(Qt.PlainText)
     label.setPixmap(sharp(pixmap, size))
     label.setFixedSize(size, size)
     label.setStyleSheet("border: none; background: transparent;")
     return label
+
+
+def beside(pixmaps: list, widget: QWidget,
+           size: int = INLINE_ICON) -> QHBoxLayout:
+    """A row of whichever symbols exist, then `widget` taking the rest."""
+    row = QHBoxLayout()
+    row.setContentsMargins(0, 0, 0, 0)
+    row.setSpacing(4)
+    for pixmap in pixmaps:
+        if pixmap is not None:
+            row.addWidget(symbol_label(pixmap, size), 0, Qt.AlignTop)
+    row.addWidget(widget, 1)
+    return row

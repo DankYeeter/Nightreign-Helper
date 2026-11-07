@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QPointF, QSignalBlocker, Qt, Signal
+from PySide6.QtCore import QPointF, QSignalBlocker, QSize, Qt, Signal
 from PySide6.QtGui import (
-    QColor, QGuiApplication, QPainter, QPainterPath, QPixmap,
+    QColor, QGuiApplication, QIcon, QPainter, QPainterPath, QPixmap,
 )
 from PySide6.QtWidgets import (
     QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QToolButton,
@@ -262,6 +262,7 @@ class RelicSlot(QFrame):
 
         self.choose_button = QPushButton("Empty slot")
         self.choose_button.setStyleSheet("text-align: left; padding: 6px 8px;")
+        self.choose_button.setIconSize(QSize(HEADER_CHIP, HEADER_CHIP))
         self.choose_button.clicked.connect(self._open_picker)
         layout.addWidget(self.choose_button)
 
@@ -274,7 +275,7 @@ class RelicSlot(QFrame):
         # a suggestion for this slot belongs where the slot is (`UI_SPEC`
         # §3.2). Built here and hidden rather than created on demand, so that
         # an answer arriving does not change the card's layout order.
-        self.suggestion = advisorblock.SuggestionBlock()
+        self.suggestion = advisorblock.SuggestionBlock(icons=icons)
         layout.addWidget(self.suggestion)
 
         # Last, because it draws the card: the caption of the hold button and
@@ -359,6 +360,9 @@ class RelicSlot(QFrame):
         self._forget_a_spent_reason()
         item = self.relic_box.currentData()
         self.choose_button.setText(item.name if item is not None else "Empty slot")
+        symbol = (self.icons.item_icon(getattr(item, "icon", None))
+                  if self.icons is not None else None)
+        self.choose_button.setIcon(symbol or QIcon())
         # Shut for as long as the read is out, in both situations (AK-223):
         # at the start it would open on nothing, and on a `Rescan` the stock
         # under its cards is replaced while it stands.
@@ -471,7 +475,8 @@ class RelicSlot(QFrame):
             may_be_used=not self.is_held(), may_explain=may_explain,
             curse_tooltip=self._suggested_curse_tooltip(choice),
             held_favourite_line=held_favourite_line, pinned=pinned,
-            names=names, favourited=favourited)
+            names=names, favourited=favourited,
+            relic_icon=getattr(self._suggested_copy(choice), "icon", None))
 
     def show_no_suggestion(self, reason: str) -> None:
         """The answer leaves this slot empty, and this is why (AK-441)."""
@@ -488,11 +493,15 @@ class RelicSlot(QFrame):
         tooltip the slot already offers for the relic it holds, so a player
         reads a curse the same way whether it is equipped or offered.
         """
-        if choice is None:
-            return ""
-        copy = next((item for item in self._holdable()
-                     if item.handle == choice.handle), None)
+        copy = self._suggested_copy(choice)
         return "" if copy is None else self.curse_tooltip(copy)
+
+    def _suggested_copy(self, choice):
+        """The owned copy a suggestion names, found by its handle."""
+        if choice is None:
+            return None
+        return next((item for item in self._holdable()
+                     if item.handle == choice.handle), None)
 
     def curse_tooltip(self, item) -> str:
         """Full wording for each curse, so the cost is legible not cryptic."""
@@ -753,8 +762,10 @@ class RelicSlot(QFrame):
         # claim about what the player owns that the program cannot support
         # (A7) -- and it is the shape that reads like lost data.
         count = "" if self.owned is None else f"  ({len(items)} available)"
+        gem = iconpack.inline(self.icons, "ui",
+                              iconpack.GEM_SPRITES.get(self.colour))
         self.title.setText(
-            f"{self.slot_name()} — "
+            f"{self.slot_name()} — {gem}"
             f"{model.COLOUR_NAMES.get(self.colour, self.colour)}"
             f"{count}"
         )

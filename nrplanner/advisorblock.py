@@ -50,10 +50,13 @@ from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QSizePolicy,
                                QToolButton, QVBoxLayout, QWidget)
 
-from . import effectfilters, effecttext
+from . import effectfilters, effecttext, iconpack
 from .advisor import goals as advisor_goals
 from .advisor import types
 from .theme import ACCENT, BAD, CURSE, FAVOURITE, MUTED, PANEL
+
+#: How tall a relic's symbol stands beside its name.
+RELIC_SYMBOL = 18
 
 #: The one line a block shows when the suggestion is already lying in the slot
 #: (`UI_SPEC` §3.2). Everything else falls away with it: there is nothing to
@@ -227,6 +230,14 @@ def _plain(text: str = "", *, colour: str = "", size: int = 0) -> QLabel:
         style.append(f"font-size: {size}px;")
     label.setStyleSheet(" ".join(style))
     return label
+
+
+def _add_named(column: QVBoxLayout, symbols: tuple, label: QLabel) -> None:
+    """A heading of the dialog, in a row with its symbols if it has any."""
+    if any(symbol is not None for symbol in symbols):
+        column.addLayout(iconpack.beside(list(symbols), label, RELIC_SYMBOL))
+    else:
+        column.addWidget(label)
 
 
 def _stacked(widgets) -> QWidget:
@@ -429,9 +440,11 @@ class SuggestionBlock(QFrame):
     #: An X was pressed: avoid this effect or curse (AK-424).
     avoid_requested = Signal(int)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, *, icons=None) -> None:
         super().__init__(parent)
         from .app import _heading
+
+        self._icons = icons
 
         self.setStyleSheet(
             f"QFrame {{ background: {PANEL};"
@@ -477,7 +490,16 @@ class SuggestionBlock(QFrame):
         column.addLayout(head)
 
         self.relic_name = _plain()
-        column.addWidget(self.relic_name)
+        self.relic_symbol = QLabel()
+        self.relic_symbol.setTextFormat(Qt.PlainText)
+        self.relic_symbol.setFixedSize(RELIC_SYMBOL, RELIC_SYMBOL)
+        self.relic_symbol.setStyleSheet("border: none;")
+        naming = QHBoxLayout()
+        naming.setContentsMargins(0, 0, 0, 0)
+        naming.setSpacing(4)
+        naming.addWidget(self.relic_symbol, 0, Qt.AlignTop)
+        naming.addWidget(self.relic_name, 1)
+        column.addLayout(naming)
 
         self.pinned_line = _plain(PINNED_LINE, colour=FAVOURITE, size=SMALL_TEXT)
         column.addWidget(self.pinned_line)
@@ -522,7 +544,8 @@ class SuggestionBlock(QFrame):
                             held_favourite_line: str = "",
                             pinned: bool = False,
                             names=None,
-                            favourited: frozenset[int] = frozenset()) -> None:
+                            favourited: frozenset[int] = frozenset(),
+                            relic_icon: int | None = None) -> None:
         """Draw one slot group, or the one line that replaces it.
 
         `already_equipped` is the window's answer, not this block's: whether
@@ -548,6 +571,10 @@ class SuggestionBlock(QFrame):
             else REJECT_TOOLTIP))
         self.relic_name.setText(group.relic_name)
         self.relic_name.setVisible(not already_equipped)
+        art = self._icons.item(relic_icon) if self._icons is not None else None
+        if art is not None:
+            self.relic_symbol.setPixmap(iconpack.sharp(art, RELIC_SYMBOL))
+        self.relic_symbol.setVisible(art is not None and not already_equipped)
         self.pinned_line.setVisible(pinned and not already_equipped)
         self.count_line.setText(group.count_line)
         self.count_line.setVisible(not already_equipped)
@@ -614,7 +641,7 @@ class SuggestionBlock(QFrame):
         self.heading.setVisible(True)
         self._clear_the_lines()
         for part in (self.use_button, self.why_button, self.reject_button,
-                     self.relic_name, self.pinned_line, self.count_line, self.lines, self.held_favourite,
+                     self.relic_name, self.relic_symbol, self.pinned_line, self.count_line, self.lines, self.held_favourite,
                      self.already_equipped):
             part.setVisible(False)
         self.empty_reason.setText(reason)
@@ -690,10 +717,13 @@ class WhyDialog(QDialog):
     def __init__(self, heading: WhyHeading, result,
                  parent: QWidget | None = None, *,
                  filters: effectfilters.EffectFilters,
-                 effects: dict, slot_index: int | None = None) -> None:
+                 effects: dict, slot_index: int | None = None,
+                 icons=None, head_symbols: tuple = (),
+                 relic_icons: dict | None = None) -> None:
         super().__init__(parent)
         self._filters = filters
         self._effects = effects
+        self._icons = icons
         self.setModal(True)
         self.setWindowTitle(f"Why this build — {heading.goal_label}")
         self.resize(640, 620)
@@ -708,7 +738,7 @@ class WhyDialog(QDialog):
         column.setSpacing(4)
 
         self.head = _plain(head_sentence(heading))
-        column.addWidget(self.head)
+        _add_named(column, head_symbols, self.head)
 
         # Over the slot groups, one statement in one label (AK-439).
         self.pins_left_out = _plain("\n".join(
@@ -726,7 +756,9 @@ class WhyDialog(QDialog):
             bold = title.font()
             bold.setBold(True)
             title.setFont(bold)
-            column.addWidget(title)
+            art = (icons.item((relic_icons or {}).get(group.relic_name))
+                   if icons is not None else None)
+            _add_named(column, (art,), title)
             if group.slot_index == slot_index:
                 self._slot_title = title
             count_line = _plain(group.count_line, colour=MUTED,

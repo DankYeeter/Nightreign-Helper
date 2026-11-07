@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import functools
 import html
-import pathlib
 
 from PySide6.QtCore import QSignalBlocker, Qt, Signal
 from PySide6.QtGui import (
@@ -28,7 +27,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-from . import cardgrid, relicslots, tabheader
+from . import cardgrid, iconpack, relicslots, tabheader
 from .theme import ACCENT, BAD, BORDER, DEEP, GOOD, HOVER_FILL, MUTED, PANEL
 
 # Watched in play: above a wiki claim, below a param read.
@@ -893,45 +892,15 @@ class BossTab(QWidget):
         return (f"<div style='color:{MUTED}; font-size:10px; "
                 f"margin-top:4px'>{text}</div>")
 
-    # Chart label -> the game's own damage-type icon, extracted from the
-    # relic screen's filter list. The three grey physical icons were pinned
-    # by looking at them enlarged -- club on rubble is Strike, the broad
-    # blade Slash, the gauntlet thrust Pierce -- not assumed from their ids.
-    TYPE_ICONS = {
-        "Standard": "MENU_FL_40141.png",
-        "Strike": "MENU_FL_40142.png",
-        "Slash": "MENU_FL_40143.png",
-        "Pierce": "MENU_FL_40144.png",
-        "Holy": "MENU_FL_40145.png",
-        "Magic": "MENU_FL_40146.png",
-        "Frostbite": "MENU_FL_40147.png",
-        "Fire": "MENU_FL_40148.png",
-        "Lightning": "MENU_FL_40150.png",
-        "Madness": "MENU_FL_40151.png",
-        "Poison": "MENU_FL_40172.png",
-        "Blood loss": "MENU_FL_40173.png",
-        # Not in the MENU_FL filter set, which holds twelve icons and neither
-        # of these. Taken from the equipment screen's own status symbols
-        # instead -- MenuPropertySpecParam names the ids, and the three of that
-        # run the FL set already covers identify the rest. See iconbuild's
-        # UI_SPRITES for the working.
-        "Scarlet Rot": "MENU_PropertyIcon_31231.png",
-        "Sleep": "MENU_PropertyIcon_31234.png",
-    }
-
     def _type_icon_cell(self, label: str) -> str:
-        """A table cell with the type's game icon, or an empty spacer.
-
-        Death has no icon here, so that row keeps a spacer rather than
-        borrowing a lookalike.
-        """
-        sprite = self.TYPE_ICONS.get(label)
-        path = self.icons.ui_path(sprite) if (self.icons and sprite) else None
-        if path is None:
-            return "<td style='padding-right:4px'></td>"
-        src = pathlib.Path(path).as_uri()
+        """A table cell with the type's game icon, or an empty spacer."""
         return (f"<td style='padding-right:4px'>"
-                f"<img src='{src}' width='16' height='16'></td>")
+                f"{iconpack.inline_type(self.icons, label, 16)}</td>")
+
+    def _with_symbols(self, types: list[str]) -> str:
+        """Damage types or statuses in a sentence, each with its symbol."""
+        return " / ".join(iconpack.inline_type(self.icons, kind) + kind
+                          for kind in types)
 
     def _bars(self, damage: dict, weak: list) -> str:
         """Damage multipliers as a bar chart, 1.00 being neutral."""
@@ -1007,19 +976,21 @@ class BossTab(QWidget):
             stance = ((other.get("weakness") or {}).get("profile")
                       or {}).get("stance") or {}
             if "bar" in stance:
-                bars.append((stance["bar"], other["name"]))
+                bars.append((stance["bar"], other["name"], other.get("icon")))
         mine = (profile.get("stance") or {}).get("bar")
         if mine is None or len(bars) < 2:
             return "-"
         bars.sort()
-        place = sum(1 for value, _ in bars if value < mine) + 1
+        place = sum(1 for value, *_ in bars if value < mine) + 1
         # The two names are the game's own text and this string is put into a
         # rich-text label, so they are escaped rather than concatenated
         # (SEC-012). Escaping at the point the value enters the markup is the
         # only place it can be got right: the caller cannot know it will.
         return (f"{place} of {len(bars)} for bar size  "
-                f"(smallest {html.escape(bars[0][1])} {bars[0][0]:g}, "
-                f"largest {html.escape(bars[-1][1])} {bars[-1][0]:g})")
+                f"(smallest {iconpack.inline(self.icons, 'menu', bars[0][2])}"
+                f"{html.escape(bars[0][1])} {bars[0][0]:g}, "
+                f"largest {iconpack.inline(self.icons, 'menu', bars[-1][2])}"
+                f"{html.escape(bars[-1][1])} {bars[-1][0]:g})")
 
     @staticmethod
     def _entry_key(entry: dict | None):
@@ -1192,7 +1163,7 @@ class BossTab(QWidget):
                 parts.append(
                     "<div style='color:#d8d8d8; font-size:11px'>"
                     "Pile on <b style='color:" + ACCENT + "'>"
-                    + " / ".join(weak) + "</b> damage. It builds a hidden "
+                    + self._with_symbols(weak) + "</b> damage. It builds a hidden "
                     "meter, and filling it breaks the boss's stance and "
                     "opens it up for a critical.</div>"
                 )
@@ -1206,7 +1177,7 @@ class BossTab(QWidget):
                     f"<div style='color:#d8d8d8; font-size:11px'>"
                     "No damage type hurts it more than another. Where it "
                     "gives way is status: it needs least of "
-                    f"<b style='color:{ACCENT}'>{' / '.join(weak_status)}</b>"
+                    f"<b style='color:{ACCENT}'>{self._with_symbols(weak_status)}</b>"
                     ", listed with the rest under STATUS BUILDUP below.</div>"
                 )
             if boss["name"] in WEAKNESS_NOTE:
@@ -1358,7 +1329,8 @@ class BossTab(QWidget):
                     # apostrophe on screen while `<` and `&` are still shut
                     # out of the markup (SEC-012).
                     parts.append(self._row(
-                        html.escape(drop["name"], quote=False),
+                        iconpack.inline(self.icons, "items", drop.get("icon"))
+                        + html.escape(drop["name"], quote=False),
                         f"{drop['share']:g}%"))
                 parts.append(self._note(LOOT_NOTE))
         self._sync_loot_button(len(drops))

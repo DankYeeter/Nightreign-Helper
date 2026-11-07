@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from . import __version__
 from . import (advisorblock, chalices, datasource, effectfilterdialog,
+               iconpack,
                effectfilters, effecttext, errortext, favourites, firstrun,
                gamepath, inventory, model, savereader, shortcut,
                singleinstance, uiscale, weaponslots)
@@ -44,6 +45,9 @@ from .relicslots import (RelicSlot, _custom_effects,
                          _relic_count, slot_chip)
 from .statsheet import HAND_CAPTIONS, StatSheet, _heading
 from .theme import ACCENT, BORDER, MUTED, NAME_POINT_SIZE, PANEL
+
+#: How tall a Nightfarer's or vessel's symbol stands beside its name.
+HERO_SYMBOL = 20
 
 # The four shared Grails sit under their own heroType rather than any
 # Nightfarer's, because every Nightfarer can use them.
@@ -763,7 +767,7 @@ class Planner(QMainWindow):
             instance.aboutToQuit.connect(self._store_layout)
 
         tabs.addTab(planner, "Build planner")
-        self.effects_tab = EffectsTab(data)
+        self.effects_tab = EffectsTab(data, self.icons)
         tabs.addTab(self.effects_tab, "Effects && chances")
 
         self.owned = None
@@ -815,12 +819,12 @@ class Planner(QMainWindow):
             self.boss_tab = BossTab(data, self.icons)
             tabs.addTab(self.boss_tab, "Nightlords")
         if data.get("deep_of_night"):
-            self.deep_tab = DeepTab(data)
+            self.deep_tab = DeepTab(data, self.icons)
             tabs.addTab(self.deep_tab, "Deep of Night")
             self.depths_tab = DepthsTab(data)
             tabs.addTab(self.depths_tab, "Red variants")
         if (data.get("world_events") or {}).get("events"):
-            self.events_tab = WorldEventsTab(data)
+            self.events_tab = WorldEventsTab(data, self.icons)
             tabs.addTab(self.events_tab, "World Events")
 
     # -- panels ----------------------------------------------------------
@@ -882,7 +886,14 @@ class Planner(QMainWindow):
         self.hero_name_label.setStyleSheet(
             f"color: {ACCENT}; font-size: 14px; font-weight: bold;"
         )
-        layout.addWidget(self.hero_name_label)
+        self.hero_name_symbol = QLabel()
+        self.hero_name_symbol.setFixedSize(HERO_SYMBOL, HERO_SYMBOL)
+        named = QHBoxLayout()
+        named.addStretch()
+        named.addWidget(self.hero_name_symbol)
+        named.addWidget(self.hero_name_label)
+        named.addStretch()
+        layout.addLayout(named)
 
         layout.addSpacing(8)
         # "Chalice" named the section and also one of the seven things in it,
@@ -901,7 +912,13 @@ class Planner(QMainWindow):
         self.compare_status.setMaximumHeight(
             2 * self.compare_status.fontMetrics().lineSpacing())
         self.compare_status.hide()
-        layout.addWidget(self.compare_status)
+        self.compare_symbol = QLabel()
+        self.compare_symbol.setFixedSize(HERO_SYMBOL, HERO_SYMBOL)
+        self.compare_symbol.hide()
+        compared = QHBoxLayout()
+        compared.addWidget(self.compare_symbol, 0, Qt.AlignTop)
+        compared.addWidget(self.compare_status, 1)
+        layout.addLayout(compared)
         self.switch_button = QPushButton("Switch to it")
         self.switch_button.clicked.connect(self._switch_to_the_best)
         self.switch_button.hide()
@@ -1113,7 +1130,7 @@ class Planner(QMainWindow):
         # widget of this window and writes to none.
         self.advisor_bar = AdvisorBar(
             lambda goal_id: asking_from(self, goal_id), column,
-            filters=self.effect_filters, data=self.data)
+            filters=self.effect_filters, data=self.data, icons=self.icons)
         stack.addWidget(self.advisor_bar)
         self.rejected_list = RejectedList()
         self.rejected_list.suggest_again.connect(self._suggest_again)
@@ -1481,6 +1498,10 @@ class Planner(QMainWindow):
         for i, tile in enumerate(self.hero_tiles):
             tile.setChecked(i == index)
         self.hero_name_label.setText(self.heroes[index]["name"])
+        portrait = self.icons.portrait(self.heroes[index]["id"])
+        if portrait is not None:
+            self.hero_name_symbol.setPixmap(
+                iconpack.sharp(portrait, HERO_SYMBOL))
         self.apply_hero_weapon()
         self.reload_chalices()
         # Saved builds are per Nightfarer, so the list and the strip both
@@ -1718,6 +1739,12 @@ class Planner(QMainWindow):
         base = "" if comparing is None else comparison_base(comparing)
         self.compare_status.setToolTip(f"{line} {base}" if base else line)
         self.compare_status.setVisible(bool(line))
+        better = next((vessel for vessel in self.hero_vessels
+                       if vessel["id"] == self._switch_target), None)
+        art = self.icons.item(better.get("icon")) if better else None
+        if art is not None:
+            self.compare_symbol.setPixmap(iconpack.sharp(art, HERO_SYMBOL))
+        self.compare_symbol.setVisible(art is not None and bool(line))
         self.switch_button.setVisible(self._switch_target is not None)
         self.switch_button.setToolTip(self._what_the_switch_does(comparing))
 
@@ -2582,7 +2609,9 @@ class Planner(QMainWindow):
             self.variant_panel.setVisible(True)
             return
 
-        self.variant_title.setText(f"{tile.hero['name']} — pick artwork")
+        self.variant_title.setText(
+            iconpack.inline(self.icons, "portraits", tile.hero["id"])
+            + html.escape(tile.hero["name"], quote=False) + " — pick artwork")
         # How many fit across the panel at full size, never fewer than one.
         available = max(self.variant_panel.width() - 16, VARIANT_STRIP + 4)
         per_row = max(1, available // (VARIANT_STRIP + 4 + 4))
@@ -3573,7 +3602,12 @@ class Planner(QMainWindow):
         dialog = advisorblock.WhyDialog(
             heading, result, self, filters=self.effect_filters,
             effects=self.effects,
-            slot_index=slots.index(card) if card in slots else None)
+            slot_index=slots.index(card) if card in slots else None,
+            icons=self.icons,
+            head_symbols=(self.icons.portrait(self.current_hero()["id"]),
+                          self.icons.item(vessel.get("icon"))),
+            relic_icons={relic["name"]: relic.get("icon")
+                         for relic in self.data["relics"]})
         dialog.exec()
         dialog.deleteLater()
 

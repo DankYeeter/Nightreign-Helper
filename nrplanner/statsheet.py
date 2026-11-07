@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
     QScrollArea, QToolButton, QToolTip, QVBoxLayout, QWidget,
 )
 
-from . import (castingbar, damage, effecttext, model, relicslots, weapons,
-               weaponslots)
+from . import (castingbar, damage, effecttext, iconpack, model, relicslots,
+               weapons, weaponslots)
 from .theme import ACCENT, BAD, GOOD, MUTED
 
 # Link target for the weapon attack-rating breakdown. Not a modifier field, so
@@ -496,6 +496,10 @@ class StatSheet(QScrollArea):
                             f"{(entry.own - 1.0) * 100:+.1f}%</span>")
         return rows
 
+    def _type_tag(self, label: str) -> str:
+        """The `<img>` of a damage type or status, for this sheet's rich text."""
+        return iconpack.inline_type(self.planner.icons, label)
+
     def _spell_breakdown_text(self) -> str:
         """Where the spell row's figure comes from, and the note it carries.
 
@@ -577,6 +581,7 @@ class StatSheet(QScrollArea):
         conversion = ar.get("conversion")
         if conversion:
             moved = ", ".join(
+                f"{self._type_tag(weapons.DAMAGE_LABELS[damage_type])}"
                 f"{weapons.DAMAGE_LABELS[damage_type]} {value:+.0f}"
                 for damage_type, value in conversion.items())
             rows.append(f"&nbsp;&nbsp;Starting armament conversion &nbsp; "
@@ -636,7 +641,8 @@ class StatSheet(QScrollArea):
         if art.art is None:
             return ""
         # Game text in a rich-text label is escaped (SEC-019, AK-419).
-        head = f"{label} ({html.escape(str(art.art.get('name', '')))})"
+        symbol = iconpack.inline(self.planner.icons, "items", art.art.get("icon"))
+        head = f"{label} ({symbol}{html.escape(str(art.art.get('name', '')))})"
         if art.reason:
             return (f"<div>{head} <span style='color:{MUTED}'>"
                     f"{html.escape(art.reason)}</span></div>")
@@ -703,7 +709,8 @@ class StatSheet(QScrollArea):
         # of the switch. Game text in a rich-text label is escaped (SEC-019).
         return [
             f"<div>{damage.SPELL_DAMAGE_NAME} "
-            f"({html.escape(str(thrown.get('name', '')))}) "
+            f"({iconpack.inline(self.planner.icons, 'items', thrown.get('icon'))}"
+            f"{html.escape(str(thrown.get('name', '')))}) "
             f"<span style='color:{MUTED}'>"
             f"{damage.displayed(rating.bare_figure)}</span> "
             f"<span style='color:{colour}'>{change}</span> "
@@ -792,7 +799,8 @@ class StatSheet(QScrollArea):
             value_shown = now.displayed_hands(
                 lambda r: r.final_per_type.get(damage_type, 0.0), two_handing)
             rows.append(
-                f"<div>{weapons.DAMAGE_LABELS[damage_type]} "
+                f"<div>{self._type_tag(weapons.DAMAGE_LABELS[damage_type])}"
+                f"{weapons.DAMAGE_LABELS[damage_type]} "
                 f"<span style='color:{MUTED}'>{was_shown}</span> "
                 f"<span style='color:{colour}'>{change}</span> "
                 f"<b>{value_shown}</b></div>"
@@ -859,7 +867,7 @@ class StatSheet(QScrollArea):
                           f"{parts} — shown added; the params do not say "
                           f"whether they truly stack.</div>")
             rows.append(
-                f"<div style='margin-top:6px'>Inflicts {status} "
+                f"<div style='margin-top:6px'>Inflicts {self._type_tag(status)}{status} "
                 f"<b style='color:{ACCENT}'>{total:g}</b>"
                 f"<span style='color:{MUTED}'> buildup per hit</span></div>"
                 + detail
@@ -1045,7 +1053,7 @@ class StatSheet(QScrollArea):
                     f"{pct:+.0f}%</span>"
                 )
             value = " ".join(parts) or f"<span style='color:{MUTED}'>—</span>"
-            lines.append(f"<div>{label} {value}</div>")
+            lines.append(f"<div>{self._type_tag(label)}{label} {value}</div>")
         lines.append(
             f"<div style='color:{MUTED}; font-size:10px; margin-top:4px'>"
             f"The net change from everything you have equipped. These are "
