@@ -199,8 +199,8 @@ Registrierungsschluessel):
 | | vorher = nachher? |
 |---|---|
 | `%LOCALAPPDATA%\NightreignHelper\nightreign_data.json` (8.484.651 Byte) | **ja**, Zeitstempel unveraendert |
-| `...\Roaming\Nightreign\76561198073567627\NR0000.sl2` | **ja**, Zeitstempel und Groesse unveraendert |
-| `...\Roaming\Nightreign\76561198179244962\NR0000.sl2` | **ja**, Zeitstempel und Groesse unveraendert |
+| `...\Roaming\Nightreign\<Konto-B>\NR0000.sl2` | **ja**, Zeitstempel und Groesse unveraendert |
+| `...\Roaming\Nightreign\<Konto-A>\NR0000.sl2` | **ja**, Zeitstempel und Groesse unveraendert |
 | `HKCU\Software\DankYeeter` (der Schluessel des Spielers) | **ja**, `last_write` unveraendert |
 
 Dazu die statische Seite mit zwei unabhaengigen Masken: in `nrdata/` und

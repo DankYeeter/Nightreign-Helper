@@ -367,8 +367,8 @@ die Orte des Spielers zeigt - sonst haette ich mein Pruefmittel gemessen.
 **Beide `.sl2` unveraendert**, vor und nach allen Laeufen:
 
 ```
-c2da42ee2124a51233e6630b8a07eac8  …\76561198073567627\NR0000.sl2
-e52bd9dd2fbab319dec22b79985f14b3  …\76561198179244962\NR0000.sl2
+c2da42ee2124a51233e6630b8a07eac8  …\<Konto-B>\NR0000.sl2
+e52bd9dd2fbab319dec22b79985f14b3  …\<Konto-A>\NR0000.sl2
 diff md5   : SPIELSTAENDE UNVERAENDERT
 diff mtime : MTIME/GROESSE UNVERAENDERT
 ```

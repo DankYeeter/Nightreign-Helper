@@ -60,8 +60,8 @@ in sich und vergleicht ihn im selben Prozess mit dem Modul.
 **Gefuehrt ueber 28 von 28 Slots aus 2 Dateien:**
 
 ```
-%APPDATA%\Nightreign\76561198073567627\NR0000.sl2   19 531 312 B
-%APPDATA%\Nightreign\76561198179244962\NR0000.sl2   19 531 312 B
+%APPDATA%\Nightreign\<Konto-B>\NR0000.sl2   19 531 312 B
+%APPDATA%\Nightreign\<Konto-A>\NR0000.sl2   19 531 312 B
 -> 28 entschluesselte Slots, 39 060 416 Byte
 ```
 

@@ -25,7 +25,7 @@ Korrekturtabellen). Reihenfolge unveraendert.
 - Zeile 190: ## Entscheidungen des Directors (2026-09-01)
 - Zeile 218: ## Offene Frage an den `architect`
 - Zeile 227: ## Was in T-007 gehalten hat
-- Zeile 238: ## Nachmessung OF-7 (2026-09-01, Save 76561198179244962)
+- Zeile 238: ## Nachmessung OF-7 (2026-09-01, Save <Konto-A>)
 - Zeile 249: ## Nicht getestet
 - Zeile 261: ## T-015: Ursache tiefer gelegt als beauftragt (2026-09-02)
 - Zeile 284: ### Entscheidungen des Directors dazu
@@ -243,7 +243,7 @@ darauf optimieren.**
 - `damage.py` ist Qt-frei — importiert ohne PySide6. AD-005 erfuellt.
 - QSettings-Umleitung haelt: 0 Schluessel im Teststore, echter Store unberuehrt.
 
-## Nachmessung OF-7 (2026-09-01, Save 76561198179244962)
+## Nachmessung OF-7 (2026-09-01, Save <Konto-A>)
 
 - Vier Farbklassen: Red 75 / Blue 83 / Yellow 81 / Green 70 (309 Relikte).
   Weiss ist **keine Relikt-Farbe**, sondern eine Eigenschaft des *Slots*.

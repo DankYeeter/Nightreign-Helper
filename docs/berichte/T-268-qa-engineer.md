@@ -13,7 +13,7 @@ naechsten Lauf fortgeschrieben werden.
 "Nightreign Helper 1.12.1". Umgebung: `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-268qa`,
 eigenes `LOCALAPPDATA`/`APPDATA`/`USERPROFILE` im Scratchpad, Testabzug (841
 Dateien) hineinkopiert, eingefrorene Savekopie unter
-`<scratch APPDATA>\Nightreign\76561198179244962\NR0000.sl2`. Einzige
+`<scratch APPDATA>\Nightreign\<Konto-A>\NR0000.sl2`. Einzige
 Fensterinstanz (`tasklist` vor dem Start leer, PID 32912 danach eindeutig).
 
 ## Fertig geprueft (alle bestanden)

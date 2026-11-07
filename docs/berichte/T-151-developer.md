@@ -71,8 +71,8 @@ echten `.sl2` auf dieser Maschine. Verglichen wird je Record
 
 ```
 dataset: 849 relic ids, largest 2013322, mode chosen for it: fast
-%APPDATA%\Nightreign\76561198073567627\NR0000.sl2   19531312 B
-%APPDATA%\Nightreign\76561198179244962\NR0000.sl2   19531312 B
+%APPDATA%\Nightreign\<Konto-B>\NR0000.sl2   19531312 B
+%APPDATA%\Nightreign\<Konto-A>\NR0000.sl2   19531312 B
 -> 28 decrypted slots, 39060416 bytes
 
   NR0000.sl2/USER_DATA000: 234 fast / 234 slow -> equal

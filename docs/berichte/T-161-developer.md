@@ -131,7 +131,7 @@ Nachbarwert):
 Struktureigenschaft: BND4-Mitglieder sind disjunkte Spannen des Containers,
 also kann ihre Summe die Containergroesse nicht ueberschreiten. Gemessen an
 der Grundgesamtheit, die es gibt — **beide** echten Spielstaende dieser
-Maschine, `76561198073567627` und `76561198179244962`, je 19 531 312 Byte:
+Maschine, `<Konto-B>` und `<Konto-A>`, je 19 531 312 Byte:
 14 Mitglieder, Summe **19 530 432** Byte = **99,9955 %** der Datei; die
 restlichen 880 Byte sind Kopf und Namenstabelle. Der Sicherheitsabstand ist
 also **null Byte nach oben und 880 Byte nach unten** — enger geht die
@@ -400,8 +400,8 @@ lesend), muss man aber wissen, sonst haelt man die Umlenkung fuer wirkungslos.
 
 | Datei | vorher | nachher |
 |---|---|---|
-| `…\76561198073567627\NR0000.sl2` | 19 531 312 B, sha256 `884c16fd307f838f…` | **identisch** |
-| `…\76561198179244962\NR0000.sl2` | 19 531 312 B, sha256 `53c7edf21363d0b1…` | **identisch** |
+| `…\<Konto-B>\NR0000.sl2` | 19 531 312 B, sha256 `884c16fd307f838f…` | **identisch** |
+| `…\<Konto-A>\NR0000.sl2` | 19 531 312 B, sha256 `53c7edf21363d0b1…` | **identisch** |
 
 ## Was am Ende im Baum steht
 
