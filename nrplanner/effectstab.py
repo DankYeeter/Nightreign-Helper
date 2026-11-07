@@ -428,6 +428,11 @@ class EffectTable(QTableWidget):
     def _description_column(self) -> int:
         return self.columnCount() - 1
 
+    def _cap(self, column: int) -> int:
+        # The four gems must not cost the colour names their room.
+        return self.OTHER_CAP + (4 * iconpack.INLINE_ICON
+                                 if column == COL_COLOURS else 0)
+
     def _others(self) -> range:
         return range(1, self._description_column)
 
@@ -600,7 +605,7 @@ class EffectTable(QTableWidget):
         suite's offscreen font puts `Comes with curse`.
         """
         floors = self.NAME_FLOOR + self.DESCRIPTION_FLOOR
-        widest = floors + sum(min(self._natural[column], self.OTHER_CAP)
+        widest = floors + sum(min(self._natural[column], self._cap(column))
                               for column in self._others())
         best = self.headings_as_drawn(self.column_widths(widest))
         narrowest = widest
@@ -643,7 +648,7 @@ class EffectTable(QTableWidget):
         edge is not a trade worth making.
         """
         floors = self.NAME_FLOOR + self.DESCRIPTION_FLOOR
-        wanted = {column: min(self._natural[column], self.OTHER_CAP)
+        wanted = {column: min(self._natural[column], self._cap(column))
                   for column in self._others()}
         # The label columns give way before the two floors do. That is AK-77's
         # order, and it is why every cell carries its own text as a tooltip:
