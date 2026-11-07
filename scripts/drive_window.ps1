@@ -6,11 +6,16 @@
 #   $m = Main; Dump $m                          # UIA-Baum des Hauptfensters
 #   Click ((Els $m '^Optimize$' 'Button')[0])    # UIA-Muster, kein Fokus, keine Maus
 #   Shot $m out.png                              # PrintWindow-Bildnachweis
+#   $f = OpenFilters; Search $f 'each'           # Zeile sichtbar machen
+#   SetStacks $f 'Night Invader' '2'; Reg        # Stacks-Feld setzen, Wert lesen
 #
 # Standard (T-333a): der Treiber nimmt weder das Vordergrundfenster noch den
 # Mauszeiger. Click/ClickAt druecken ueber UIA-Muster (Invoke, Toggle,
 # SelectionItem, ExpandCollapse); hat das Ziel keines, melden sie "NO PATTERN"
 # und tun nichts. SetText setzt den Wert ohne SetFocus; Fg prueft nur noch.
+# SetStacks schickt Klick und Tasten per PostMessage ans Fenster: die Felder
+# erreicht UIA nicht (QA-338). Der Mauszeiger bleibt; ob das Fenster dabei den
+# Vordergrund nimmt, war nicht messbar (T-336e: es hielt ihn schon vorher).
 # Gemessen (T-333a): das Programm selbst aktiviert sein Fenster, sobald ein
 # UIA-Muster darauf wirkt und Windows es zulaesst - der Treiber allein haelt
 # den Fokus des Nutzers also noch nicht (docs/tasks/T-333.md).
@@ -56,6 +61,8 @@ public class W4 {
     [DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr ctx);
     [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
     [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(POINT p);
+    [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l);
+    [DllImport("user32.dll")] public static extern bool ScreenToClient(IntPtr h, ref POINT p);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
@@ -187,7 +194,40 @@ function ClickCell($f, $nameRegex, $col) {
     Fg $f | Out-Null
     return ("row " + $nameRegex + " col $col " + (ClickAt ($b.X + 12) ($b.Y + $b.Height/2)))
 }
-function Reg { $k = "HKCU:\Software\$script:Org\NightreignHelper"; if (Test-Path $k) { $p = Get-ItemProperty "$k\advisor" -ErrorAction SilentlyContinue; if ($p) { foreach ($n in @("excluded","required","allowed","avoided_families")) { "  advisor/$n = [" + ($p.$n -replace "`n", " ; ") + "]" } } else { "  no advisor key" } } else { "  no org key" } }
+function PostClick($w, $x, $y) {
+    $h = [IntPtr]$w.Current.NativeWindowHandle
+    $pt = New-Object W4+POINT; $pt.X = [int]$x; $pt.Y = [int]$y
+    [W4]::ScreenToClient($h, [ref]$pt) | Out-Null
+    $at = [IntPtr](($pt.Y -shl 16) -bor ($pt.X -band 0xffff))
+    [W4]::PostMessage($h, 0x0200, [IntPtr]::Zero, $at) | Out-Null; Start-Sleep -Milliseconds 40
+    [W4]::PostMessage($h, 0x0201, [IntPtr]1, $at) | Out-Null; Start-Sleep -Milliseconds 30
+    [W4]::PostMessage($h, 0x0202, [IntPtr]::Zero, $at) | Out-Null; Start-Sleep -Milliseconds 300
+}
+function PostKey($w, $vk) {
+    $h = [IntPtr]$w.Current.NativeWindowHandle
+    [W4]::PostMessage($h, 0x0100, [IntPtr][int]$vk, [IntPtr]1) | Out-Null
+    [W4]::PostMessage($h, 0x0101, [IntPtr][int]$vk, [IntPtr]0xC0000001L) | Out-Null
+    Start-Sleep -Milliseconds 50
+}
+function PostText($w, $text) {
+    $h = [IntPtr]$w.Current.NativeWindowHandle
+    foreach ($c in $text.ToCharArray()) { [W4]::PostMessage($h, 0x0102, [IntPtr][int]$c, [IntPtr]1) | Out-Null; Start-Sleep -Milliseconds 120 }
+}
+function Search($f, $text) { SetText ((Els $f "" "Edit")[0]) $text }
+function SetStacks($f, $nameRegex, $text) {
+    # The row must be on screen: Search first. No End or Home key: on a row without a
+    # field they move the tree and its focus to another row's field. Read the result with Reg.
+    $r = FindRow $f $nameRegex
+    if ($r -eq $null) { return "ROW NOT FOUND $nameRegex" }
+    $b = $r.Cells[3].Current.BoundingRectangle
+    PostClick $f ($b.X + 12) ($b.Y + $b.Height/2)
+    for ($i = 0; $i -lt 8; $i++) { PostKey $f 0x2E; PostKey $f 0x08 }
+    Start-Sleep -Milliseconds 300
+    PostText $f $text
+    Start-Sleep -Milliseconds 300
+    return "row $nameRegex stacks '$text'"
+}
+function Reg { $k = "HKCU:\Software\$script:Org\NightreignHelper"; if (Test-Path $k) { $p = Get-ItemProperty "$k\advisor" -ErrorAction SilentlyContinue; if ($p) { foreach ($n in @("excluded","required","allowed","avoided_families","stacks")) { "  advisor/$n = [" + ($p.$n -replace "`n", " ; ") + "]" } } else { "  no advisor key" } } else { "  no org key" } }
 function OpenFilters { $f = TopWin "Effect filters*"; if ($f -eq $null) { Invoke-El ((Els (Main) "^Filters$" "Button")[0]); Start-Sleep -Milliseconds 1500; $f = TopWin "Effect filters*" }; return $f }
 function CloseWin($w) { $w.GetCurrentPattern([System.Windows.Automation.WindowPattern]::Pattern).Close(); Start-Sleep -Milliseconds 800 }
 function Optimize {
