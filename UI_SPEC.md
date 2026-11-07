@@ -9595,3 +9595,107 @@ Kopf dieses Nachtrags sind erledigt.
   Risiken), ohne Rueckfrage, rueckholbar nur ueber `Undo apply` (AK-454). Der `architect`
   bestaetigt, dass Undo das voll abdeckt; sonst braucht der Knopf eine Bestaetigung, wenn
   das Zielgefaess an diesen Stellen gespeicherte Relikte hat.
+
+#### Nachtrag A28-3 (ui-ux-designer), 2026-11-07 — Angleichung an den Code (HEAD 05f946c), AK-466 bis AK-468 (Spec-Modus)
+
+*Quellen: `effectfilterdialog.py` (HEAD), `advisor/explain.py`, `advisor/types.py`,
+`effecttext.py:439`, `ARCHITECTURE.md` AD-062.7/.8, `GOAL.md` A28 (letzter Punkt, "Fremde
+Favoriten", Nutzer, 07.11.2026). **Nur festgehalten, was im Code steht; kein neuer
+Entwurf, kein Fensterlauf.** Naechste freie AK: AK-469. Wortlaute unten sind aus dem Code
+uebernommen und massgeblich, sobald Code und Spec so stehen.*
+
+**Gilt statt:**
+
+| Stelle | Ersetzt durch |
+|---|---|
+| AK-445 `MARKS_EXPLANATION` (Wortlaut im Nachtrag A28) | AK-445 unten |
+| AK-446 `FAVOURITE_TOOLTIP` ("bleiben" in A28) | AK-446 unten; `AVOID_TOOLTIP`, `FAMILY_AVOID_TOOLTIP`, `ALLOW_TOOLTIP` unveraendert |
+| AK-383 (nur die Waffenart-Zeile) | AK-383 unten: drei Ursachen statt einer |
+| AK-454 letzter Punkt ("`Undo apply` stellt die Slots ... her") | AK-454 unten: auch die Hand |
+| AK-456 Zeile `PIN_OTHER_PIN` | AK-456 unten: zwei Fassungen |
+| AK-461 "Nicht festgelegt: ein per `Reject` abgelehntes Relikt" | AK-467 |
+| AK-440 Satz "Effekt-Favourite ... gelten fuer jeden Nightfarer" | AK-445 und AK-468 |
+
+**AK-445 (Wortlaut HEAD).** `MARKS_EXPLANATION`, woertlich: `Favourite: every suggestion for
+this Nightfarer must carry this effect, if it can. Avoid: no suggestion uses a relic that
+carries it — on a family header, every member below, unless one is set to Allow. Allow lets
+that one member back in without allowing the rest of the family. These marks apply to every
+Nightfarer; an effect that only works for another Nightfarer is ignored here. They are
+separate from the ★ you can give a relic in the relic picker: that is per Nightfarer, and
+Optimize puts a favourited relic in when it fits.` `OPENING_SIZE` ist `(608, 707)` (Kommentar
+im Code: die Saetze zu fremden Marken kosten 26 px, die Baumhoehe 449 px bleibt, offscreen,
+Fusion, 07.11.2026).
+- Akzeptanz: der Wortlaut steht einmal im Code (`rg 'must carry this effect, if it can'`
+  trifft Legende und Tooltip, `guide.md` zitiert ihn woertlich); die Baumhoehe bleibt 449 px.
+
+**AK-446 (Wortlaut HEAD).** `FAVOURITE_TOOLTIP` = `Every suggestion for this Nightfarer must
+carry this effect, if it can.` Die uebrigen drei Tooltips wie in A28.
+
+**AK-383 (Erweiterung, Wortlaut HEAD).** Neben dem Waffenzahl-Satz des Nachtrags gibt es zwei
+weitere Zeilen fuer einen favorisierten Effekt, der in der Rechnung nichts bewegt
+(`explain._silent_effect`, Pruefung vor allem anderen):
+- Effekt eines anderen Nightfarers (`problem.favourites_of_others`, `silence` =
+  `SILENT_ANOTHER_NIGHTFARER`): `{name}: you favourited it, but it only works for
+  {nightfarer}, so it moves no number.` `{nightfarer}` = Besitzer laut `effecttext.owner`,
+  fehlt er: `another Nightfarer`.
+- Effekt, der auf den Gegner wirkt (`model.ON_THE_ENEMY_EFFECT_IDS`, `silence` =
+  `SILENT_REQUIRED_OTHER_TYPE`): `{name}: you favourited it, but it acts on the enemy, so it
+  moves no number.`
+- Beide gehen vor dem Waffenzahl-Satz und vor `_marked_line`.
+- Akzeptanz: je Zeile ein Fall mit dem Satz wortgleich; ein gezaehlter Favourite traegt
+  weiter AK-290.2.
+
+**AK-454 (Erweiterung: die Hand, `ARCHITECTURE.md` AD-062.8).** Die Hand (Schalter
+Ein-/Zweihand, `two_handed`) gehoert zur Frage einer Zeile und zum gespeicherten Gefaess:
+- `Switch to it` nimmt die Hand der Frage mit; geschrieben wird sie nur, wenn ein
+  `Undo apply` moeglich ist (mit uebertragenen Holds sofort, ohne beim Anwenden).
+  `Undo apply` stellt die Hand mit her, zusammen mit Slots, Holds und Rejects.
+- Der gewoehnliche Zeilenklick nimmt nichts mit, auch die Hand nicht; das gefragte Gefaess
+  selbst oeffnet nur. Ein Klick in ein Gefaess mit anderer gespeicherter Hand ist ein
+  Fehlschlag, die Leiste steht auf 4.1.
+- Vor dem Uebertragen prueft `Switch to it` den Treffer (`comparison_knows`); ohne Treffer
+  wechselt es nur und ueberschreibt nie Slots ohne `Undo apply`.
+- Akzeptanz: Test "Vorschlag mit anderer Hand, `Switch to it`, `Undo apply`": Hand und
+  Slots danach wie davor; Zeilenklick aendert die Hand nicht.
+
+**AK-456 (Erweiterung `PIN_OTHER_PIN`, Wortlaut HEAD).** Ist das andere favorisierte Relikt
+dasselbe Relikt (`left.other == left.name`, zwei Kopien), lautet der Grund `another
+favourited copy takes the only slot it could use`; sonst wie in AK-456 (`“{other}” is
+favourited too and takes the only slot it could use`).
+
+**AK-466 Zeilen am gehaltenen Relikt und am Gegner (Wortlaut HEAD).**
+- Avoid am gehaltenen Relikt (`explain.avoided_on_a_hold`, neben der Zeile der gehaltenen
+  Slots): `{relic}, held in Slot {n} — {name}: you avoided it. This relic is in the build
+  because you chose it, and the effect is left out of the figure.` Der zweite Teil ist AK-458
+  wortgleich; `{n}` zaehlt ab 1. Ein Vorschlag bietet nie eine Kopie mit vermiedenem Effekt an
+  (AD-057), die Zeile erscheint darum nur am eigenen, gehaltenen Relikt.
+- Favourite am gehaltenen Relikt (`required_met_by_a_hold`, A19): `{name}, which you
+  favourited, is carried by {relic} held in Slot {n}.` (mehrere Traeger mit Komma).
+- Effektbeschreibung eines Effekts auf den Gegner (`effecttext`, `ON_THE_ENEMY_EFFECT_IDS`):
+  der Text beginnt mit `On the enemy: `, danach die Werte; der Effekt zaehlt nie in eigene
+  Summen (`is_conditional` ist immer wahr).
+- Akzeptanz: je Satz ein Fall wortgleich; `rg 'because you kept it'` trifft nichts.
+
+**AK-467 Saetze fuer abgelehnte Traeger (`explain._every_copy_turned_down`, Wortlaut
+HEAD).** Betrifft `required_but_unmet`, wenn der Spieler Kopien besitzt und **jede**
+abgelehnt oder vermieden ist; Anfang jeweils `You own {n} copy/copies carrying “{effect}”,
+which you favourited, but ` und `{it}` = `it` bei einer Kopie, sonst `them`:
+- nur Avoid (AK-461): `{it|each} also carries an effect you avoided: {names}. Remove the avoid
+  under Filters to use {it}.` (`it` bei einer Kopie, `each` sonst)
+- nur `Reject`: `you rejected {it} for this build. Use Suggest again to bring {it} back.`
+- gemischt: `each is rejected for this build or also carries an effect you avoided:
+  {names}. Use Suggest again, or remove the avoid under Filters, to use them.`
+- `{names}`: hoechstens zwei, dann `and {n} more` (AK-457). Ist eine Kopie nur nicht passend
+  (nicht abgelehnt), steht der Bestandssatz `none fits the open slots`.
+- Akzeptanz: je Satz ein Fall wortgleich; jeder nennt den Weg zurueck (`Suggest again` bzw.
+  `Filters`).
+
+**AK-468 Favourites anderer Nightfarer (Nutzer, `GOAL.md` A28 letzter Punkt, 07.11.2026).**
+Ein Effekt-Favourite eines anderen Nightfarers wird beim aktuellen Helden ignoriert: er
+bekommt keinen Slot, zaehlt nicht als fehlend (weder in `{n} favourite(s) missing`, AK-452/465,
+noch in der Leistenklausel, AK-455, noch in `Misses:`) und bindet den Vorschlag nicht. Die
+Marke bleibt gespeichert und gilt wieder beim anderen Nightfarer. Sichtbar wird das an drei
+Stellen: der Legende (AK-445), dem Tooltip (AK-446) und der Why-Zeile aus AK-383. Das
+Handbuch (`guide.md`) sagt es in einem Satz.
+- Akzeptanz: ein Favourite eines anderen Nightfarers aendert Vorschlag, Rang und Zaehler
+  nicht; die Marke ist nach Wechsel des Nightfarers noch da.
