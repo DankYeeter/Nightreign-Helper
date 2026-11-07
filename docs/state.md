@@ -1,5 +1,14 @@
 # Stand
 
+2026-11-07, **T-336 fertig: Spalte Stacks im Effekt-Filter von Optimize, 0 bis 10
+(`10e2c07`, Treiber `a56af52`), Nachtest T-336g im Fenster bestanden; kein neues Artefakt,
+kein Release, UI_SPEC AK-469 bis AK-473.** Offen: QA-339 (P4, `CountLine`); A6 am
+Zielgeraet nicht gemessen (hier leer bis 2,27 s, Stacks 10 bis 3,67 s, auf dem Zielgeraet
+hochgerechnet ueber 6 s auch ohne Stack-Wert, nur gerechnet); Zeilenhoehe der Felder (1,5-fach),
+Geschmacksfrage an den Nutzer; ×-Zahl der Statistik-Seite ohne Grenze. Registry-Vorfall
+07.11.: `HKCU\Software` teilweise geloescht, aus der Schattenkopie von 08:23 wiederhergestellt,
+Schluessel gegen die Liste geprueft (1348 von 1348).
+
 2026-10-31 19:08, **Zyklus 34 (T-335) freigabebereit: Exe 1.19.0 aus `995039b`
 (59 233 901 B, SHA-256 `b479a9bb…`), QA T-335qa4 PASS, Security PASS,
 clean-room T-335cr PASS (`46b7b3c`); Tag `v1.19.0`, Release, PR folgen.**

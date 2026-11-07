@@ -9622,7 +9622,8 @@ carries it — on a family header, every member below, unless one is set to Allo
 that one member back in without allowing the rest of the family. These marks apply to every
 Nightfarer; an effect that only works for another Nightfarer is ignored here. They are
 separate from the ★ you can give a relic in the relic picker: that is per Nightfarer, and
-Optimize puts a favourited relic in when it fits.` `OPENING_SIZE` ist `(608, 707)` (Kommentar
+Optimize puts a favourited relic in when it fits.` `OPENING_SIZE` ist `(608, 707)` [**veraltet,
+korrigiert T-336f 2026-11-07: jetzt `(702, 733)`, siehe AK-469 bis AK-473**] (Kommentar
 im Code: die Saetze zu fremden Marken kosten 26 px, die Baumhoehe 449 px bleibt, offscreen,
 Fusion, 07.11.2026).
 - Akzeptanz: der Wortlaut steht einmal im Code (`rg 'must carry this effect, if it can'`
@@ -9699,3 +9700,85 @@ Stellen: der Legende (AK-445), dem Tooltip (AK-446) und der Why-Zeile aus AK-383
 Handbuch (`guide.md`) sagt es in einem Satz.
 - Akzeptanz: ein Favourite eines anderen Nightfarers aendert Vorschlag, Rang und Zaehler
   nicht; die Marke ist nach Wechsel des Nightfarers noch da.
+
+#### Nachtrag T-336f (ui-ux-designer), 2026-11-07 — Spalte `Stacks` im Effektfilter, AK-469 bis AK-473 (Spec-Modus, nur nachgetragen)
+
+*Quellen: `nrplanner/effectfilterdialog.py` und `nrplanner/effectfilters.py` (HEAD `10e2c07`),
+`nrplanner/advisorblock.py:105`, `advisor/explain.py:691`, `docs/berichte/T-336-qa-engineer.md`,
+Nutzerentscheidungen vom 07.11.2026 (Auftrag T-336, T-336b, T-336d). **Gebaut und entschieden;
+kein Umbau, kein Programmlauf.** Erweitert §3.6 (AK-304: aus fuenf werden sieben Spalten).
+Wortlaute sind aus dem Code uebernommen und massgeblich. Naechste freie AK: AK-474.*
+
+**AK-469 Die Spalte.** Die Tabelle hat sieben Spalten: `Favourite`, `Avoid`, `Allow`, **`Stacks`**,
+`Name`, `Type`, `Copies`. `Stacks` steht zwischen `Allow` und `Name`.
+- Ein Eingabefeld (`QLineEdit`, mittig, feste Breite 42 px, `STACKS_FIELD_WIDTH`) steht nur in
+  Zeilen eines Stack-Effekts (`model.accumulates`; im Spielstand der QA-Messung 7 von 343 Zeilen).
+  Alle anderen Zeilen, Familienkopfzeilen und Fluchzeilen haben in der Spalte nichts, kein
+  deaktiviertes Feld.
+- Zugaenglicher Name des Feldes: `Stacks: {Effektname}`.
+- Akzeptanz: eine Zeile mit `model.accumulates(effect)` hat ein Feld, jede andere keins; die
+  Kopfzeile heisst `Stacks`; die Reihenfolge der Spaltenkoepfe ist wortgleich die obige.
+
+**AK-470 Eingabe, Grenzen, Fehlerzustand.** Gueltig ist eine ganze Zahl von 0 bis 10
+(`effectfilters.MOST_STACKS = 10`, Nutzer 07.11.2026), in ASCII-Ziffern, hoechstens zwei Zeichen.
+- Das Feld hat keinen Validator; ein Text wird so stehen gelassen, wie er getippt ist. Ein Text,
+  der keine gueltige Zahl ist (`11`, `100`, `2.5`, `-1`, Buchstaben, Leerzeichen), wird in `BAD`
+  (`#d1655f`, bestehender Token) gefaerbt und **zaehlt als leer**; er wird nie still zu einer anderen
+  Zahl. `07` ist gueltig und gilt als 7. Ein leeres Feld ist gueltig und heisst "kein Wert".
+- Gespeichert wird bei jedem Tastendruck (`textEdited`), nicht erst bei Enter oder Fokusverlust:
+  ein Wert, der getippt und durch X oder Esc stehen gelassen wird, bleibt. Enter schliesst das
+  Fenster nicht.
+- Speicher: fester Schluessel `advisor/stacks`, Wert `id=zahl,id=zahl`; eine beschaedigte oder
+  ausserhalb 0 bis 10 liegende Angabe liest sich als leer, nie als Fehler (gespeichertes `11` = leer).
+- Akzeptanz: `10` gilt, `11` ist rot und zaehlt als leer; `0` bleibt 0 (nicht leer); `07` wird 7, `007` ist rot und zaehlt als leer;
+  nach Neustart stehen die Werte unveraendert da; ein gespeichertes `11` zeigt ein leeres Feld.
+
+**AK-471 Bedeutung und Geltung.** Der Wert gilt fuer **Optimize und die Zahlen des Relikt-Pickers**
+(Nutzer 07.11.2026, QA-335), **nicht** fuer die Statistik-Seite; sie bleibt unveraendert.
+Rangfolge fuer den Zaehlwert eines Stack-Effekts: Filterwert, sonst die ×-Zahl der Statistik-Seite
+(wenn der Effekt dort abgehakt ist), sonst 1. `0` heisst: der Effekt zaehlt nicht.
+- Eine Aenderung wirft eine vorhandene Antwort weg (`EffectFilters.changed`), eine laufende
+  Rechnung meldet AK-289; der Folgelauf rechnet mit dem neuen Wert.
+- Why: steht mindestens ein Filterwert fuer einen Stack-Effekt, den die Frage verwendet, nennt der
+  Dialog ihn unter der Ueberschrift `Stacks you set in the effect filter:`, eine Zeile je Effekt.
+  Bei `0` sagt die Why-Zeile `{name}: you set its stacks to 0, so it is not counted.`, auch bei
+  Favourite.
+- Akzeptanz: bei Filterwert 2 rechnet Optimize mit zwei Stacks und die Why-Ueberschrift steht da;
+  bei Filterwert 2 und ×3 auf der Statistik-Seite gilt 2, die Statistik-Seite zeigt weiter ×3.
+
+**AK-472 Sortieren, Suche, Tastatur.**
+- Klick auf den Kopf `Stacks` sortiert nach dem Wert; Zeilen ohne Wert (leer oder ungueltig) stehen
+  vor `0`, ein Feld bleibt an seiner Zeile. Zeilen ohne Feld sortieren wie leere. Es wird nicht
+  waehrend des Tippens umsortiert (AK-308 Nachtrag gilt fort).
+- Die Suche (AK-306) blendet Zeilen aus und ein; der Wert bleibt erhalten.
+- Tab: `Favourite`, `Avoid`, (`Allow`), `Stacks`, dann die naechste Zeile.
+- Akzeptanz: Sortieren nach `Stacks` auf und ab laesst 0 Felder an einer falschen Zeile; Tab laeuft
+  in der genannten Reihenfolge; ein Wert ueberlebt Suchen und Sortieren.
+
+**AK-473 Legende, Tooltip, Fenstergroesse.**
+- `STACKS_TOOLTIP` (wortgleich): `How many stacks Optimize and the relic picker's figures count, a
+  whole number from 0 to 10; 0 leaves this effect out. Empty: the count ticked on the stat sheet,
+  otherwise 1. Anything else turns red and counts as empty. The stat sheet itself does not change.`
+- `MARKS_EXPLANATION` endet mit (wortgleich): `Stacks: how many stacks Optimize and the relic
+  picker's figures count for an effect that stacks, not the stat sheet; 0 does not count it, empty
+  uses the count ticked on the stat sheet, otherwise 1.`
+- `OPENING_SIZE` = `(702, 733)` (Kommentar im Code: offscreen, Fusion, 339 Zeilen, 07.11.2026; die
+  Spalte `Stacks` kostet 94 px Breite, der laengere Satz 26 px Hoehe, die Baumhoehe bleibt
+  449 px). Im echten Fenster bestaetigt QA die Breite 702 logisch (702 / 877 / 1053 px physisch bei
+  100 / 125 / 150 %), kein waagerechter Rollbalken.
+- Akzeptanz: beide Saetze stehen je einmal im Code und nennen keine andere Grenze als 10;
+  das Fenster oeffnet ohne waagerechten Rollbalken.
+- **Abweichung zu AK-445, nur gemeldet:** der Wortlaut dort (`These marks apply to every
+  Nightfarer; an effect that only works for another Nightfarer is ignored here.`) lautet im Code
+  seit `114d0a1` `These marks are saved for every Nightfarer; one that only works for another
+  Nightfarer is ignored here.` Der Code-Wortlaut gilt; AK-445 wird hiermit so gelesen.
+
+**Befund, ohne Vorgabe (Zeilenhoehe).** Zeilen mit Stacks-Feld sind 1,5-mal so hoch wie die
+uebrigen (QA, physisch 16/24 px bei 100 %, 20/30 bei 125 %, 24/36 bei 150 %). Das ist ein
+Konsistenzbruch in der Liste, kein Bruch der Bedienbarkeit (**Wichtig**; Messwerte aus dem
+QA-Bericht, hier nicht nachgemessen). Richtung: Feldhoehe an die Zeilenhoehe angleichen (Rand
+und Innenabstand des Feldes verkleinern, Feld nicht hoeher als Kontrollkaestchen). Nicht
+spezifiziert: ob ein dichteres Feld lesbar bleibt, entscheidet der App Designer.
+
+**Nicht Teil dieser Vorgabe:** eine Grenze fuer die ×-Zahl der Statistik-Seite; ein Pfeil- oder
+Drehfeld; ein Hinweistext im Fehlerfall ausser der roten Schrift.
