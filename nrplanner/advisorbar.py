@@ -586,13 +586,13 @@ def _without_relics(base_figure: str) -> str:
 
 
 def _difference(best: types.VesselRow, here: types.VesselRow) -> str:
-    """AK-449 `{difference}`, or empty where it would read `0`."""
-    gap = abs(best.value - here.value)
+    """AK-449 `{difference}`, or empty where it would read `0`: of the numbers
+    on screen, so that `118` beside `113` reads `5` (QA-333)."""
+    gap = abs((_shown(best.figure) or 0.0) - (_shown(here.figure) or 0.0))
     if "×" in _number_of(best.figure):
         said = f"{gap:.2f}"
         return "" if float(said) == 0 else said
-    whole = damage.displayed(gap)
-    return str(whole) if whole else ""
+    return f"{gap:.0f}" if gap else ""
 
 
 def _names_cut(names, most: int) -> str:
