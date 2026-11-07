@@ -6,41 +6,48 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
-### Added
-- Optimize can ask the same question about every vessel of the Nightfarer and
-  rank them: favourite effects met, then favourite relics, then the figure.
-- After a suggestion, the other vessels are compared in the background; nothing
-  waits for it, and a new question or closing the window stops it.
-- The vessel list shows each vessel's figure and marks the best one; Switch to it
-  opens it with its suggestion and brings held relics and rejections along.
-- The filter window, its tooltips and Why now say what Avoid and the favourite
-  star really do, and a favourite that went missing says how to get it back.
+## [1.21.0] - 2026-11-07
 
 ### Changed
-- Optimize no longer suggests a relic that carries an effect or curse you
-  marked Avoid; a relic you hold or place yourself stays where you put it.
+- **Avoid now keeps the relic out of Optimize's suggestions.** Before, Avoid
+  only counted against a relic; now a relic carrying an effect or curse you
+  marked Avoid is never suggested. A relic you hold or place yourself stays
+  where you put it. If you want such a relic back in suggestions, set the
+  effect to Allow again.
+- **A star on a relic now means "must go in, if it fits".** Until now the star
+  only sorted the picker. After this update every star you have already set
+  also steers Optimize: a favourited relic goes into the suggestion when the
+  chalice can hold it. Nothing is changed in your saved data; remove a star to
+  go back to the old behaviour. When not every starred relic fits, the
+  suggestion still comes, the status line counts the ones it could not place,
+  and Why names each with its reason.
 - A favourited effect no longer blocks a suggestion: Optimize carries every
   favourite the chalice can hold, fills the other slots, and Why names the
-  rest.
-- A slot Optimize leaves empty now shows NO SUGGESTION with the reason, and
-  the status line names it.
-- The advisor works out which relics you favourited fit a chalice before it
-  searches the other slots, and why the rest do not.
-- A relic you favourited for a Nightfarer now goes into Optimize's suggestion
-  when it fits; the status line counts favourites it could not honour and Why
-  names each with its reason.
-- Each effect and curse in a suggestion has an X that avoids it and asks again;
-  Reject turns down a relic for this build, and the list under the advisor bar
-  gives it back.
+  rest. A slot Optimize leaves empty shows NO SUGGESTION with the reason.
+- Effects that land on the enemy no longer count as your own build's. They are
+  listed as "On the enemy" and move no figure (see Fixed).
+
+### Added
+- Every effect and curse in a suggestion has an X that sets it to Avoid and
+  asks again. Reject turns down a relic for this build only; the list under
+  the advisor bar gives it back.
+- Every Optimize now compares all vessels of the Nightfarer in the
+  background: nothing waits for it, and a new question or closing the window
+  stops it. The vessel list shows each vessel's figure and marks the best one
+  (most favourite effects met, then favourite relics, then the figure);
+  Switch to it opens that vessel with its suggestion and brings held relics
+  and rejections along.
+- The filter window, its tooltips and Why now say what Avoid and the star
+  really do, and a favourite that went missing says how to get it back.
 
 ### Fixed
 - The program could crash at the moment a background search or a save read
   ended. The more vessels were compared, the more often that moment came.
+- Effects that land on the enemy no longer count as your own. "[Raider] Hit
+  With Character Skill to Reduce Enemy Attack Power" lowered your attack
+  rating; it and the others of its kind now say "On the enemy".
 - Undo apply on a vessel that was empty no longer leaves the applied build
   stored for that vessel.
-- Effects that land on the enemy no longer count as your own. "[Raider] Hit With
-  Character Skill to Reduce Enemy Attack Power" lowered your attack rating; it
-  and the others of its kind now say "On the enemy" and move no figure.
 - Reset Chalice stays on the chalice you reset. It used to open the first
   chalice with its slots empty, and the next relic placed there replaced the
   build stored for that chalice.

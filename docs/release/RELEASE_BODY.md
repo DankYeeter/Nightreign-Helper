@@ -193,3 +193,20 @@ starts there.
   no longer shows stray relic cards beside the
   list when you type into the filter while the list is still filling. The
   data cache is not rebuilt.
+- **1.21.0** — two behaviours change. **Avoid** now keeps a relic out of the
+  relic advisor's suggestions altogether (before, it only counted against the
+  relic); a relic you hold or place yourself stays where you put it. And a
+  **star** on a relic now means "must go in, if it fits": until now it only
+  sorted the picker, and **every star you have already set now steers
+  Optimize after this update**. Your saved data is not changed; remove a star
+  to go back. When not every starred relic fits, the suggestion still comes
+  and Why names the ones left out and the reason. A favourited effect no
+  longer blocks a suggestion either: Optimize carries what the chalice can
+  hold, fills the other slots and names the rest. Every effect line in a
+  suggestion has an **X** (sets it to Avoid and asks again), and **Reject**
+  turns a relic down for this build. Every Optimize also compares all vessels
+  of your Nightfarer in the background and marks the best one. Effects that
+  land on the enemy (for example "[Raider] Hit With Character Skill to Reduce
+  Enemy Attack Power") no longer count against your own build. A crash at the
+  moment a background search or save read ended is fixed. The data cache is
+  not rebuilt; saved builds and favourites are kept.
