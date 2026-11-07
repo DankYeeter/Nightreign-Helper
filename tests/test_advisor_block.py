@@ -346,6 +346,14 @@ def test_the_held_favourite_line_falls_away_with_already_equipped(block):
     assert not block.held_favourite.isVisibleTo(block)
 
 
+def test_no_x_takes_the_focus_while_already_equipped_hides_the_lines(block):
+    """QA-328, AK-426: the focus never falls on nothing."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
+                              already_equipped=True)
+
+    assert block.first_x() is None
+
+
 def test_a_block_put_away_shows_nothing(block):
     """An answer that has gone takes its block with it (AK-12)."""
     block.show_the_suggestion("Maximise damage", a_mixed_group())

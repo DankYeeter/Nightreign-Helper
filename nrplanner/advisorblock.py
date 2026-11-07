@@ -598,8 +598,10 @@ class SuggestionBlock(QFrame):
         target.setFocus(Qt.TabFocusReason)
 
     def first_x(self) -> AvoidButton | None:
-        """Where the focus goes after an X or `Reject` (AK-426)."""
-        return self.drawn_lines[0].avoid if self.drawn_lines else None
+        """Where the focus goes after an X or `Reject` (AK-426): none while
+        `already_equipped` hides the lines, or the focus falls on nothing."""
+        return (self.drawn_lines[0].avoid
+                if self.drawn_lines and self.lines.isVisibleTo(self) else None)
 
     def show_no_suggestion(self, reason: str) -> None:
         """AK-441: this slot has no choice in the answer, and says why.
