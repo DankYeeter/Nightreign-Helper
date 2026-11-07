@@ -2321,7 +2321,9 @@ class Planner(QMainWindow):
 
         Scoped to the vessel on screen now that each keeps its own build --
         clearing every vessel's work from one button would be a far bigger
-        thing than the label promises.
+        thing than the label promises. It stays open: another vessel shown
+        empty would have its stored build written over by the next relic
+        placed (QA-327).
         """
         vessel = self.current_vessel()
         chalices.clear(self.current_hero()["id"],
@@ -2334,12 +2336,6 @@ class Planner(QMainWindow):
             # goes back to `1H` with the slots; left on `2H`, the next relic
             # placed wrote that hand onto the default vessel (QA-272).
             self._set_two_handed(False)
-            # Row 0 is the group caption, which cannot be selected; the first
-            # real vessel is whatever follows it.
-            for i in range(self.chalice_list.count()):
-                if self.chalice_list.item(i).data(Qt.UserRole) is not None:
-                    self.chalice_list.setCurrentRow(i)
-                    break
             self.apply_chalice()
             for slot in list(self.base_slots) + list(self.deep_slots):
                 slot.clear_relic()
@@ -2360,6 +2356,7 @@ class Planner(QMainWindow):
         chalices.set_selected_build(self.current_hero()["id"],
                                     chalices.UNSAVED_NAME)
         self.refresh_build_list(keep=chalices.UNSAVED_NAME)
+        self.advisor_bar.the_comparison_is_out_of_date()
 
     def current_vessel(self) -> dict | None:
         """The vessel selected in the list, ignoring the caption rows."""

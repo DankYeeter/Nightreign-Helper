@@ -38,6 +38,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
   ended. The more vessels were compared, the more often that moment came.
 - Undo apply on a vessel that was empty no longer leaves the applied build
   stored for that vessel.
+- Reset Chalice stays on the chalice you reset. It used to open the first
+  chalice with its slots empty, and the next relic placed there replaced the
+  build stored for that chalice.
 
 ## [1.20.1] - 2026-11-01
 

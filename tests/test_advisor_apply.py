@@ -1218,3 +1218,36 @@ def test_a_switch_from_a_third_row_shows_what_its_row_promised(planner, told):
     planner.chalice_list.setCurrentRow(_row_of(planner, origin["id"]))
     assert planner.active_slots()[0].current_relic().handle == copy.handle
     assert planner.active_slots()[0].hold_button.isChecked()
+
+
+# --- QA-327: Reset Chalice ----------------------------------------------------
+
+def test_a_reset_stays_on_its_vessel_and_leaves_the_others_alone(planner):
+    first, second = planner.hero_vessels[:2]
+    _a_stored_build_in_one_hand(planner, first["id"])
+    _a_stored_build_in_one_hand(planner, second["id"])
+    keys_first = relics.stored_keys(planner, first["id"])
+    planner.chalice_list.setCurrentRow(_row_of(planner, second["id"]))
+
+    planner.reset_chalice()
+
+    assert planner.current_vessel()["id"] == second["id"]
+    assert not any(keys_of(planner))
+    assert not any(relics.stored_keys(planner, second["id"]))
+
+    card = planner.active_slots()[0]
+    relics.equip(card, next(copy for copy in card._holdable()
+                            if copy.handle is not None))
+    assert any(relics.stored_keys(planner, second["id"]))
+    assert relics.stored_keys(planner, first["id"]) == keys_first
+
+
+def test_a_reset_outdates_the_comparison_with_deep_off_too(planner, told):
+    told.value_of.update({run.vessel_slots(vessel, False): 100.0
+                          for vessel in planner.hero_vessels})
+    planner.deep_check.setChecked(False)
+    _compared(planner)
+
+    planner.reset_chalice()
+
+    assert planner.advisor_bar.comparing.state is advisorbar.Compared.OUTDATED

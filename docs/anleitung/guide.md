@@ -76,7 +76,7 @@ survives your save being rewritten — melting an unrelated relic renumbers the
 copies internally, and the roll is what still identifies the one you meant.
 
 **Reset Chalice**, at the top right of the relic slots, empties every slot and
-forgets that chalice's stored build. It is the way back to an empty vessel now
+forgets that chalice's stored build; the chalice stays open. It is the way back to an empty vessel now
 that builds stick, and the build list moves to **Unsaved build** so it is not
 left naming something you have just cleared.
 
