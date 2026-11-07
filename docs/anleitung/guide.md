@@ -459,7 +459,7 @@ game's own per-Nightfarer level tables, not a formula.
 | **Rally recovery** | How much HP a landed hit rallies back. A flat amount, not a share of damage dealt. |
 | **Resistances** | The net change from everything equipped — changes, not totals. |
 | **Multipliers** | Anything applying as a multiplier rather than a flat figure. |
-| **Conditional & situational** | Effects that are not simply on. Each gets a switch, and its numbers join the totals only when you say the condition is met. |
+| **Conditional & situational** | Effects that are not simply on. Each gets a switch, and its numbers join the totals only when you say the condition is met. An effect that stacks also has a box for how many times it holds, up to 99; a larger number becomes 99 when you leave the box. |
 
 **1H / 2H**, the switch beneath the six weapon tiles, decides which hand's
 attack rating **Optimize** and the Advisor's directions count, and whether

@@ -9783,5 +9783,6 @@ QA-Bericht, hier nicht nachgemessen). Richtung: Feldhoehe an die Zeilenhoehe ang
 und Innenabstand des Feldes verkleinern, Feld nicht hoeher als Kontrollkaestchen). Nicht
 spezifiziert: ob ein dichteres Feld lesbar bleibt, entscheidet der App Designer.
 
-**Nicht Teil dieser Vorgabe:** eine Grenze fuer die ×-Zahl der Statistik-Seite; ein Pfeil- oder
+**Nicht Teil dieser Vorgabe:** eine Grenze fuer die ×-Zahl der Statistik-Seite (seit T-336h: 99,
+`statsheet.MOST_COUNT`, Entscheidung des Directors); ein Pfeil- oder
 Drehfeld; ein Hinweistext im Fehlerfall ausser der roten Schrift.

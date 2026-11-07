@@ -14,6 +14,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
   ticked on the stat sheet, otherwise one. The value is saved, changes nothing
   on the stat sheet, and **Why** lists it.
 
+### Changed
+- **The count beside a switch on the stat sheet now stops at 99.** A larger
+  number becomes 99 when you leave the box; a very large one could stop the
+  sheet from drawing.
+
 ### Fixed
 - **Why now shows the whole figure of an effect counted several times.** With a
   count above one, its line named the figure of a single stack.
