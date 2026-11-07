@@ -1748,7 +1748,8 @@ class Planner(QMainWindow):
         self.switch_button.setToolTip(
             "Moves your held relics and rejections to this vessel and replaces "
             "the slots saved there. Undo apply puts them back."
-            if comparing is not None and comparing.carries else
+            if comparing is not None and comparing.carries
+            and self._switch_target != comparing.asked_vessel else
             "Opens this vessel with its suggestion.")
 
     def _vessel_row_chosen(self, *_) -> None:
@@ -1772,7 +1773,8 @@ class Planner(QMainWindow):
         named, in the state its row was compared in, so that the row's figure
         is the figure of the suggestion. That is the holds and rejections of
         the vessel the comparison was asked from, whichever row is open now,
-        and the hand of the question (QA-324).
+        and the hand of the question (QA-324). The asked vessel itself is
+        already in that state: nothing moves, it only opens (QA-330).
 
         Nothing is written without `Undo apply`: without holds or rejections
         the target's stored hand stays until the player applies something.
@@ -1785,7 +1787,9 @@ class Planner(QMainWindow):
         with bar.while_the_player_applies_it():
             if self.current_vessel()["id"] != comparing.asked_vessel:
                 self._open_row(self._row_of_vessel(comparing.asked_vessel))
-            carries = comparing.carries and bar.comparison_knows(vessel["id"])
+            carries = (vessel["id"] != comparing.asked_vessel
+                       and comparing.carries
+                       and bar.comparison_knows(vessel["id"]))
             cards = self._all_slots()
             holds_from, rejects_from = self._hold_key(), self._reject_key()
             holds = self._holds.get(holds_from, {})

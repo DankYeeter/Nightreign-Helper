@@ -1289,3 +1289,38 @@ def test_a_click_shows_no_answer_left_from_a_run_without_the_holds(planner, told
     bar = planner.advisor_bar
     assert bar.answer is None
     assert bar.situation.state is advisorbar.State.NOTHING_YET
+
+
+def test_a_switch_to_the_vessel_that_was_asked_leaves_its_holds_where_they_are(
+        planner, told):
+    """QA-330: the row of the asked vessel carries nothing over, it only opens.
+
+    Laid out anew, a hold on the second slot it fits went to the first, the
+    screen no longer matched the stored build, and there was no `Undo apply`.
+    """
+    asked = planner.hero_vessels[-1]
+    planner.chalice_list.setCurrentRow(_row_of(planner, asked["id"]))
+    slots = run.vessel_slots(asked, True)
+    index, copy = next(
+        (index, copy) for index, card in enumerate(planner.active_slots())
+        for copy in card._holdable() if copy.handle is not None
+        and candidates.place([copy], slots)[0][0][0].index != index)
+    card = planner.active_slots()[index]
+    relics.equip(card, copy)
+    card.hold_button.setChecked(True)
+    keys_before = keys_of(planner)
+    stored_before = relics.stored_keys(planner, asked["id"])
+    _compared(planner)
+    planner.chalice_list.setCurrentRow(_row_of(
+        planner, planner.hero_vessels[0]["id"]))
+    assert planner._switch_target == asked["id"]
+    assert planner.switch_button.toolTip().startswith("Opens this vessel")
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert planner.current_vessel()["id"] == asked["id"]
+    assert planner.held_slot_indices() == {index}
+    assert keys_of(planner) == keys_before
+    assert relics.stored_keys(planner, asked["id"]) == stored_before
+    assert bar.answer is not None and not bar.has_been_applied()
