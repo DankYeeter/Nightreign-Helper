@@ -638,3 +638,6 @@ Entschieden per Fragewerkzeug am 06.11.2026:
   erfuellten Effekt-Favoriten. Innerhalb gleicher Anzahl entscheidet die Zahl
   des gewaehlten Ziels, bei Gleichstand das jeweils andere Ziel (Schaden bzw.
   Abwehr). Stern-Relikte stehen zwischen Favoriten und Zahl (Director).
+- **Fremde Favoriten (Nutzer, 07.11.2026):** Ein Effekt-Favorit eines anderen
+  Nightfarers wird beim aktuellen Helden ignoriert: kein Slot, nicht als fehlend
+  gezaehlt; die Marke bleibt gespeichert.
