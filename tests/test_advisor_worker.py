@@ -877,12 +877,12 @@ def test_known_answer_starts_nothing_on_a_miss(qapp, controller, question):
     """AK-454: opening a vessel never starts a run."""
     inventory, _problem, ctx, request = question
     advisor_controller = controller()
-    assert advisor_controller.known_answer(request, inventory, ctx) is None
+    assert advisor_controller.known_answer(request, inventory) is None
     assert advisor_controller._pending is None
     assert not advisor_controller._timer.isActive()
 
     seen = Recorder(advisor_controller)
     advisor_controller.ask(request, inventory, ctx)
     assert spin(qapp, lambda: bool(seen.ready))
-    known = advisor_controller.known_answer(request, inventory, ctx)
+    known = advisor_controller.known_answer(request, inventory)
     assert known.suggestions == seen.ready[0].suggestions

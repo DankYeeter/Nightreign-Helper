@@ -1627,7 +1627,7 @@ class AdvisorBar(QWidget):
             return False
         asking = self._asking(self.goal_id())
         known = None if asking is None else self._controller.known_answer(
-            asking.request, asking.inventory, asking.ctx)
+            asking.request, asking.inventory)
         if known is None:
             return False
         self._asked = asking
@@ -1642,7 +1642,7 @@ class AdvisorBar(QWidget):
                    else self.comparing.questions.get(vessel_id))
         return (request is not None and asked is not None
                 and self._controller.known_answer(
-                    request, asked.inventory, asked.ctx) is not None)
+                    request, asked.inventory) is not None)
 
     def _the_comparison_begins(self, asking) -> None:
         """AK-453: from the start of a run no old figure stands."""
