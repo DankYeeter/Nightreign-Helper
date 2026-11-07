@@ -6,25 +6,6 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
-### Added
-- **Stacks in the effect filter.** An effect that stacks, such as "Attack power
-  increased for each Night Invader defeated", now has a Stacks field under
-  Filters: Optimize and the figures in the relic picker count it that many
-  times (a whole number from 0 to 10), 0 leaves it out, empty uses the count
-  ticked on the stat sheet, otherwise one. The value is saved, changes nothing
-  on the stat sheet, and **Why** lists it.
-
-### Changed
-- **The count beside a switch on the stat sheet now stops at 99.** A larger
-  number becomes 99 when you leave the box; a very large one could stop the
-  sheet from drawing.
-
-### Fixed
-- **Why now shows the whole figure of an effect counted several times.** With a
-  count above one, its line named the figure of a single stack.
-- **Sorting the effect filter by Type no longer fails** when a family heading is
-  in the list.
-
 ## [1.21.0] - 2026-11-07
 
 ### Changed
@@ -48,8 +29,17 @@ History before 1.10.0 was not reconstructed; this file starts here.
   mark stays.
 - Effects that land on the enemy no longer count as your own build's. They are
   listed as "On the enemy" and move no figure (see Fixed).
+- **The count beside a switch on the stat sheet now stops at 99.** A larger
+  number becomes 99 when you leave the box; a very large one could stop the
+  sheet from drawing.
 
 ### Added
+- **Stacks in the effect filter.** An effect that stacks, such as "Attack power
+  increased for each Night Invader defeated", now has a Stacks field under
+  Filters: Optimize and the figures in the relic picker count it that many
+  times (a whole number from 0 to 10), 0 leaves it out, empty uses the count
+  ticked on the stat sheet, otherwise one. The value is saved, changes nothing
+  on the stat sheet, and **Why** lists it.
 - Every effect and curse in a suggestion has an X that sets it to Avoid and
   asks again. Reject turns down a relic for this build only; the list under
   the advisor bar gives it back.
@@ -76,6 +66,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - Reset Chalice stays on the chalice you reset. It used to open the first
   chalice with its slots empty, and the next relic placed there replaced the
   build stored for that chalice.
+- **Why now shows the whole figure of an effect counted several times.** With a
+  count above one, its line named the figure of a single stack.
+- **Sorting the effect filter by Type no longer fails** when a family heading is
+  in the list.
 
 ## [1.20.1] - 2026-11-01
 

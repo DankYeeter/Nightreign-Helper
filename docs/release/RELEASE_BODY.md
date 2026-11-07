@@ -208,5 +208,9 @@ starts there.
   of your Nightfarer in the background and marks the best one. Effects that
   land on the enemy (for example "[Raider] Hit With Character Skill to Reduce
   Enemy Attack Power") no longer count against your own build. A crash at the
-  moment a background search or save read ended is fixed. The data cache is
-  not rebuilt; saved builds and favourites are kept.
+  moment a background search or save read ended is fixed. An effect that
+  stacks, such as "Attack power increased for each Night Invader defeated",
+  has a new **Stacks** field under Filters: Optimize counts it that many
+  times (0 to 10; 0 leaves it out; empty uses the count on the stat sheet),
+  and Why lists it. The count beside a switch on the stat sheet now stops at
+  99. The data cache is not rebuilt; saved builds and favourites are kept.
