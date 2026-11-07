@@ -6,21 +6,13 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
-### Added
-- **The game's own symbols, everywhere it has one.** Effects and curses show
-  their status symbol on relic cards, in the picker, in suggestions, in `Why`,
-  in the filter window, on the Effects tab, in the armament dialog and on the
-  stat sheet. Relic, Nightfarer, vessel, damage type, status, weapon art, spell,
-  Nightlord, loot, world-event buff and penalty, Sovereign Sigil, relic tier and
-  slot colour show theirs beside the name. A name without a symbol reads as it
-  did.
+## [1.21.0] - 2026-11-07
 
 ### Changed
 - **Vessel slots now show the game's own slot art**, normal and Deep, in the
   vessel list, the slot strip, the slot cards and the picker, in place of a
   light this program drew. White slots show no gem: the game has none.
 - The icon pack and the data cache are rebuilt once on first start.
-
 - **A stack effect now counts on one relic only.** "Attack power increased for
   each Night Invader defeated" and the seven other effects that stack per event
   count their stacks once, however many relics carry them. Optimize no longer
@@ -32,26 +24,6 @@ History before 1.10.0 was not reconstructed; this file starts here.
   Sorcerer's Rises 7, great enemies 10. A Stacks value saved above the limit
   reads as empty. These limits are read from the game's event scripts and were
   not tried in play.
-
-### Added
-- **A new direction, Balanced.** It looks for damage and survival at once: it
-  ranks by attack rating times effective HP, so one percent more of either
-  counts the same, and there is nothing to set. It has its own row on every
-  relic card, as a percentage, and its own entry under Sort by. In the vessel
-  list each vessel then says both gains against the empty vessel, for example
-  `AR +89 % / Defense +31 %`, and "Best of ..." goes by the Balanced value.
-- The armament tiles under Weapon damage now show the armament's symbol above
-  its name. Tiles grow a little taller; empty tiles stay as they were.
-
-### Fixed
-- In a narrow window the vessel list no longer scrolls sideways: a row too long
-  for it ends in "…", and its tooltip carries the whole line.
-- The gems in the Effects tab's `Colours` column no longer take room from
-  `What it does`; the effect name column gives it up instead.
-
-## [1.21.0] - 2026-11-07
-
-### Changed
 - **Avoid now keeps the relic out of Optimize's suggestions.** Before, Avoid
   only counted against a relic; now a relic carrying an effect or curse you
   marked Avoid is never suggested. A relic you hold or place yourself stays
@@ -77,6 +49,21 @@ History before 1.10.0 was not reconstructed; this file starts here.
   sheet from drawing.
 
 ### Added
+- **The game's own symbols, everywhere it has one.** Effects and curses show
+  their status symbol on relic cards, in the picker, in suggestions, in `Why`,
+  in the filter window, on the Effects tab, in the armament dialog and on the
+  stat sheet. Relic, Nightfarer, vessel, damage type, status, weapon art, spell,
+  Nightlord, loot, world-event buff and penalty, Sovereign Sigil, relic tier and
+  slot colour show theirs beside the name. A name without a symbol reads as it
+  did.
+- **A new direction, Balanced.** It looks for damage and survival at once: it
+  ranks by attack rating times effective HP, so one percent more of either
+  counts the same, and there is nothing to set. It has its own row on every
+  relic card, as a percentage, and its own entry under Sort by. In the vessel
+  list each vessel then says both gains against the empty vessel, for example
+  `AR +89 % / Defense +31 %`, and "Best of ..." goes by the Balanced value.
+- The armament tiles under Weapon damage now show the armament's symbol above
+  its name. Tiles grow a little taller; empty tiles stay as they were.
 - **Stacks in the effect filter.** An effect that stacks, such as "Attack power
   increased for each Night Invader defeated", now has a Stacks field under
   Filters: Optimize and the figures in the relic picker count it that many
@@ -99,6 +86,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   really do, and a favourite that went missing says how to get it back.
 
 ### Fixed
+- In a narrow window the vessel list no longer scrolls sideways: a row too long
+  for it ends in "…", and its tooltip carries the whole line.
+- The gems in the Effects tab's `Colours` column no longer take room from
+  `What it does`; the effect name column gives it up instead.
 - The program could crash at the moment a background search or a save read
   ended. The more vessels were compared, the more often that moment came.
 - Effects that land on the enemy no longer count as your own. "[Raider] Hit

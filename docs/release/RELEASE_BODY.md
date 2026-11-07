@@ -213,4 +213,13 @@ starts there.
   has a new **Stacks** field under Filters: Optimize counts it that many
   times (0 to 10; 0 leaves it out; empty uses the count on the stat sheet),
   and Why lists it. The count beside a switch on the stat sheet now stops at
-  99. The data cache is not rebuilt; saved builds and favourites are kept.
+  99. The game's own symbols now appear beside effects, curses, relics,
+  Nightfarers, vessels and more, and vessel slots show the game's slot art.
+  A new direction, **Balanced**, weighs damage and survival at once. A stack
+  effect now counts on one relic only, so some figures fall (Raider, two
+  stacks: all damage +14.5 % where it was +31.1 %), and each stack effect has
+  its own limit (Night Invaders 4, evergaol prisoners and Sorcerer's Rises 7,
+  great enemies 10; read from the game's event scripts, not tried in play).
+  In a narrow window the vessel list no longer scrolls sideways. **The data
+  cache and the icon pack are rebuilt once on first start.** Saved builds and
+  favourites are kept.
