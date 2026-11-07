@@ -587,6 +587,42 @@ def _both_with_their_base(row: types.VesselRow) -> str:
             f"Defense {_change(survival, survival_base) or '—'}")
 
 
+#: What the attack rating of a vessel row is measured on: asked, because the
+#: player could not find it again on the weapon panel (user, 2026-11-07).
+AR_READS = ("AR is your Nightfarer's starting armament at its lowest tier, "
+            "with the conditions you ticked counted, against the same "
+            "armament with no relics.")
+#: What `Defense` is: effective HP (`goals._min_damage_taken`).
+DEFENSE_READS = ("Defense is effective HP: your max HP divided by the share "
+                 "of a hit that gets through, averaged over the eight damage "
+                 "types. More HP counts in full; damage negation of "
+                 "different types is never added up.")
+
+
+def _from_to(figure: str, base_figure: str) -> str:
+    """`158 → 276 (+75 %)`, of the numbers on screen."""
+    change = _change(figure, base_figure)
+    said = f"{_number_of(base_figure)} → {_number_of(figure)}"
+    return f"{said} ({change})" if change else said
+
+
+def how_the_figures_read(row: types.VesselRow) -> list[str]:
+    """The tooltip's working of a row's percentages: from what, to what, and
+    what the figures are, so that `AR +75 %` can be found again by hand."""
+    if types.FIGURES_JOIN not in row.figure:
+        return [AR_READS] if "attack rating" in row.figure.lower() else []
+    damage_figure, _, survival = row.figure.partition(types.FIGURES_JOIN)
+    damage_base, _, survival_base = row.base_figure.partition(types.FIGURES_JOIN)
+    word = _number_with_unit(damage_figure).removesuffix(
+        _number_of(damage_figure)).strip() or "Damage"
+    lines = [f"{word} {_from_to(damage_figure, damage_base)}, "
+             f"Defense {_from_to(survival, survival_base)}."]
+    if word == "AR":
+        lines.append(AR_READS)
+    lines.append(DEFENSE_READS)
+    return lines
+
+
 def _with_its_base(row: types.VesselRow) -> str:
     """`GOAL.md` A28: `AR 90 (+61 %)`, against the row's figure with no relics."""
     if types.FIGURES_JOIN in row.figure:
@@ -611,7 +647,7 @@ def _without_relics(base_figure: str) -> str:
 def _difference(best: types.VesselRow, here: types.VesselRow) -> str:
     """AK-449 `{difference}`, or empty where it would read `0`: of the numbers
     on screen, so that `118` beside `113` reads `5` (QA-333). Empty for two
-    figures at once (AK-478): the row is ranked on a product nobody can read."""
+    figures at once (AK-478): the row is ranked on a balance of both nobody can read."""
     if types.FIGURES_JOIN in best.figure:
         return ""
     gap = abs((_shown(best.figure) or 0.0) - (_shown(here.figure) or 0.0))
@@ -718,6 +754,7 @@ def vessel_compared_lines(comparing: Comparing | None, vessel_id: int,
                      f"{_rank_of(comparing, row)} of {len(comparing.vessel_ids)}.")
     if row.base_figure:
         lines.append(_without_relics(row.base_figure))
+        lines.extend(how_the_figures_read(row))
     missing = [*map(effect_name, row.required_left_out), *row.pins_left_out]
     if missing:
         lines.append(f"Misses: {_names_cut(missing, 4)}.")

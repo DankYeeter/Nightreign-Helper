@@ -1,7 +1,9 @@
 """`Balanced`: damage and survival at once (T-339.3, user decision 2026-11-07).
 
-The value is the damage figure times the survival figure: no rate between them,
-no base, no dial. AD-023 and OF-13 keep ruling out a rate; a product needs none.
+The value joins the damage figure and the survival figure, each as a multiple of
+the Nightfarer with no relic, in a mean that lets the half behind count more
+(`goals.BALANCE_CURVATURE`, second user decision 2026-11-07): no rate between
+them, no dial. AD-023 and OF-13 keep ruling out a rate; multiples need none.
 """
 
 from __future__ import annotations
@@ -24,15 +26,50 @@ def _armament_of(game_data, hero):
         tier=1, slot_index=0)
 
 
-def test_the_value_is_the_product_of_the_two_figures(question):
+def test_the_value_balances_the_two_multiples_of_the_bare_nightfarer(question):
     inventory, problem, ctx, _request = question
     built = evaluate(problem, (), ctx, goal=BALANCED)
     damage_figure = goals.MAX_DAMAGE.score(built, ctx)
     survival = goals.MIN_DAMAGE_TAKEN.score(built, ctx)
+    bare = model.compute(ctx.hero, ctx.level, [], ctx.data.get("curves", {}),
+                         weapon=ctx.reference.weapon,
+                         weapons_held=list(ctx.weapons_held))
+    damage_base = goals.MAX_DAMAGE.score(bare, ctx).value
+    survival_base = goals.MIN_DAMAGE_TAKEN.score(bare, ctx).value
     score = BALANCED.score(built, ctx)
-    assert score.value == damage_figure.value * survival.value
+    assert score.value == goals.balanced_value(
+        damage_figure.value / damage_base, survival.value / survival_base)
     assert score.display == (
         f"{damage_figure.display}{types.FIGURES_JOIN}{survival.display}")
+
+
+def test_equal_multiples_give_that_multiple_back():
+    assert abs(goals.balanced_value(1.3, 1.3) - 1.3) < 1e-12
+    assert abs(goals.balanced_value(1.0, 1.0) - 1.0) < 1e-12
+
+
+def test_the_half_that_is_behind_counts_more():
+    """User decision 2026-11-07: the product leaned to AR +75 % / Defense
+    +7 %. One step of the lagging half must now beat a bigger step of the
+    leading one, which a product (log-additive) never did."""
+    leading = goals.balanced_value(1.75 * 1.12, 1.07)
+    lagging = goals.balanced_value(1.75, 1.07 * 1.068)
+    assert lagging > leading
+    assert 1.75 * 1.12 * 1.07 > 1.75 * 1.07 * 1.068
+
+
+def test_it_rises_with_either_half():
+    base = goals.balanced_value(1.5, 1.2)
+    assert goals.balanced_value(1.51, 1.2) > base
+    assert goals.balanced_value(1.5, 1.21) > base
+
+
+def test_the_tooltip_works_out_both_percentages():
+    row = _row(1, 1.0, "Attack rating 276 / Effective HP 1284")
+    first, ar_line, defense_line = advisorbar.how_the_figures_read(row)
+    assert first == "AR 158 → 276 (+75 %), Defense 1200 → 1284 (+7 %)."
+    assert ar_line == advisorbar.AR_READS
+    assert "never added up" in defense_line and "HP" in defense_line
 
 
 def test_both_figures_are_positive_for_every_nightfarer(game_data):

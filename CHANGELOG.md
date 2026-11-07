@@ -6,6 +6,18 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Changed
+- **Balanced no longer leans so hard towards attack.** It used to multiply
+  attack rating by effective HP, so every relic went to whichever side it moved
+  by the larger percentage, usually attack. Now both sides are measured against
+  your Nightfarer without relics, and the further one side is ahead, the less
+  another percent of it counts. On a 324-relic save (Raider, level 15) Raider's
+  Goblet moved from AR +89 % / Defense +34 % to AR +69 % / Defense +45 %.
+- **The vessel tooltip now shows how AR and Defense are worked out**: from
+  which number to which (`AR 158 → 276 (+75 %)`), what the AR is measured on,
+  and that Defense is effective HP. Max HP counts in it, and damage negation
+  of different types is averaged, never added up.
+
 ## [1.21.0] - 2026-11-07
 
 ### Changed
