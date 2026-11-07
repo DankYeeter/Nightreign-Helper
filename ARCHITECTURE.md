@@ -9493,9 +9493,9 @@ Slots ohne Not. **D Filter in `candidates.pool`: gewaehlt**, dort laufen `run.ru
    |---|---|---|---|
    | 1 | `EMPTY_REQUIREMENT` | Pool nicht leer, alle Kopien von anderen Slots verbraucht, darunter ein Traeger eines Pflichteffekts | Favourite-Effekt |
    | 2 | `EMPTY_PIN` | Pool leer und `pin_taken` nicht leer | Stern |
-   | 3 | `EMPTY_AVOIDED_AND_REJECTED` | Pool leer, `avoided_by` und `rejected_out` | gemischt |
-   | 4 | `EMPTY_AVOIDED` | Pool leer, `avoided_by` | Avoid |
-   | 5 | `EMPTY_REJECTED` | Pool leer, `rejected_out` | Reject |
+   | 3 | `EMPTY_AVOIDED_AND_REJECTED` | `avoided_by` und `rejected_out` (eine verbliebene Kopie hat ein anderer Slot verbraucht, sonst sagte der Satz "you own no unused relic" bei 54 abgelehnten) | gemischt |
+   | 4 | `EMPTY_AVOIDED` | `avoided_by` | Avoid |
+   | 5 | `EMPTY_REJECTED` | `rejected_out` | Reject |
    | 6 | `EMPTY_NOTHING` | sonst | "nichts uebrig" |
 
    AK-365 (`no_carrier_for`) bleibt ein **siebter** Grund ausserhalb dieser Liste: dort faellt

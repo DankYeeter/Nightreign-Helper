@@ -2511,6 +2511,28 @@ def test_a_pool_reject_emptied_says_so(game_data, wylder):
     assert found.line == "Every relic left for this slot is one you rejected."
 
 
+def test_a_slot_whose_only_free_copy_went_elsewhere_still_says_rejected(
+        game_data, wylder):
+    """54 rejected, one left and spent by another slot: not "you own none"."""
+    found = an_empty_slot(game_data, wylder, types.SlotPool(
+        slot_index=0, rank_by=DAMAGE, candidates=(a_copy(0, 1),),
+        rejected_out=54))
+
+    assert found.reason == types.EMPTY_REJECTED
+
+
+def test_a_second_copy_of_a_favourite_is_not_named_twice():
+    left = types.PinLeftOut("Scene", (1, (), ()), types.PIN_OTHER_PIN,
+                            other="Scene")
+
+    question = advisor.problem([advisor.RED])
+    assert explain._pin_because(left, question, None) == (
+        "another favourited copy takes the only slot it could use")
+    assert explain._pin_because(dataclasses.replace(left, other="Stone"),
+                                question, None) == (
+        "“Stone” is favourited too and takes the only slot it could use")
+
+
 def test_an_empty_pool_with_no_mark_counts_the_colour_of_the_slot(game_data,
                                                                   wylder):
     """`EMPTY_NOTHING`: a white slot draws every colour, so it says any."""

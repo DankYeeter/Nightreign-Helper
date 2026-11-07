@@ -1077,8 +1077,8 @@ def test_a_slot_the_marks_emptied_says_why_through_the_run(game_data, wylder):
     assert [choice.slot_index for choice in result.suggestions[0].choices] == [0]
     empty, = result.empty_slots
     assert empty.slot_index == 1
-    assert empty.reason == types.EMPTY_NOTHING, (
-        "the pool still offers the one copy, which slot 0 spent")
+    assert empty.reason == types.EMPTY_AVOIDED, (
+        "slot 0 spent the one copy left, so what is left here is avoided")
 
 
 def test_a_dropped_suggestion_has_no_empty_slot_entries(game_data):
@@ -1326,8 +1326,8 @@ def test_the_stronger_star_takes_the_only_slot(game_data, wylder):
     assert left.reason == types.PIN_OTHER_PIN
     assert left.name == weak.name
     assert left.other == strong.name
-    assert left.because == (f"“{strong.name}” is favourited too and takes the "
-                            f"only slot it could use")
+    assert left.because == (
+        "another favourited copy takes the only slot it could use")
 
 
 def test_a_favourite_effect_beats_a_star(game_data, wylder):

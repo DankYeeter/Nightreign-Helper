@@ -1378,17 +1378,19 @@ def _empty_slot(problem: types.SlotProblem, pool: types.SlotPool,
             index, types.EMPTY_PIN, relic_name=relic,
             line=f"The relics that could go here are used by your favourite "
                  f"“{relic}”.")
-    if not pool.candidates and pool.avoided_by and pool.rejected_out:
+    # A copy still in the pool was spent by another slot (`empty_slots`), so
+    # it does not change what the turned-down ones are.
+    if pool.avoided_by and pool.rejected_out:
         return types.EmptySlot(
             index, types.EMPTY_AVOIDED_AND_REJECTED,
             line="Every relic left for this slot is rejected or carries an "
                  "effect you avoided.")
-    if not pool.candidates and pool.avoided_by:
+    if pool.avoided_by:
         return types.EmptySlot(
             index, types.EMPTY_AVOIDED, effect_ids=pool.avoided_by,
             line=f"Every relic left for this slot carries an effect you "
                  f"avoided: {_named_at_most_two(ctx, pool.avoided_by)}.")
-    if not pool.candidates and pool.rejected_out:
+    if pool.rejected_out:
         return types.EmptySlot(
             index, types.EMPTY_REJECTED,
             line="Every relic left for this slot is one you rejected.")
@@ -1427,8 +1429,11 @@ def _pin_because(left: types.PinLeftOut, problem: types.SlotProblem,
                             "off" if deep_is_off else
                             "this vessel has no slot that fits its colour"),
         types.PIN_SLOTS_HELD: "every slot it could go in is held",
-        types.PIN_OTHER_PIN: f"“{left.other}” is favourited too and takes the "
-                             f"only slot it could use",
+        types.PIN_OTHER_PIN: (
+            "another favourited copy takes the only slot it could use"
+            if left.other == left.name else
+            f"“{left.other}” is favourited too and takes the only slot it "
+            f"could use"),
         types.PIN_BLOCKS_REQUIREMENT: f"placing it would leave “{effect}” "
                                       f"(Favourite) unmet",
     }[left.reason]
