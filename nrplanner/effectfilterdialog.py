@@ -32,7 +32,7 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QHeaderView, QLabel,
                                QLineEdit, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout)
 
-from . import effectfilters, effecttext, search
+from . import effectfilters, effecttext, model, search
 from .advisorbar import CLAUSES, families_avoided
 from .theme import ACCENT, BAD, MUTED
 
@@ -50,37 +50,69 @@ TITLE = "Effect filters"
 #: (`2 favourited · 1 avoided · 1 family avoided`, the widest the counter
 #: gets, AK-316.5) after giving it `setWordWrap` -- still 608 x 642, where
 #: the unwrapped label had forced 814 x 642 and stayed there once the
-#: clause was gone.
-OPENING_SIZE = (608, 642)
+#: clause was gone. AK-445 (offscreen, Fusion, 07.11.2026): the legend takes
+#: 39 px more with the star's sentence, the tree keeps its 449 px. User
+#: decision 07.11.2026 (offscreen, Fusion): the sentences on marks of another
+#: Nightfarer take 26 px more, the tree keeps its 449 px. T-336 (offscreen,
+#: Fusion, 339 rows, 07.11.2026): the `Stacks` column asks 94 px more before the
+#: name column has the 104 px it had; the wider legend makes up for its new
+#: sentence, the tree keeps its 449 px at the same height. T-336b (offscreen,
+#: Fusion, 07.11.2026): the longer Stacks sentence takes 26 px more, the tree
+#: keeps its 449 px. T-336h (07.11.2026): a row with a Stacks field no longer
+#: stands taller than the others, which moves neither the size nor the tree's
+#: 449 px (offscreen) and 542 px (live, Windows, at 100, 125 and 150 %).
+OPENING_SIZE = (702, 733)
 
-COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_NAME, COL_TYPE, COL_COPIES = range(6)
-HEADINGS = ("Favourite", "Avoid", "Allow", "Name", "Type", "Copies")
+(COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_STACKS, COL_NAME, COL_TYPE,
+ COL_COPIES) = range(7)
+HEADINGS = ("Favourite", "Avoid", "Allow", "Stacks", "Name", "Type", "Copies")
 FLAG_COLUMNS = (COL_FAVOURITE, COL_AVOID, COL_ALLOW)
+
+#: As wide as the stat sheet's count box; two digits and their margins fit.
+STACKS_FIELD_WIDTH = 42
+#: What a row without a value sorts by: under 0, which is a value.
+NO_STACKS = -1
 
 #: AK-304: `Copies` here is not the `Copies` of the Effects & chances tab.
 COPIES_DEFINITION = ("Copies counts relics you own that carry this effect or "
                      "curse — not game-data entries (that count is on the "
                      "Effects & chances tab).")
 
-#: AK-317.1: what the three marks do here, and that none is the relic star.
-MARKS_EXPLANATION = ("Favourite: every suggestion must include this effect. "
-                     "Avoid: it never counts — on a family header, it avoids "
-                     "every member below unless one is set to Allow. Allow "
-                     "lets that one member back in without allowing the rest "
-                     "of the family. These marks steer Optimize only — they "
-                     "are not the star on a relic.")
+#: AK-445: what the three marks do here, and how they differ from the star.
+MARKS_EXPLANATION = ("Favourite: every suggestion for this Nightfarer must "
+                     "carry this effect, if it can. "
+                     "Avoid: no suggestion uses a relic that carries it — on "
+                     "a family header, every member below, unless one is set "
+                     "to Allow. Allow lets that one member back in without "
+                     "allowing the rest of the family. These marks are saved "
+                     "for every Nightfarer; one that only works for another "
+                     "Nightfarer is ignored here. "
+                     "They are separate from the ★ you can "
+                     "give a relic in the relic picker: that is per "
+                     "Nightfarer, and Optimize puts a favourited relic in "
+                     "when it fits. "
+                     "Stacks: how many stacks Optimize and the relic picker's "
+                     "figures count for an effect that stacks, not the stat "
+                     "sheet; 0 does not count it, empty uses the count ticked "
+                     "on the stat sheet, otherwise 1.")
 SEARCH_PLACEHOLDER = ("Filter by effect or curse — supports AND, OR, NOT and "
                       "\"quoted phrases\"")
-FAVOURITE_TOOLTIP = ("Every suggestion must carry this effect through at "
-                     "least one owned copy.")
-AVOID_TOOLTIP = "This effect counts in no suggestion or ranking."
+FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry this "
+                     "effect, if it can.")
+AVOID_TOOLTIP = "No suggestion uses a relic that carries this effect."
 #: AK-317.2-4.
-FAMILY_AVOID_TOOLTIP = ("Every effect in this family counts in no suggestion "
-                        "or ranking, unless a member below is set to Allow.")
+FAMILY_AVOID_TOOLTIP = ("No suggestion uses a relic that carries an effect "
+                        "of this family, unless a member below is set to "
+                        "Allow.")
 #: AK-317 Nachtrag: always clickable, one tooltip for both states.
 ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
                  "is avoided. It matters only once the family header is set "
                  "to Avoid.")
+STACKS_TOOLTIP = ("How many stacks Optimize and the relic picker's figures "
+                  "count, a whole number from 0 to 10; 0 leaves this effect "
+                  "out. Empty: the count ticked on the stat sheet, otherwise "
+                  "1. Anything else turns red and counts as empty. The stat "
+                  "sheet itself does not change.")
 
 #: AK-309, the three empty states in the tab's own tone.
 NO_SAVE_WAS_READ = ("No save was read, so there are no effects to filter "
@@ -101,6 +133,8 @@ class Row:
     is_curse: bool
     copies: int
     family: str
+    #: A stack effect (`model.accumulates`): the one kind with a Stacks field.
+    stacks: bool = False
 
 
 def rows_from(owned, effects: dict, families: Mapping[int, str]) -> list[Row]:
@@ -121,7 +155,8 @@ def rows_from(owned, effects: dict, families: Mapping[int, str]) -> list[Row]:
         rows.append(Row(effect_id=effect_id, name=name,
                         is_curse=bool(effect and effect.get("is_curse")),
                         copies=count,
-                        family=families.get(effect_id, name)))
+                        family=families.get(effect_id, name),
+                        stacks=bool(effect and model.accumulates(effect))))
     return rows
 
 
@@ -138,25 +173,32 @@ def counter_line(shown: int, total: int, filters) -> str:
     return CLAUSES.join([f"{shown} of {total} effects", *clauses])
 
 
+def _is_refused(text: str) -> bool:
+    """Typed, and neither empty nor a count."""
+    return bool(text) and effectfilters.stack_count(text) is None
+
+
 class _Item(QTreeWidgetItem):
     """A row that sorts by its boxes on the flag columns (the box on top is
-    the control; `on` is what a click on the column head sorts by), without
-    regard to case on the name (AK-308), and by the cell's own value --
-    the number under `Copies`, the text under `Type` -- elsewhere. (Not
-    `super().__lt__`: PySide routes that back into this override.)"""
+    the control; `on` is what a click on the column head sorts by, the value
+    of the field under `Stacks`), by the number under `Copies`, and by the
+    text elsewhere, without regard to case on the name (AK-308) -- a family
+    heading's empty `Type` is the empty text. (Not `super().__lt__`: PySide
+    routes that back into this override.)"""
 
     def __init__(self, parent) -> None:
         super().__init__(parent)
         self.on = {column: False for column in FLAG_COLUMNS}
+        self.on[COL_STACKS] = NO_STACKS
 
     def __lt__(self, other) -> bool:
         column = self.treeWidget().sortColumn()
-        if column in FLAG_COLUMNS:
+        if column in self.on:
             return self.on[column] < other.on[column]
-        if column == COL_NAME:
-            return self.text(column).casefold() < other.text(column).casefold()
-        return (self.data(column, Qt.DisplayRole)
-                < other.data(column, Qt.DisplayRole))
+        if column == COL_COPIES:
+            return (self.data(column, Qt.DisplayRole)
+                    < other.data(column, Qt.DisplayRole))
+        return self.text(column).casefold() < other.text(column).casefold()
 
 
 class EffectFilterWindow(QDialog):
@@ -177,6 +219,8 @@ class EffectFilterWindow(QDialog):
         self._marks: dict[int, tuple] = {}
         #: family key -> (Avoid box, heading item)
         self._family_marks: dict[str, tuple] = {}
+        #: effect id -> its Stacks field, stack effects only
+        self.stack_fields: dict[int, QLineEdit] = {}
         self._box_css = ("QCheckBox::indicator:checked {{ background-color: "
                          "{c}; border: 1px solid {c}; border-radius: 2px; }}")
         self._colours = {COL_FAVOURITE: ACCENT, COL_AVOID: BAD}
@@ -224,6 +268,9 @@ class EffectFilterWindow(QDialog):
         # The name takes what the five narrow columns leave; measured with
         # 100 px defaults the name got 82 px of a 520 px window (T-277b).
         header = self.tree.header()
+        # A tree's head stretches its last section too, and `Copies` would
+        # then share the room with the name (QA-334).
+        header.setStretchLastSection(False)
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
         header.setSectionResizeMode(COL_NAME, QHeaderView.Stretch)
         by_family = collections.defaultdict(list)
@@ -286,7 +333,34 @@ class EffectFilterWindow(QDialog):
             boxes.append(box)
         if not with_allow:
             boxes.append(None)
+        if row.stacks:
+            self._add_stacks_field(row, item)
         self._marks[row.effect_id] = (row, *boxes, item)
+
+    def _add_stacks_field(self, row: Row, item: _Item) -> None:
+        """Written on every keystroke, as a box on every click: a value typed
+        and left by closing the window is a value kept (no `editingFinished`
+        on that way out). No validator: one drops a refused key and takes the
+        next, which made 25 of `2.5`."""
+        field = QLineEdit()
+        field.setFixedWidth(STACKS_FIELD_WIDTH)
+        # What a row without a field takes, the taller of its box and a line of
+        # text: the field's own size hint made its row 1.5 times as high (AK-469).
+        box = self.tree.itemWidget(item, COL_FAVOURITE)
+        field.setFixedHeight(max(box.sizeHint().height(),
+                                 field.fontMetrics().height()))
+        field.setAlignment(Qt.AlignCenter)
+        field.setToolTip(STACKS_TOOLTIP)
+        field.setAccessibleName(f"Stacks: {row.name}")
+        field.textEdited.connect(
+            lambda text, i=row.effect_id, f=field: self._stacks_typed(i, f, text))
+        self.tree.setItemWidget(item, COL_STACKS, field)
+        self.stack_fields[row.effect_id] = field
+
+    def _stacks_typed(self, effect_id: int, field: QLineEdit, text: str) -> None:
+        """A text that is no count stays as typed, in red, and counts as empty."""
+        field.setStyleSheet(f"color: {BAD};" if _is_refused(text) else "")
+        self._filters.set_stacks(effect_id, effectfilters.stack_count(text))
 
     def shown_ids(self) -> list[int]:
         """The ids of the rows the search leaves visible, top to bottom --
@@ -330,6 +404,14 @@ class EffectFilterWindow(QDialog):
         for key, (avoid, head) in self._family_marks.items():
             avoid.setChecked(key in filters.avoided_families)
             head.on[COL_AVOID] = avoid.isChecked()
+        for effect_id, field in self.stack_fields.items():
+            count = filters.stacks.get(effect_id, NO_STACKS)
+            shown = "" if count == NO_STACKS else str(count)
+            # Not when equal: `setText` would throw the cursor to the end. Not
+            # over a refused text either: it is what the red is about.
+            if field.text() != shown and not _is_refused(field.text()):
+                field.setText(shown)
+            self._marks[effect_id][-1].on[COL_STACKS] = count
         self._say_the_count()
 
     def _refresh(self) -> None:

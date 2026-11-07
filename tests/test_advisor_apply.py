@@ -18,14 +18,17 @@ really hands it.
 
 from __future__ import annotations
 
+import dataclasses
 import html
 
 import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QPushButton
 
-from nrplanner import advisorbar, chalices, inventory
+from nrplanner import advisorbar, advisorblock, chalices, effectfilters, inventory
 from nrplanner import app as appmod
-from nrplanner.advisor import goals, types
+from nrplanner.advisor import candidates, goals, run, types
+from tests import relics
 from tests.advisor_row_at_the_window import AK_350_ROOMS
 
 
@@ -339,6 +342,22 @@ def test_undo_puts_a_slot_that_was_empty_back_to_empty(planner):
     assert keys_of(planner) == before
 
 
+def test_undo_on_a_vessel_that_was_empty_leaves_no_build_stored(planner):
+    """AK-15 for what is stored: applying wrote a build, and nothing else
+    would take it away again, because an empty build is not written."""
+    planner.reset_chalice()
+    hero_id, vessel_id = planner.current_hero()["id"], planner.current_vessel()["id"]
+    chalices.clear(hero_id, vessel_id)
+    assert not any(keys_of(planner))
+    a_live_answer(planner, an_answer_for(two_offers(planner)))
+
+    planner.apply_all()
+    assert any(chalices.load(hero_id, vessel_id)[2])
+    planner.undo_apply()
+
+    assert not any(chalices.load(hero_id, vessel_id)[2])
+
+
 def test_undo_puts_a_custom_relic_back_where_it_was(planner):
     """AK-15, second shape: a relic nobody owns and no list can offer.
 
@@ -580,3 +599,855 @@ def test_at_2560_px_the_ratio_already_covers_the_need(
     for state in ("failed", "suggested"):
         assert row[state]["cut"] == [], (
             f"{state}: {row[state]['cut']}")
+
+
+def test_a_slot_without_a_choice_shows_its_reason_on_the_card(planner):
+    """AK-441: the one filled slot keeps its block, the empty one says why."""
+    (index, copy), (other, _) = two_offers(planner)
+    reason = "Every relic left for this slot is one you rejected."
+    answer = dataclasses.replace(
+        an_answer_for([(index, copy)]),
+        empty_slots=(types.EmptySlot(other, types.EMPTY_REJECTED,
+                                     line=reason),))
+
+    a_live_answer(planner, answer)
+
+    cards = planner.active_slots()
+    assert cards[index].suggestion.empty_reason.isHidden()
+    assert cards[other].suggestion.heading.text() == "NO SUGGESTION"
+    assert cards[other].suggestion.empty_reason.text() == reason
+
+    planner.show_the_suggestion(None)
+    assert cards[other].suggestion.isHidden()
+
+
+# --- a part-filled answer (AK-444) ------------------------------------------
+
+def test_apply_all_leaves_a_slot_without_a_choice_as_it_was(planner):
+    """AK-444: the one slot the answer names changes, the empty one keeps the
+    relic the player put there, and `Undo apply` puts everything back."""
+    offers = two_offers(planner)
+    (kept_index, kept_copy), (named_index, named_copy) = offers
+    planner._put_these_keys_in_the_slots([
+        chalices.slot_key(kept_copy) if index == kept_index else key
+        for index, key in enumerate(keys_of(planner))])
+    answer = dataclasses.replace(
+        an_answer_for([(named_index, named_copy)]),
+        empty_slots=(types.EmptySlot(kept_index, types.EMPTY_NOTHING,
+                                     line="Nothing."),))
+    a_live_answer(planner, answer)
+    before = keys_of(planner)
+
+    planner.apply_all()
+
+    keys = keys_of(planner)
+    assert keys[kept_index] == before[kept_index] == chalices.slot_key(kept_copy)
+    assert keys[named_index] == chalices.slot_key(named_copy)
+
+    planner.undo_apply()
+    assert keys_of(planner) == before
+
+
+# --- X and `Reject` on the real window (AD-060, AD-061) ----------------------
+
+class _NoRun:
+    """A controller that answers nothing: the question is what is measured."""
+
+    def __init__(self, bar, monkeypatch) -> None:
+        self.asked = []
+        monkeypatch.setattr(bar._controller, "ask", self.ask)
+
+    def ask(self, request, inventory, ctx, debounce_ms=None) -> int:
+        self.asked.append((request, debounce_ms))
+        return len(self.asked)
+
+
+def a_card_with_a_line(planner):
+    """A live answer whose first card has a relic, a line and an X."""
+    index, copy = two_offers(planner)[0]
+    effect_id = copy.effect_ids[0]
+    answer = an_answer_for([(index, copy)])
+    group = dataclasses.replace(answer.suggestions[0].reasons[0], lines=(
+        types.ReasonLine(slot_index=index, effect_id=effect_id, text="Line."),))
+    answer = dataclasses.replace(answer, suggestions=(dataclasses.replace(
+        answer.suggestions[0], reasons=(group,)),))
+    a_live_answer(planner, answer)
+    return planner.active_slots()[index], copy, effect_id, answer
+
+
+def test_an_x_marks_the_effect_and_asks_again(planner, monkeypatch):
+    """AK-424: the mark, one run at once, and the answer does not go (AK-425)
+    though the mark says `changed`, and the block is locked meanwhile."""
+    card, _copy, effect_id, answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    try:
+        card.suggestion.drawn_lines[0].avoid.click()
+
+        assert effect_id in planner.effect_filters.excluded
+        assert planner.advisor_bar.answer is answer
+        assert len(run.asked) == 1
+        request, debounce = run.asked[0]
+        assert debounce == 0
+        assert effect_id in request.problem.excluded
+        assert not card.suggestion.isEnabled()
+        assert card.suggestion.isVisibleTo(card)
+    finally:
+        planner.effect_filters.mark(effect_id, None)
+
+
+def test_a_mark_set_in_the_filter_window_starts_no_run(planner, monkeypatch):
+    """AK-289, unchanged: only the block asks again."""
+    _card, _copy, effect_id, _answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    try:
+        planner.effect_filters.mark(effect_id, effectfilters.EXCLUDED)
+
+        assert run.asked == []
+        assert planner.advisor_bar.answer is None
+    finally:
+        planner.effect_filters.mark(effect_id, None)
+
+
+def test_suggest_again_keeps_the_focus_in_the_bar(planner):
+    """Its button goes with its row; the last one used to leave the focus on
+    the tab bar."""
+    rolls = (7, (1,), ()), (8, (2,), ())
+    planner._rejects[planner._reject_key()] = dict.fromkeys(rolls, "Rejected")
+    planner._show_the_rejects()
+    planner.rejected_list.fold.setChecked(True)
+
+    def press_the_first():
+        again = next(button for button
+                     in planner.rejected_list.findChildren(QPushButton)
+                     if button.text() == "Suggest again")
+        again.setFocus()
+        again.click()
+
+    press_the_first()
+    assert planner.focusWidget() is planner.rejected_list.fold
+    press_the_first()
+    assert planner.focusWidget() is planner.advisor_bar.optimize_button
+
+
+def test_the_new_answer_unlocks_the_block_and_takes_the_focus(planner,
+                                                              monkeypatch):
+    """AK-426: back on the first X of the same slot, or on `Optimize`."""
+    card, _copy, effect_id, answer = a_card_with_a_line(planner)
+    _NoRun(planner.advisor_bar, monkeypatch)
+    bar = planner.advisor_bar
+    try:
+        first = card.suggestion.first_x()
+        first.setFocus()
+        first.click()
+        assert not card.suggestion.isEnabled()
+
+        bar._asked = dataclasses.replace(bar._asked)
+        bar._on_ready(answer)
+
+        assert card.suggestion.isEnabled()
+        assert planner.focusWidget() is card.suggestion.first_x()
+
+        card.suggestion.first_x().setFocus()
+        card.suggestion.first_x().click()
+        bar._on_ready(dataclasses.replace(answer, suggestions=()))
+
+        assert planner.focusWidget() is bar.optimize_button
+    finally:
+        planner.effect_filters.mark(effect_id, None)
+
+
+def test_reject_is_for_this_build_only_and_goes_with_the_roll(planner,
+                                                              monkeypatch):
+    """AD-060: the question carries the roll, the store nothing; another
+    vessel has no such rejection, and coming back brings it again (AK-428)."""
+    card, copy, _effect_id, _answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    roll = types.roll_of(copy)
+
+    card.suggestion.reject_button.click()
+
+    assert run.asked[0][0].problem.rejected == frozenset({roll})
+    assert run.asked[0][1] == 0
+    assert not planner.rejected_list.isHidden()
+    assert not card.suggestion.isEnabled()
+
+    rows = [row for row in range(planner.chalice_list.count())
+            if planner.chalice_list.item(row).data(Qt.UserRole) is not None]
+    here = planner.chalice_list.currentRow()
+    planner.chalice_list.setCurrentRow(next(row for row in rows if row != here))
+    assert planner.rejected_rolls() == frozenset()
+    assert planner.rejected_list.isHidden()
+    planner.chalice_list.setCurrentRow(here)
+    assert planner.rejected_rolls() == frozenset({roll})
+    assert not planner.rejected_list.isHidden()
+
+    planner.deep_check.toggle()
+    assert planner.rejected_rolls() == frozenset({roll}), (
+        "a rejection hangs on no slot, so Deep of Night does not part it "
+        "from its build (AD-060.2)")
+    planner.deep_check.toggle()
+    planner._suggest_again(roll)
+
+
+def test_suggest_again_gives_it_back_and_asks_if_an_answer_stands(planner,
+                                                                  monkeypatch):
+    """AK-430."""
+    card, copy, _effect_id, answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    roll = types.roll_of(copy)
+    card.suggestion.reject_button.click()
+    planner.advisor_bar._on_ready(answer)
+    asked = len(run.asked)
+
+    planner.rejected_list.scroller.widget().findChild(QPushButton).click()
+
+    assert planner.rejected_rolls() == frozenset()
+    assert planner.rejected_list.isHidden()
+    assert len(run.asked) == asked + 1
+    assert run.asked[-1][0].problem.rejected == frozenset()
+
+
+def test_suggest_again_with_no_answer_starts_nothing(planner, monkeypatch):
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    roll = (1, (2,), ())
+    planner._rejects[planner._reject_key()] = {roll: "Urn"}
+    planner._show_the_rejects()
+
+    planner.rejected_list.suggest_again.emit(roll)
+
+    assert run.asked == []
+    assert planner.rejected_rolls() == frozenset()
+
+
+def test_a_rejection_is_named_in_the_list_with_its_effects(planner):
+    card, copy, _effect_id, _answer = a_card_with_a_line(planner)
+    roll = types.roll_of(copy)
+    planner._rejects[planner._reject_key()] = {roll: copy.name}
+    try:
+        planner._show_the_rejects()
+        page = planner.rejected_list.scroller.widget()
+        label = page.findChild(advisorbar._ElidingLabel)
+        names = [advisorblock.effect_name(planner.effects, eid)
+                 for eid in copy.effect_ids]
+        assert label.accessibleName() == f"{copy.name} — {', '.join(names)}"
+        assert page.findChild(QPushButton).text() == "Suggest again"
+    finally:
+        planner._rejects.clear()
+        planner._show_the_rejects()
+
+
+# --- the vessel list after a comparison (AK-431 to AK-436, AK-454) -----------
+
+class _ToldRuns:
+    """Runs that answer by the vessel's layout, later in the list is better.
+
+    Told rather than searched: the figures are the claim, and a hit has to find
+    its entry by the real key, which is what `Switch to it` depends on. Deep is
+    on, where all 11 layouts differ (AD-062).
+    """
+
+    def __init__(self, planner, monkeypatch) -> None:
+        self.calls = 0
+        self.planner = planner
+        planner.deep_check.setChecked(True)
+        self.value_of = {
+            run.vessel_slots(vessel, True): 100.0 + index
+            for index, vessel in enumerate(planner.hero_vessels)}
+        bar = planner.advisor_bar
+        monkeypatch.setattr(bar._controller, "_answer", self)
+        monkeypatch.setattr(bar.comparison._controller, "_answer", self)
+
+    def __call__(self, request, _inventory, _ctx, _goals, _stop):
+        self.calls += 1
+        value = self.value_of[request.problem.slots]
+        score = types.GoalScore(value=value, display=f"Attack rating {value:.0f}",
+                                unit="AR")
+        return types.AdvisorResult(
+            goal_id=request.goal_id, goal_label="Maximise damage",
+            suggestions=(types.Suggestion(choices=(), score=score),),
+            held=request.problem.held, no_relics_display="Attack rating 50")
+
+
+def _spin_until(what, seconds: float = 20.0) -> None:
+    import time
+
+    from PySide6.QtWidgets import QApplication
+
+    deadline = time.monotonic() + seconds
+    while not what():
+        assert time.monotonic() < deadline, "it never came"
+        QApplication.instance().processEvents()
+        time.sleep(0.002)
+
+
+def _compared(planner) -> None:
+    bar = planner.advisor_bar
+    bar.optimize_button.click()
+    _spin_until(lambda: bar.comparing is not None
+                and bar.comparing.state is advisorbar.Compared.DONE)
+
+
+def _row_of(planner, vessel_id: int) -> int:
+    return next(row for row in range(planner.chalice_list.count())
+                if (planner.chalice_list.item(row).data(Qt.UserRole) or {}
+                    ).get("id") == vessel_id)
+
+
+def _line_of(planner, vessel_id: int):
+    return planner.chalice_list.item(_row_of(planner, vessel_id)).data(
+        advisorbar.VESSEL_LINE_ROLE)
+
+
+@pytest.fixture
+def told(planner, monkeypatch):
+    return _ToldRuns(planner, monkeypatch)
+
+
+def test_the_comparison_arrives_on_the_list_and_nothing_moves(planner, told):
+    """AK-431, AK-432, AK-433."""
+    here = planner.current_vessel()
+    bar = planner.advisor_bar
+    bar.optimize_button.click()
+    _spin_until(lambda: bar.answer is not None)
+    answer_before = bar.answer
+    _spin_until(lambda: bar.comparing.state is advisorbar.Compared.DONE)
+
+    assert planner.current_vessel() == here
+    assert bar.answer is answer_before
+    best = planner.hero_vessels[-1]
+    assert _line_of(planner, best["id"])[0].startswith("BEST  ")
+    assert sum(bool(_line_of(planner, vessel["id"])[0])
+               for vessel in planner.hero_vessels) == 1
+    assert planner.compare_status.text().startswith(
+        f"Best of {len(planner.hero_vessels)} for ")
+    assert best["name"] in planner.compare_status.text()
+    assert not planner.compare_status.isHidden()
+    assert not planner.switch_button.isHidden()
+    assert planner.switch_button.nextInFocusChain() is planner.chalice_list, (
+        "AK-436: the button directly before the list")
+    assert told.calls == len(planner.hero_vessels), (
+        "the chosen vessel's question has to be a hit on its own answer")
+    assert "Compared: " in planner.chalice_list.item(
+        _row_of(planner, best["id"])).toolTip()
+    assert ", best of " in planner.chalice_list.item(
+        _row_of(planner, best["id"])).data(Qt.AccessibleTextRole)
+
+
+def test_a_click_shows_the_answer_of_that_vessel_without_a_run(planner, told):
+    """AK-435 (a), (c), and the status line follows the open row (AK-450)."""
+    _compared(planner)
+    calls = told.calls
+    other = _another_vessel(planner)
+    planner.chalice_list.setCurrentRow(_row_of(planner, other["id"]))
+
+    answer = planner.advisor_bar.answer
+    assert answer is not None
+    assert answer.suggestions[0].score.value == told.value_of[
+        run.vessel_slots(other, True)]
+    assert told.calls == calls
+    assert planner.advisor_bar.comparing.state is advisorbar.Compared.DONE
+    assert "more than this one" in planner.compare_status.text()
+    planner.chalice_list.setCurrentRow(_row_of(planner, planner.hero_vessels[-1]["id"]))
+    assert planner.compare_status.text().startswith("This is the best of ")
+    assert planner.switch_button.isHidden()
+
+
+def test_the_list_and_the_status_line_read_against_no_relics(planner, told):
+    """GOAL.md A28, at the window."""
+    _compared(planner)
+    best = planner.hero_vessels[-1]
+    value = int(told.value_of[run.vessel_slots(best, True)])
+    percent = round((value / 50 - 1) * 100)
+    assert _line_of(planner, best["id"]) == (f"BEST  AR {value} (+{percent} %)", "")
+    assert f"AR {value} (+{percent} %)" in planner.compare_status.text()
+    assert planner.compare_status.toolTip().endswith(
+        "Without relics: Attack rating 50.")
+    assert "Without relics: Attack rating 50." in planner.chalice_list.item(
+        _row_of(planner, best["id"])).toolTip()
+
+
+def test_a_switch_without_holds_opens_the_best_with_its_answer(planner, told):
+    """AK-435 (b): two clicks, nothing to undo."""
+    _compared(planner)
+    assert planner.switch_button.toolTip() == (
+        "Opens this vessel with its suggestion.")
+    planner.switch_button.click()
+    best = planner.hero_vessels[-1]
+    assert planner.current_vessel()["id"] == best["id"]
+    assert planner.advisor_bar.answer.suggestions[0].score.value == told.value_of[
+        run.vessel_slots(best, True)]
+    assert not planner.advisor_bar.has_been_applied()
+
+
+def _another_vessel(planner):
+    """A vessel neither open nor the best of the list."""
+    return next(vessel for vessel in planner.hero_vessels[:-1]
+                if vessel != planner.current_vessel())
+
+
+def _hold_a_relic(planner):
+    """A relic held in the first slot, and the last vessel that takes it."""
+    card = planner.active_slots()[0]
+    copy = next(copy for copy in card._holdable() if copy.handle is not None)
+    relics.equip(card, copy)
+    card.hold_button.setChecked(True)
+    return card, copy
+
+
+def _a_vessel_that_takes(planner, copy):
+    return next(
+        vessel for vessel in reversed(planner.hero_vessels)
+        if vessel != planner.current_vessel() and candidates.place(
+            [copy], run.vessel_slots(vessel, True))[0])
+
+
+def _best_fitting(planner):
+    """Rows the holds do not fit rank last, so `BEST` is the last that fits."""
+    comparing = planner.advisor_bar.comparing
+    return comparing.ranked()[0].vessel_id
+
+
+def test_with_a_hold_a_click_opens_it_as_it_was_left_and_runs_nothing(planner,
+                                                                      told):
+    """AK-454."""
+    _card, copy = _hold_a_relic(planner)
+    _compared(planner)
+    calls = told.calls
+    target = _a_vessel_that_takes(planner, copy)
+    tip = planner.chalice_list.item(_row_of(planner, target["id"])).toolTip()
+    assert "Click opens it as you left it." in tip
+    assert "Compared with your 1 held relic placed in it." in tip
+
+    planner.chalice_list.setCurrentRow(_row_of(planner, target["id"]))
+
+    bar = planner.advisor_bar
+    assert bar.answer is None
+    assert bar.situation.state is advisorbar.State.NOTHING_YET
+    assert told.calls == calls
+    assert bar._controller._pending is None
+    assert planner.held_slot_indices() == frozenset()
+    assert bar.comparing.state is advisorbar.Compared.DONE
+
+
+def test_a_switch_moves_the_holds_and_rejections_and_undo_takes_all_of_it_back(
+        planner, told):
+    """AK-454, its acceptance case: the target's saved slots as they were."""
+    origin = planner.current_vessel()
+    card, copy = _hold_a_relic(planner)
+    roll = (7, (1,), ())
+    planner._rejects[planner._reject_key()] = {roll: "Rejected"}
+    holds_before = dict(planner._holds[planner._hold_key()])
+    _compared(planner)
+    calls = told.calls
+    target_id = _best_fitting(planner)
+    assert target_id != origin["id"]
+    target = next(vessel for vessel in planner.hero_vessels
+                  if vessel["id"] == target_id)
+    assert planner.switch_button.toolTip().startswith("Moves your held relics")
+    keys_there = relics.stored_keys(planner, target_id)
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert planner.current_vessel()["id"] == target_id
+    assert told.calls == calls, "the row has to be the suggestion, not a new run"
+    assert bar.answer.suggestions[0].score.value == told.value_of[
+        run.vessel_slots(target, True)]
+    assert bar.has_been_applied()
+    assert bar.status.accessibleName() == (
+        "Your held relic moved here. Undo puts your slots back as they were.")
+    index, = planner.held_slot_indices()
+    assert planner.active_slots()[index].current_relic().handle == copy.handle
+    assert planner.rejected_rolls() == frozenset({roll})
+    assert relics.stored_keys(planner, target_id) != keys_there
+    assert not planner.rejected_list.isHidden()
+
+    planner.undo_apply()
+
+    assert bar.answer is None
+    assert planner.held_slot_indices() == frozenset()
+    assert planner.rejected_rolls() == frozenset()
+    assert relics.stored_keys(planner, target_id) == keys_there
+    planner.chalice_list.setCurrentRow(_row_of(planner, origin["id"]))
+    assert planner._holds[planner._hold_key()] == holds_before
+    assert planner.rejected_rolls() == frozenset({roll})
+    assert planner.active_slots()[0].current_relic().handle == copy.handle
+    assert card.hold_button.isChecked()
+
+
+def test_a_switch_brings_the_hand_the_row_was_compared_in(planner, told):
+    """AK-435: a vessel's stored hand would otherwise be a miss."""
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    planner.switch_button.click()
+    assert planner.advisor_bar.answer is not None
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert planner.current_vessel() == planner.hero_vessels[-1]
+
+
+def test_a_click_in_the_other_hand_is_not_out_of_date_but_a_miss(planner, told):
+    """AK-434: the vessel brought its hand back, the player changed nothing."""
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    planner.chalice_list.setCurrentRow(
+        _row_of(planner, _another_vessel(planner)["id"]))
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert planner.advisor_bar.comparing.state is advisorbar.Compared.DONE
+    assert planner.advisor_bar.answer is None
+
+
+@pytest.mark.parametrize("what_changes", [
+    lambda planner: planner.active_slots()[0].hold_button.setChecked(True),
+    lambda planner: planner.stat_sheet.hand_switch.click(),
+    lambda planner: planner.level_slider.setValue(
+        14 if planner.level_slider.value() == 15 else 15),
+], ids=["hold", "hand", "level"])
+def test_what_outdates_it_at_the_window(planner, told, what_changes):
+    """AK-434: figures stay, `BEST` goes, and the sentence says so."""
+    _compared(planner)
+    what_changes(planner)
+    assert planner.compare_status.text() == (
+        "Out of date — use Optimize again to compare.")
+    assert planner.switch_button.isHidden()
+    lines = [_line_of(planner, vessel["id"]) for vessel in planner.hero_vessels]
+    assert all(line[0] == "" and line[1].startswith("AR ") for line in lines)
+
+
+def test_cancel_takes_the_comparison_off_the_list(planner, told):
+    """AK-453."""
+    bar = planner.advisor_bar
+    bar.optimize_button.click()
+    assert planner.compare_status.text().endswith("…")
+    assert _line_of(planner, planner.hero_vessels[0]["id"]) == ("", "…")
+    bar._controller.cancel()
+    assert bar.comparing is None
+    assert planner.compare_status.isHidden()
+    assert _line_of(planner, planner.hero_vessels[0]["id"]) is None
+
+
+def test_a_row_is_drawn_with_room_for_its_second_line(planner, told):
+    """AK-432: the height of the row; both lines drawn inside it, none lost."""
+    _compared(planner)
+    delegate = planner.chalice_list.itemDelegate()
+    index = planner.chalice_list.model().index(_row_of(
+        planner, planner.hero_vessels[-1]["id"]), 0)
+    assert isinstance(delegate, advisorbar.VesselRowDelegate)
+    assert (planner.chalice_list.sizeHintForRow(index.row())
+            >= advisorbar.VESSEL_ROW_HEIGHT)
+    assert not planner.chalice_list.grab().isNull()
+
+
+# --- QA-324: the hand on the way to the best row ------------------------------
+
+def _a_stored_build_in_one_hand(planner, vessel_id: int) -> None:
+    """A relic stored on that vessel, in `1H`, and back to where we were."""
+    here = planner.chalice_list.currentRow()
+    planner.chalice_list.setCurrentRow(_row_of(planner, vessel_id))
+    card = planner.active_slots()[1]
+    relics.equip(card, [copy for copy in card._holdable()
+                        if copy.handle is not None][-1])
+    planner.chalice_list.setCurrentRow(here)
+
+
+def _stored_hand(planner, vessel_id: int) -> bool:
+    return chalices.load(planner.current_hero()["id"], vessel_id)[3]
+
+
+def test_undo_after_a_switch_with_a_hold_puts_the_hand_back(planner, told):
+    _hold_a_relic(planner)
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    target_id = _best_fitting(planner)
+    _a_stored_build_in_one_hand(planner, target_id)
+    keys_there = relics.stored_keys(planner, target_id)
+    assert not _stored_hand(planner, target_id)
+
+    planner.switch_button.click()
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert _stored_hand(planner, target_id)
+
+    planner.undo_apply()
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert not _stored_hand(planner, target_id)
+    assert relics.stored_keys(planner, target_id) == keys_there
+
+
+def test_a_switch_without_holds_leaves_the_stored_hand_alone(planner, told):
+    target_id = planner.hero_vessels[-1]["id"]
+    _a_stored_build_in_one_hand(planner, target_id)
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert planner.current_vessel()["id"] == target_id
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert bar.answer is not None and not bar.has_been_applied()
+    assert not _stored_hand(planner, target_id)
+
+
+def test_the_switch_says_so_when_the_hand_comes_along(planner, told):
+    """Without another hand there, `test_a_switch_without_holds...` holds it."""
+    _a_stored_build_in_one_hand(planner, planner.hero_vessels[-1]["id"])
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    assert planner.switch_button.toolTip() == (
+        "Opens this vessel with its suggestion. It opens in 2H, the hand it "
+        "was compared in.")
+
+
+def test_applying_after_a_switch_writes_the_hand_and_undo_takes_it_back(
+        planner, told, monkeypatch):
+    target = planner.hero_vessels[-1]
+    _a_stored_build_in_one_hand(planner, target["id"])
+    keys_there = relics.stored_keys(planner, target["id"])
+    here = planner.chalice_list.currentRow()
+    planner.chalice_list.setCurrentRow(_row_of(planner, target["id"]))
+    index, copy = next(
+        (index, copy) for index, card in enumerate(planner.active_slots())
+        if card.current_relic() is None
+        for copy in card._holdable() if copy.handle is not None)
+    planner.chalice_list.setCurrentRow(here)
+    planner.stat_sheet.hand_switch.setChecked(True)
+
+    def with_a_choice(request, *rest):
+        answer = told(request, *rest)
+        return dataclasses.replace(answer, suggestions=(dataclasses.replace(
+            answer.suggestions[0], choices=(types.SlotChoice(
+                slot_index=index, handle=copy.handle,
+                relic_id=copy.relic_id, name=copy.name),)),))
+
+    bar = planner.advisor_bar
+    monkeypatch.setattr(bar._controller, "_answer", with_a_choice)
+    monkeypatch.setattr(bar.comparison._controller, "_answer", with_a_choice)
+    _compared(planner)
+
+    planner.switch_button.click()
+    assert not _stored_hand(planner, target["id"])
+    bar.apply_all_requested.emit()
+    assert _stored_hand(planner, target["id"])
+
+    planner.undo_apply()
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert not _stored_hand(planner, target["id"])
+    assert relics.stored_keys(planner, target["id"]) == keys_there
+
+
+def test_a_switch_from_a_third_row_shows_what_its_row_promised(planner, told):
+    """The hand and the holds of the question, not of the row that is open."""
+    origin = planner.current_vessel()
+    _card, copy = _hold_a_relic(planner)
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    target_id = _best_fitting(planner)
+    third = next(vessel for vessel in planner.hero_vessels
+                 if vessel["id"] not in (origin["id"], target_id))
+    planner.chalice_list.setCurrentRow(_row_of(planner, third["id"]))
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert planner.switch_button.toolTip().startswith("Moves your held relics")
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    target = next(vessel for vessel in planner.hero_vessels
+                  if vessel["id"] == target_id)
+    assert planner.current_vessel()["id"] == target_id
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert bar.answer.suggestions[0].score.value == told.value_of[
+        run.vessel_slots(target, True)]
+    index, = planner.held_slot_indices()
+    assert planner.active_slots()[index].current_relic().handle == copy.handle
+
+    planner.undo_apply()
+    planner.chalice_list.setCurrentRow(_row_of(planner, origin["id"]))
+    assert planner.active_slots()[0].current_relic().handle == copy.handle
+    assert planner.active_slots()[0].hold_button.isChecked()
+
+
+# --- QA-327: Reset Chalice ----------------------------------------------------
+
+def test_a_reset_stays_on_its_vessel_and_leaves_the_others_alone(planner):
+    first, second = planner.hero_vessels[:2]
+    _a_stored_build_in_one_hand(planner, first["id"])
+    _a_stored_build_in_one_hand(planner, second["id"])
+    keys_first = relics.stored_keys(planner, first["id"])
+    planner.chalice_list.setCurrentRow(_row_of(planner, second["id"]))
+
+    planner.reset_chalice()
+
+    assert planner.current_vessel()["id"] == second["id"]
+    assert not any(keys_of(planner))
+    assert not any(relics.stored_keys(planner, second["id"]))
+
+    card = planner.active_slots()[0]
+    relics.equip(card, next(copy for copy in card._holdable()
+                            if copy.handle is not None))
+    assert any(relics.stored_keys(planner, second["id"]))
+    assert relics.stored_keys(planner, first["id"]) == keys_first
+
+
+def test_a_reset_outdates_the_comparison_with_deep_off_too(planner, told):
+    told.value_of.update({run.vessel_slots(vessel, False): 100.0
+                          for vessel in planner.hero_vessels})
+    planner.deep_check.setChecked(False)
+    _compared(planner)
+
+    planner.reset_chalice()
+
+    assert planner.advisor_bar.comparing.state is advisorbar.Compared.OUTDATED
+
+
+# --- QA-329: a row's click and an older answer --------------------------------
+
+def test_a_click_shows_no_answer_left_from_a_run_without_the_holds(planner, told):
+    """AK-454: the row was compared with the hold, so the answer without it may
+    not stand beside it, however it got into the cache."""
+    _compared(planner)
+    _card, copy = _hold_a_relic(planner)
+    _compared(planner)
+    target = _a_vessel_that_takes(planner, copy)
+
+    planner.chalice_list.setCurrentRow(_row_of(planner, target["id"]))
+
+    bar = planner.advisor_bar
+    assert bar.answer is None
+    assert bar.situation.state is advisorbar.State.NOTHING_YET
+
+
+def test_a_switch_to_the_vessel_that_was_asked_leaves_its_holds_where_they_are(
+        planner, told):
+    """QA-330: the row of the asked vessel carries nothing over, it only opens.
+
+    Laid out anew, a hold on the second slot it fits went to the first, the
+    screen no longer matched the stored build, and there was no `Undo apply`.
+    """
+    asked = planner.hero_vessels[-1]
+    planner.chalice_list.setCurrentRow(_row_of(planner, asked["id"]))
+    slots = run.vessel_slots(asked, True)
+    index, copy = next(
+        (index, copy) for index, card in enumerate(planner.active_slots())
+        for copy in card._holdable() if copy.handle is not None
+        and candidates.place([copy], slots)[0][0][0].index != index)
+    card = planner.active_slots()[index]
+    relics.equip(card, copy)
+    card.hold_button.setChecked(True)
+    keys_before = keys_of(planner)
+    stored_before = relics.stored_keys(planner, asked["id"])
+    _compared(planner)
+    planner.chalice_list.setCurrentRow(_row_of(
+        planner, planner.hero_vessels[0]["id"]))
+    assert planner._switch_target == asked["id"]
+    assert planner.switch_button.toolTip().startswith("Opens this vessel")
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert planner.current_vessel()["id"] == asked["id"]
+    assert planner.held_slot_indices() == {index}
+    assert keys_of(planner) == keys_before
+    assert relics.stored_keys(planner, asked["id"]) == stored_before
+    assert bar.answer is not None and not bar.has_been_applied()
+
+
+def _answers_with_a_choice(planner, told, monkeypatch, target, held=None):
+    """Every answer names one empty slot of `target` and a copy for it, neither
+    of them taken by the `(index, copy)` that is `held`."""
+    held_index, held_copy = held or (None, None)
+    here = planner.chalice_list.currentRow()
+    planner.chalice_list.setCurrentRow(_row_of(planner, target["id"]))
+    index, copy = next(
+        (index, copy) for index, card in enumerate(planner.active_slots())
+        if card.current_relic() is None and index != held_index
+        for copy in card._holdable()
+        if copy.handle is not None and copy is not held_copy)
+    planner.chalice_list.setCurrentRow(here)
+
+    def with_a_choice(request, *rest):
+        answer = told(request, *rest)
+        return dataclasses.replace(answer, suggestions=(dataclasses.replace(
+            answer.suggestions[0], choices=(types.SlotChoice(
+                slot_index=index, handle=copy.handle,
+                relic_id=copy.relic_id, name=copy.name),)),))
+
+    bar = planner.advisor_bar
+    monkeypatch.setattr(bar._controller, "_answer", with_a_choice)
+    monkeypatch.setattr(bar.comparison._controller, "_answer", with_a_choice)
+    return index, copy
+
+
+def test_a_switch_with_rejections_alone_applies_nothing(planner, told,
+                                                        monkeypatch):
+    """QA-331: nothing was applied, so the bar says so and `Apply all` stays;
+    the rejections go along, and undoing an apply takes them back too."""
+    origin = planner.current_vessel()
+    target = planner.hero_vessels[-1]
+    _a_stored_build_in_one_hand(planner, target["id"])
+    keys_there = relics.stored_keys(planner, target["id"])
+    _answers_with_a_choice(planner, told, monkeypatch, target)
+    roll = (7, (1,), ())
+    planner._rejects[planner._reject_key()] = {roll: "Rejected"}
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    assert planner.switch_button.toolTip().startswith(
+        "Opens this vessel with its suggestion and brings your rejections")
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert planner.current_vessel()["id"] == target["id"]
+    assert not bar.has_been_applied()
+    assert bar.situation.state in advisorbar.ANSWERED_STATES
+    assert visible_actions(bar) == ["Apply all", "Why", "Clear"]
+    assert planner.rejected_rolls() == frozenset({roll})
+    assert relics.stored_keys(planner, target["id"]) == keys_there
+    assert not _stored_hand(planner, target["id"]), "nothing written: no Undo"
+
+    bar.apply_button.click()
+    assert bar.has_been_applied()
+    assert relics.stored_keys(planner, target["id"]) != keys_there
+
+    bar.apply_button.click()
+    assert relics.stored_keys(planner, target["id"]) == keys_there
+    assert planner.rejected_rolls() == frozenset()
+    assert not _stored_hand(planner, target["id"])
+    planner.chalice_list.setCurrentRow(_row_of(planner, origin["id"]))
+    assert planner.rejected_rolls() == frozenset({roll})
+
+
+def test_a_switch_with_a_hold_says_what_moved_and_offers_the_rest(
+        planner, told, monkeypatch):
+    """QA-331, director: only moved holds count as applied, and `Apply all`
+    stays for the other slots, beside `Undo apply` and still three actions."""
+    card, copy = _hold_a_relic(planner)
+    target = _a_vessel_that_takes(planner, copy)
+    told.value_of[run.vessel_slots(target, True)] = 999.0
+    keys_there = relics.stored_keys(planner, target["id"])
+    moved_to = run.held_moved_to([advisorbar.held_slot(0, card)],
+                                 run.vessel_slots(target, True))[0][0][1].index
+    index, offered = _answers_with_a_choice(planner, told, monkeypatch, target,
+                                            (moved_to, copy))
+    _compared(planner)
+    assert planner.switch_button.toolTip() == (
+        "Moves your held relics to this vessel, into the slots they fit; the "
+        "other slots stay as saved. Undo apply puts them back.")
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert bar.has_been_applied()
+    assert bar.status.accessibleName() == (
+        "Your held relic moved here. Undo puts your slots back as they were.")
+    assert visible_actions(bar) == ["Apply all", "Undo apply", "Why"]
+    assert planner.active_slots()[index].current_relic() is None
+
+    bar.apply_rest_button.click()
+
+    assert planner.active_slots()[index].current_relic().handle == offered.handle
+    assert planner.active_slots()[moved_to].current_relic().handle == copy.handle
+    assert bar.status.accessibleName() == (
+        "Applied. Undo puts your slots back as they were.")
+    assert visible_actions(bar) == ["Undo apply", "Why", "Clear"]
+
+    bar.apply_button.click()
+    assert relics.stored_keys(planner, target["id"]) == keys_there

@@ -43,17 +43,20 @@ import enum
 import html
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFontMetrics
-from PySide6.QtWidgets import (QBoxLayout, QComboBox, QHBoxLayout, QLabel,
-                               QProgressBar, QPushButton, QSizePolicy,
-                               QVBoxLayout, QWidget)
+from PySide6.QtGui import QColor, QFont, QFontMetrics
+from PySide6.QtWidgets import (QBoxLayout, QComboBox, QFrame, QHBoxLayout,
+                               QStyle, QStyledItemDelegate,
+                               QStyleOptionViewItem,
+                               QLabel, QProgressBar, QPushButton, QScrollArea,
+                               QSizePolicy, QVBoxLayout, QWidget)
 
-from . import damage, effecttext, favourites, model, weapons
+from . import damage, effecttext, favourites, model, weapons, weaponslots
+from .advisorblock import FoldButton
 from .advisor import goals as advisor_goals
 from .advisor import run as advisor_run
 from .advisor import types
-from .advisor.worker import AdvisorController
-from .theme import SLOT_COLOURS
+from .advisor.worker import AdvisorController, VesselComparison
+from .theme import ACCENT, MUTED, SLOT_COLOURS
 
 #: The warning line's colour: the theme's one yellow, the Yellow slot's
 #: (user decision 28.10.2026, "Gelb mit ⚠"; no colour of its own).
@@ -205,12 +208,21 @@ class Situation:
     #: The slots the run was asked about, and how many of them got a relic.
     slots: int = 0
     slots_filled: int = 0
-    #: Slots the run had nothing to offer for (4.11), and whether that is
-    #: because a `Favourite` effect could not be met rather than because
-    #: the pools were empty (AK-294: two causes, two clauses).
+    #: Slots the run had nothing to offer for (4.11), and why (AK-443).
     slots_without_a_choice: int = 0
-    blocked_by_a_requirement: bool = False
-    #: AK-365's third cause: the chosen type or art nothing owned reaches,
+    empty_slots: tuple[types.EmptySlot, ...] = ()
+    #: Favourite effects and favourited relics the suggestion goes without
+    #: (AK-455, AK-439), in any of the three result states, and what the
+    #: tooltip says about each under the line.
+    favourite_effects_unmet: int = 0
+    favourite_relics_left_out: int = 0
+    details: tuple[str, ...] = ()
+    #: AK-426, AK-429: the last clause of a result the player asked for with
+    #: an X or `Reject`. AK-425: what `Cancel` says then, and 4.5 has only one
+    #: other sentence.
+    note: str = ""
+    stopped_note: str = ""
+    #: AK-365's cause: the chosen type or art nothing owned reaches,
     #: as `AdvisorResult.no_carrier_for` spells it; empty for the other two.
     no_carrier_for: str = ""
     #: The two clauses of 4.9, counted apart because they are two different
@@ -231,6 +243,9 @@ class Situation:
     #: 4.8 only (AK-406): a save was read and holds no relics, so "No save
     #: was read" would be false and `Rescan save` alone the wrong advice.
     save_is_empty: bool = False
+    #: 4.13 after `Switch to it` (QA-331): how many held relics moved. Then
+    #: that is all that was applied, and `Apply all` stays for the other slots.
+    holds_moved: int = 0
 
 
 def _lower_case_first(label: str) -> str:
@@ -243,7 +258,7 @@ def _lower_case_first(label: str) -> str:
 
 
 def _slots_with_nothing(count: int) -> str:
-    """The second clause of 4.11, in the number the run came back with.
+    """AK-365's lead-in, in the number the run came back with.
 
     The table writes the singular. The plural is this sentence's own plural
     and not a second wording -- but it has never been reviewed, and it is in
@@ -254,13 +269,26 @@ def _slots_with_nothing(count: int) -> str:
     return f"{count} slots have nothing to choose from"
 
 
-def _slots_blocked(count: int) -> str:
-    """The second clause of 4.11 when the pools were not empty at all: a
-    `Favourite` effect had no owned constellation (AK-294). "requirement
-    you marked" is AK-291's own wording, not a new term (A12)."""
-    if count == 1:
-        return "1 slot is blocked by a requirement you marked"
-    return f"{count} slots are blocked by a requirement you marked"
+def _empty_short(empty: types.EmptySlot) -> str:
+    """AK-457's `{short}`. An unknown reason is a `KeyError`, not a fallback."""
+    return {
+        types.EMPTY_REQUIREMENT:
+            "what is left is needed for your Favourite effects",
+        types.EMPTY_PIN: f"your favourite “{empty.relic_name}” uses the rest",
+        types.EMPTY_AVOIDED_AND_REJECTED:
+            "everything left is rejected or carries an avoided effect",
+        types.EMPTY_AVOIDED: "everything left carries an effect you avoided",
+        types.EMPTY_REJECTED: "everything left is rejected",
+        types.EMPTY_NOTHING: "nothing left to choose from",
+    }[empty.reason]
+
+
+def _slots_empty(count: int, empty_slots: tuple[types.EmptySlot, ...]) -> str:
+    """The second clause of 4.11 (AK-443): one reason, or see the cards."""
+    shorts = {_empty_short(empty) for empty in empty_slots}
+    if len(shorts) == 1:
+        return f"{count} slot{'' if count == 1 else 's'} empty: {shorts.pop()}"
+    return f"{count} slots empty for different reasons — see the slot cards"
 
 
 def _slots_no_carrier(count: int, choice: str) -> str:
@@ -317,6 +345,22 @@ def marking_clauses(filters) -> list[str]:
             if filters.avoided_families else [])
 
 
+def _closing_clauses(situation: Situation) -> tuple[str, ...]:
+    """What the result goes without, effects then relics (AK-455, AK-439), and
+    what the player just asked for last (AK-426).
+
+    One clause per kind and only where there is something to say. Each ends on
+    its own full stop, as 4.9's do.
+    """
+    effects = situation.favourite_effects_unmet
+    relics = situation.favourite_relics_left_out
+    return (*((f"{effects} favourite effect{'' if effects == 1 else 's'} could "
+               f"not be met.",) if effects else ()),
+            *((f"{relics} favourited relic{'' if relics == 1 else 's'} did not "
+               f"fit.",) if relics else ()),
+            *((situation.note,) if situation.note else ()))
+
+
 def _clauses(head: str, *clauses: str) -> str:
     """A result sentence with whichever of its clauses have something to say.
 
@@ -347,10 +391,11 @@ def status_line(situation: Situation) -> str:
         return (f"Working out {_lower_case_first(goal)} — "
                 f"{situation.relics} relics, {situation.slots} slots.")
     if state is State.STOPPED:
-        return "Stopped. Nothing was changed."
+        return situation.stopped_note or "Stopped. Nothing was changed."
     if state is State.SUGGESTED:
-        return (f"{goal} — {situation.slots_filled} of "
-                f"{situation.slots} slots filled.")
+        head = f"{goal} — {situation.slots_filled} of {situation.slots} slots filled"
+        closing = _closing_clauses(situation)
+        return _clauses(head, *closing) if closing else f"{head}."
     if state is State.OUTDATED:
         if situation.marking_changed:
             return ("The effects you marked changed while this was working "
@@ -371,25 +416,30 @@ def status_line(situation: Situation) -> str:
             _curses_with_no_number(situation.curses_without_a_number)
             if situation.curses_without_a_number else "",
             _effects_left_out(situation.effects_left_out)
-            if situation.effects_left_out else "")
+            if situation.effects_left_out else "",
+            *_closing_clauses(situation))
     if state is State.NOT_RANKABLE:
         return (f"The game files carry no figures this goal can be ranked "
                 f"on for {situation.nightfarer}, so there is nothing to "
                 f"suggest.")
     if state is State.SUGGESTED_WITH_AN_EMPTY_SLOT:
         count = situation.slots_without_a_choice
-        if situation.blocked_by_a_requirement:
-            empty = _slots_blocked(count)
-        elif situation.no_carrier_for:
+        if situation.no_carrier_for:
             empty = _slots_no_carrier(count, situation.no_carrier_for)
         else:
-            empty = _slots_with_nothing(count)
-        return (f"{goal} — {situation.slots_filled} of "
-                f"{situation.slots} slots filled{CLAUSES}{empty}.")
+            empty = _slots_empty(count, situation.empty_slots)
+        return _clauses(f"{goal} — {situation.slots_filled} of "
+                        f"{situation.slots} slots filled{CLAUSES}{empty}.",
+                        *_closing_clauses(situation))
     if state is State.FAILED:
         return f"Could not work that out — {situation.reason}."
     if state is State.APPLIED:
-        return "Applied. Undo puts your slots back as they were."
+        undo = "Undo puts your slots back as they were."
+        if situation.holds_moved == 1:
+            return f"Your held relic moved here. {undo}"
+        if situation.holds_moved:
+            return f"Your {situation.holds_moved} held relics moved here. {undo}"
+        return f"Applied. {undo}"
     raise KeyError(f"no status line is written for {state!r}")
 
 
@@ -428,6 +478,310 @@ class Asking:
     ctx: types.GoalContext
     nightfarer: str
     relics: int
+    #: What the same question is asked about next (AD-062): every vessel of
+    #: this Nightfarer, which one is on screen, and whether Deep is on.
+    vessels: tuple = ()
+    vessel_id: int | None = None
+    deep: bool = False
+
+
+class Compared(enum.Enum):
+    """Where the vessel comparison stands (AK-432, AK-453)."""
+
+    WAITING = "the suggestion is not there yet"
+    RUNNING = "the rows are filling"
+    DONE = "every row is there"
+    OUTDATED = "the question has changed since"
+    FAILED = "a vessel could not be compared"
+
+
+@dataclasses.dataclass
+class Comparing:
+    """What the vessel list says about the comparison, whichever row is open."""
+
+    goal_label: str
+    other_label: str
+    vessel_ids: tuple[int, ...]
+    #: The vessel asked from. Its holds and rejections travelled to the others.
+    asked_vessel: int
+    held_relics: int
+    carries: bool
+    #: AK-434 reads this: what may not change for the rows to go on being true.
+    signature: tuple
+    questions: dict[int, types.AdvisorRequest] = dataclasses.field(
+        default_factory=dict)
+    rows: dict[int, types.VesselRow] = dataclasses.field(default_factory=dict)
+    state: Compared = Compared.WAITING
+    reason: str = ""
+
+    def ranked(self) -> tuple[types.VesselRow, ...]:
+        return advisor_run.ranked(tuple(self.rows.values()), self.vessel_ids)
+
+    def is_best(self, row: types.VesselRow) -> bool:
+        return (not row.unfit_holds and advisor_run.rank_key(row)
+                == advisor_run.rank_key(self.ranked()[0]))
+
+
+def comparison_signature(asking: Asking) -> tuple:
+    """The question without what a change of vessel changes (AD-062.8).
+
+    The hand is out too: a vessel brings its stored hand back, and a player's
+    own click on the switch says so itself.
+    """
+    request = asking.request
+    return asking.deep, dataclasses.replace(
+        request, two_handed=False, generation=0, inventory_fingerprint="",
+        problem=dataclasses.replace(request.problem, slots=(), held=(),
+                                    rejected=frozenset()))
+
+
+def _number_of(figure: str) -> str:
+    """AK-449 `{number}`: the part of a figure the narrow row has room for."""
+    last = figure.rsplit(" ", 1)[-1]
+    return last if any(letter.isdigit() for letter in last) else "—"
+
+
+#: `GOAL.md` A28: the word a figure is measured in, short enough for the narrow
+#: row, by what the goal calls the figure.
+FIGURE_UNITS = (("weapon art", "Art {}"), ("attack rating", "AR {}"),
+                ("spell", "Spell {}"), ("effective hp", "EHP {}"),
+                ("offensive attributes", f"{{}} {advisor_goals.ATTRIBUTE_POINT_UNIT}"))
+
+
+def _number_with_unit(figure: str) -> str:
+    """`Attack rating 90` as the row says it: `AR 90`. A multiplier has its `×`."""
+    number = _number_of(figure)
+    name = figure.split(" (")[0].lower()
+    return next((unit.format(number) for word, unit in FIGURE_UNITS
+                 if word in name and number[0].isdigit()), number)
+
+
+def _shown(figure: str) -> float | None:
+    """The number a figure puts on screen, or `None` where it has none."""
+    number = _number_of(figure).lstrip("×")
+    return float(number) if number[0].isdigit() else None
+
+
+def _with_its_base(row: types.VesselRow) -> str:
+    """`GOAL.md` A28: `AR 90 (+61 %)`, against the row's figure with no relics.
+    Of the numbers on screen, so that the reader's own sum comes out; a base of
+    nothing has no percentage."""
+    said = _number_with_unit(row.figure)
+    now, base = _shown(row.figure), _shown(row.base_figure)
+    if now is None or not base:
+        return said
+    return f"{said} ({round((now / base - 1) * 100):+d} %)"
+
+
+def comparison_base(comparing: Comparing) -> str:
+    """What the status line's tooltip adds to it (`GOAL.md` A28): the rows of
+    one question share their base, because no relic of any vessel is in it."""
+    base = comparing.ranked()[0].base_figure if (
+        comparing.state is Compared.DONE) else ""
+    return _without_relics(base)
+
+
+def _without_relics(base_figure: str) -> str:
+    return f"Without relics: {base_figure}." if base_figure else ""
+
+
+def _difference(best: types.VesselRow, here: types.VesselRow) -> str:
+    """AK-449 `{difference}`, or empty where it would read `0`: of the numbers
+    on screen, so that `118` beside `113` reads `5` (QA-333)."""
+    gap = abs((_shown(best.figure) or 0.0) - (_shown(here.figure) or 0.0))
+    if "×" in _number_of(best.figure):
+        said = f"{gap:.2f}"
+        return "" if float(said) == 0 else said
+    return f"{gap:.0f}" if gap else ""
+
+
+def _names_cut(names, most: int) -> str:
+    """At most so many names, then `…and {n} more` (AK-432, AK-451, AK-452)."""
+    shown = ", ".join(names[:most])
+    return (f"{shown} …and {len(names) - most} more" if len(names) > most
+            else shown)
+
+
+def comparison_status(comparing: Comparing, chosen_id: int,
+                      worn_id: int | None, names) -> tuple[str, int | None]:
+    """The status line over the list and where `Switch to it` goes, if it is
+    offered (AK-432, AK-450, AK-453, AK-464)."""
+    goal = comparing.goal_label
+    total = len(comparing.vessel_ids)
+    if comparing.state is Compared.OUTDATED:
+        return "Out of date — use Optimize again to compare.", None
+    if comparing.state is Compared.FAILED:
+        return f"Could not compare the vessels — {comparing.reason}.", None
+    if comparing.state is Compared.WAITING:
+        return f"Comparing your vessels for {goal}…", None
+    if comparing.state is Compared.RUNNING:
+        return (f"Comparing your vessels for {goal}… "
+                f"{len(comparing.rows)} of {total}"), None
+
+    rows = comparing.ranked()
+    best, here = rows[0], comparing.rows[chosen_id]
+    tied = [row.vessel_id for row in rows if comparing.is_best(row)]
+    if len(tied) > 1:
+        said = _with_its_base(best)
+        line = (f"All {total} vessels tie at {said}." if len(tied) == total
+                else f"{len(tied)} vessels tie for best at {said}: "
+                     + _names_cut([names[vessel] for vessel in tied], 2))
+        if chosen_id in tied:
+            return line, None
+        return line, worn_id if worn_id in tied else tied[0]
+    if best.vessel_id == chosen_id:
+        return (f"This is the best of {total} vessels for {goal}: "
+                f"{_with_its_base(best)}."), None
+
+    gap = _difference(best, here)
+    if here.unfit_holds:
+        clause = ""
+    elif best.value > here.value:
+        clause = f", {gap} more than this one" if gap else ""
+    elif best.value == here.value:
+        clause = (", same as this one, but it meets more of your favourites"
+                  if advisor_run.rank_key(best)[:3] != advisor_run.rank_key(here)[:3]
+                  else f", same as this one, but better for {comparing.other_label}")
+    else:
+        clause = ((f", {gap} less than this one" if gap else "")
+                  + ", but it meets more of your favourites")
+    return (f"Best of {total} for {goal}: {names[best.vessel_id]} — "
+            f"{_with_its_base(best)}{clause}."), best.vessel_id
+
+
+def vessel_line(comparing: Comparing | None,
+                vessel_id: int) -> tuple[str, str] | None:
+    """The second text line of a row, as (`ACCENT` part, `MUTED` part), or
+    `None` where the row has none (AK-433, AK-451, AK-465). Missing favourites
+    stand in the tooltip: with the percentage they outgrow the row (measured
+    219 px at the opening width, `BEST  AR 118 (+111 %)  ·  2 favourites missing`
+    221, with `EHP` 227)."""
+    if comparing is None:
+        return None
+    row = comparing.rows.get(vessel_id)
+    if row is None:
+        return (("", "…") if comparing.state in (Compared.WAITING,
+                                                 Compared.RUNNING) else None)
+    if row.unfit_holds:
+        return "", "Your held relics do not fit"
+    number = _with_its_base(row)
+    if comparing.state is Compared.DONE and comparing.is_best(row):
+        return f"BEST  {number}", ""
+    return "", number
+
+
+def _rank_of(comparing: Comparing, row: types.VesselRow) -> int:
+    """Equal figures, equal rank (AK-432): one more than those strictly ahead."""
+    return 1 + sum(advisor_run.rank_key(other) < advisor_run.rank_key(row)
+                   for other in comparing.rows.values())
+
+
+def vessel_compared_lines(comparing: Comparing | None, vessel_id: int,
+                          effect_name) -> list[str]:
+    """What the tooltip of a row adds before `Equipped in game` (AK-451,
+    AK-452, AK-454)."""
+    row = None if comparing is None else comparing.rows.get(vessel_id)
+    if row is None:
+        return []
+    if row.unfit_holds:
+        return [f"Not compared: {_names_cut(row.unfit_holds, 2)} would not fit "
+                f"any slot of this vessel."]
+    lines = []
+    if comparing.state is Compared.DONE:
+        lines.append(f"Compared: {row.figure} for {comparing.goal_label} — rank "
+                     f"{_rank_of(comparing, row)} of {len(comparing.vessel_ids)}.")
+    if row.base_figure:
+        lines.append(_without_relics(row.base_figure))
+    missing = [*map(effect_name, row.required_left_out), *row.pins_left_out]
+    if missing:
+        lines.append(f"Misses: {_names_cut(missing, 4)}.")
+    if vessel_id != comparing.asked_vessel:
+        if comparing.held_relics:
+            count = comparing.held_relics
+            lines.append(f"Compared with your {count} held "
+                         f"relic{'' if count == 1 else 's'} placed in it.")
+        if comparing.carries:
+            lines.append("Click opens it as you left it. Switch to it brings "
+                         "your held relics and rejections along.")
+    return lines
+
+
+def vessel_accessible_name(comparing: Comparing | None, vessel_id: int,
+                           name: str) -> str:
+    """AK-436, AK-451: what a screen reader says of a row."""
+    row = None if comparing is None else comparing.rows.get(vessel_id)
+    if row is None:
+        return name
+    if row.unfit_holds:
+        return f"{name}, your held relics do not fit, not ranked"
+    if comparing.state is not Compared.DONE:
+        return f"{name}, {row.figure}"
+    total = len(comparing.vessel_ids)
+    return (f"{name}, {row.figure}, best of {total}" if comparing.is_best(row)
+            else f"{name}, {row.figure}, rank {_rank_of(comparing, row)} of {total}")
+
+
+#: The data role a vessel row's second text line travels in.
+VESSEL_LINE_ROLE = Qt.UserRole + 1
+#: AK-432: room for the second line, one height whether it is drawn or not, so
+#: the list does not jump when a comparison starts.
+VESSEL_ROW_HEIGHT = 38
+#: AK-432: the second line and the status line.
+COMPARE_POINT_PX = 11
+
+
+class VesselRowDelegate(QStyledItemDelegate):
+    """A vessel row with a second text line under its name (AK-432).
+
+    On the open row the highlight is `ACCENT` itself, so there both lines take
+    the highlighted text colour; the word `BEST` says it, not the colour.
+    """
+
+    def sizeHint(self, option, index):  # noqa: N802 - Qt naming
+        size = super().sizeHint(option, index)
+        if index.data(Qt.UserRole) is not None:
+            size.setHeight(max(size.height(), VESSEL_ROW_HEIGHT))
+        return size
+
+    def paint(self, painter, option, index) -> None:
+        line = index.data(VESSEL_LINE_ROLE)
+        if line is None:
+            super().paint(painter, option, index)
+            return
+        item = QStyleOptionViewItem(option)
+        self.initStyleOption(item, index)
+        style = item.widget.style()
+        margin = style.pixelMetric(QStyle.PM_FocusFrameHMargin, item,
+                                   item.widget) + 1
+        area = style.subElementRect(QStyle.SE_ItemViewItemText, item,
+                                    item.widget).adjusted(margin, 0, -margin, 0)
+        name, item.text = item.text, ""
+        style.drawControl(QStyle.CE_ItemViewItem, item, painter, item.widget)
+
+        selected = bool(item.state & QStyle.State_Selected)
+        marked = item.palette.highlightedText().color()
+        painter.save()
+        painter.setPen(marked if selected else item.palette.text().color())
+        painter.setFont(item.font)
+        top = area.adjusted(0, 0, 0, -area.height() // 2)
+        painter.drawText(top, Qt.AlignLeft | Qt.AlignBottom,
+                         item.fontMetrics.elidedText(name, Qt.ElideRight,
+                                                     area.width()))
+        small = QFont(item.font)
+        small.setPixelSize(COMPARE_POINT_PX)
+        painter.setFont(small)
+        metrics = QFontMetrics(small)
+        below = area.adjusted(0, area.height() // 2, 0, 0)
+        accent, muted = line
+        lead = metrics.horizontalAdvance(accent)
+        painter.setPen(marked if selected else QColor(ACCENT))
+        painter.drawText(below, Qt.AlignLeft | Qt.AlignTop, accent)
+        painter.setPen(marked if selected else QColor(MUTED))
+        painter.drawText(below.adjusted(lead, 0, 0, 0),
+                         Qt.AlignLeft | Qt.AlignTop,
+                         metrics.elidedText(muted, Qt.ElideRight,
+                                            max(0, below.width() - lead)))
+        painter.restore()
 
 
 def held_slot(index: int, card) -> types.HeldSlot:
@@ -454,7 +808,8 @@ def held_slot(index: int, card) -> types.HeldSlot:
         name=item.name,
         effect_ids=tuple(item.effect_ids),
         curse_ids=tuple(getattr(item, "curse_ids", ()) or ()),
-        handle=getattr(item, "handle", None)))
+        handle=getattr(item, "handle", None),
+        colour=item.colour, is_deep=item.is_deep))
 
 
 def held_swapped_art_ids(held, effects) -> tuple[int, ...]:
@@ -481,7 +836,10 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     as part of the cache key, and never as a live reading of the window.
     The two effect sets the player marked (A18/A19) travel the same way, on
     the same type (AD-036.1): the picker's own question is built from this
-    one by replacing `held`, so it carries them without knowing.
+    one by replacing `held`, so it carries them without knowing. The relics
+    starred for this Nightfarer too (AD-059.1) and the rolls rejected for this
+    build (AD-060.3); those two the picker takes off again, because the picker
+    is the hand choice.
 
     The request is derived from the context beside it, field by field, and
     that is not tidiness: `run.run` refuses a request whose fields describe
@@ -553,6 +911,12 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     selected tile is what the spell cells cast from (`ctx.selected_catalyst`,
     in the key as `selected_catalyst_id`), the one the stat sheet's spell
     row stands on; its tier and rolls stay out, as the starting armament's.
+    **And a third (01.11.2026):** the selected tile's type also decides
+    which weapon-type buffs ("Improved Dagger Attack Power") the baseline
+    counts as met; it reaches the key through `declared`. **And a fourth
+    (01.11.2026):** the ailments the selected tile's armament inflicts
+    (the starting armament for an empty tile) decide which ailment-gated
+    conditions the baseline counts as met, again through `declared`.
     """
     owned = planner.owned
     if owned is None:
@@ -566,9 +930,17 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     holding = planner.held_slot_indices()
     held = tuple(held_slot(index, card) for index, card in enumerate(cards)
                  if index in holding)
+    favourited = planner.effect_filters.required
+    of_others = frozenset(
+        effect_id for effect_id in favourited
+        if not effecttext.works_for(
+            planner.data["effects"].get(str(effect_id), {}), hero["name"]))
     problem = types.SlotProblem(slots=slots, held=held,
                                 excluded=planner.effect_filters.resolved_excluded,
-                                required=planner.effect_filters.required)
+                                required=favourited - of_others,
+                                favourites_of_others=of_others,
+                                rejected=planner.rejected_rolls(),
+                                pinned=favourites.marked_for(hero["id"]))
 
     # The baseline counts every switchable condition as met (AD-036.6): the
     # player's own declarations are merged over it, so a condition they
@@ -584,12 +956,76 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # A condition without `wepTypeTrigger` carries the field's baseline,
     # the dagger type (`field_baselines`, the extractor drops a value equal
     # to it).
-    baseline = {**model.advisor_defaults(), **planner.declared}
+    # The Stacks column of the filter window (user decision 07.11.2026) goes
+    # over the stat sheet's count, in this question and so in Optimize and the
+    # relic picker alike (user decision on QA-335); the stat sheet keeps its own.
     effects = planner.data["effects"]
-    counts = {effect_id for effect_id in baseline
-              if effect_id not in planner.declared
-              and effecttext.counts_armaments(effects[str(effect_id)])}
+    said_by_player = (planner.declared
+                      | planner.effect_filters.counted_stacks(effects))
+    baseline = {**model.advisor_defaults(), **said_by_player}
     selected = planner.active_slot().weapon
+    # A weapon-type buff ("Improved Dagger Attack Power") the player did not
+    # declare holds only for the selected tile's type, by the same user
+    # decision as the count conditions below (01.11.2026); an empty tile
+    # leaves it to the starting armament `model.compute` gates against. A
+    # `triggerOnWepType` no armament carries (256, 512) is no type and stays.
+    unselected = ({weapon.get("wep_type") for weapon in planner.data["weapons"]}
+                  - {None if selected is None else selected.get("wep_type"),
+                     None})
+    # "Attack power up when facing frostbite-afflicted enemy" and its twins,
+    # if the player did not declare them, hold only where the build inflicts
+    # the ailment itself (user decision 01.11.2026): the selected tile's
+    # armament, its rolls ("Attacks Inflict Frost") and the art or spell the
+    # casting bar has it use, here; a relic of the build, swap relics
+    # included, in `evaluate` (`ctx.awaiting_ailment`). Where a swap relic
+    # reaches that art or spell, what it inflicts counts only in a build
+    # without one (`ctx.pick_ailment`, QA-322). An armament on another tile
+    # is not a source -- only the selected one is in hand -- and an empty
+    # selected tile stands for the starting armament.
+    tile, tile_index = planner.active_slot(), planner.active_weapon
+    if tile.weapon is None:
+        tile = weaponslots.WeaponSlot(
+            weapon=planner.weapon_by_id(hero.get("starting_weapon")))
+        tile_index = damage.STARTING_SLOT
+    inflicted: set[str] = set()
+    picked: set[str] = set()
+    pick_swap = ""
+    if tile.weapon is not None:
+        inflicted.update(tile.weapon.get("inflicts") or {})
+        for effect_id in tile.effect_ids:
+            inflicted.update((effects.get(str(effect_id)) or {}).get(
+                "inflicts_on_hit") or {})
+        if (tile.weapon.get("wep_type") in damage.GENUS_OF_CATALYST
+                and any(s != -1 for s in
+                        tile.weapon.get("equipped_spells") or ())):
+            own = damage.spell_catalyst(tile.weapon, hero, planner.data)[1]
+            used = damage.spell_thrown(model.Build(), planner.data,
+                                       tile.weapon, starting=own,
+                                       chosen=tile.spell_id)[0]
+            pick_swap = "spells" if own else ""
+        else:
+            used = damage.art_in_use(tile, tile_index,
+                                     model.Build(), hero, planner.data)[0]
+            pick_swap = "arts" if damage.is_starting_armament(
+                tile.weapon, hero, tile_index) else ""
+        (picked if pick_swap else inflicted).update(
+            (used or {}).get("inflicts") or {})
+    unmet = {effect_id for effect_id in baseline
+             if effect_id not in said_by_player
+             and effecttext.ailment_awaited(effects[str(effect_id)])
+             not in inflicted | {None}}
+    pick_ailment = {effect_id for effect_id in unmet
+                    if effecttext.ailment_awaited(effects[str(effect_id)])
+                    in picked}
+    awaiting = unmet - pick_ailment
+    baseline = {effect_id: count for effect_id, count in baseline.items()
+                if effect_id not in unmet
+                and (effect_id in said_by_player
+                     or effects[str(effect_id)]["modifiers"].get(
+                         "triggerOnWepType") not in unselected)}
+    counts = {effect_id for effect_id in baseline
+              if effect_id not in said_by_player
+              and effecttext.counts_armaments(effects[str(effect_id)])}
     neutral_type = (planner.data.get("field_baselines") or {}).get(
         "wepTypeTrigger")
     assumed = set() if selected is None else {
@@ -649,6 +1085,9 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         weighting=weighting,
         declared=declared,
         assumed_armament_counts=tuple(sorted(assumed)),
+        awaiting_ailment=tuple(sorted(awaiting)),
+        pick_ailment=tuple(sorted(pick_ailment)),
+        pick_swap=pick_swap if pick_ailment else "",
         selected_catalyst=catalyst,
         selected_spell_id=spell_id,
         art_tile=art_tile,
@@ -672,6 +1111,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         reference_weapon_id=None if starting is None else starting["id"],
         declared=declared,
         assumed_armament_counts=ctx.assumed_armament_counts,
+        pick_ailment=ctx.pick_ailment,
+        pick_swap=ctx.pick_swap,
         selected_catalyst_id=None if catalyst is None else catalyst["id"],
         selected_spell_id=spell_id,
         art_tile=None if art_tile is None else art_tile.key,
@@ -681,7 +1122,18 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         data_version=str(meta.get("data_version") or ""),
     )
     return Asking(request=request, inventory=owned, ctx=ctx,
-                  nightfarer=hero["name"], relics=owned.relic_count)
+                  nightfarer=hero["name"], relics=owned.relic_count,
+                  vessels=tuple(planner.hero_vessels),
+                  vessel_id=(planner.current_vessel() or {}).get("id"),
+                  deep=planner.deep_check.isChecked())
+
+
+def _a_tooltip(line: str, details: tuple[str, ...] = ()) -> str:
+    """The sentence and its details, one per row, shown letter for letter."""
+    if not line:
+        return ""
+    rows = "<br>".join(html.escape(row) for row in (line, *details))
+    return f"<span>{rows}</span>"
 
 
 class _ElidingLabel(QLabel):
@@ -702,14 +1154,15 @@ class _ElidingLabel(QLabel):
         self.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         self._whole = ""
 
-    def set_whole_text(self, text: str) -> None:
+    def set_whole_text(self, text: str, details: tuple[str, ...] = ()) -> None:
+        """`details` go into the tooltip under the sentence, and nowhere else."""
         self._whole = text
         # A tooltip has no text format to set, so Qt decides for itself
         # whether what it is given is markup (SEC-013). Escaped **and**
         # wrapped: without the wrapper an escaped `<` would be shown as the
         # five characters `&lt;` rather than as `<`, because Qt reads a text
         # with no `<` in it as plain.
-        self.setToolTip(f"<span>{html.escape(text)}</span>" if text else "")
+        self.setToolTip(_a_tooltip(text, details))
         # A label with no accessible name of its own reports `text()` to the
         # accessibility bridge -- the elided one -- so a screen reader never
         # got past the ellipsis, and a keyboard user has no hover (DR-023).
@@ -726,6 +1179,69 @@ class _ElidingLabel(QLabel):
         metrics = QFontMetrics(self.font())
         self.setText(metrics.elidedText(self._whole, Qt.ElideRight,
                                         self.width()))
+
+
+#: How many rejected relics the list shows before it scrolls (AK-430).
+REJECTED_ROWS_SHOWN = 4
+
+
+class RejectedList(QWidget):
+    """The relics rejected for this build, under the row and not in it (AK-430).
+
+    Nothing at all with none rejected; closed, the one fold button. Open, one
+    line per relic with `Suggest again`, scrolling in here rather than in the
+    middle column.
+    """
+
+    #: The player took a rejection back. Carries the roll.
+    suggest_again = Signal(object)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(0, 0, 0, 0)
+        column.setSpacing(0)
+        self.scroller = QScrollArea()
+        self.scroller.setWidgetResizable(True)
+        self.scroller.setFrameShape(QFrame.NoFrame)
+        self.scroller.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.fold = FoldButton("", "", self.scroller)
+        column.addWidget(self.fold, 0, Qt.AlignLeft)
+        column.addWidget(self.scroller)
+        self.setVisible(False)
+
+    def show_these(self, rows) -> None:
+        """Draw `(roll, relic name, its effects joined)` per rejected relic."""
+        self.setVisible(bool(rows))
+        if not rows:
+            self.fold.setChecked(False)
+            return
+        count = len(rows)
+        said = f"{count} relic{'' if count == 1 else 's'} rejected for this build"
+        self.fold.say(said, said)
+        # The press that took a row back is still in that row's button.
+        old_page = self.scroller.takeWidget()
+        if old_page is not None:
+            old_page.deleteLater()
+        page = QWidget()
+        lines = QVBoxLayout(page)
+        lines.setContentsMargins(0, 0, 0, 0)
+        lines.setSpacing(0)
+        height = 0
+        for roll, name, effects in rows:
+            row = QHBoxLayout()
+            label = _ElidingLabel()
+            label.set_whole_text(f"{name} — {effects}" if effects else name)
+            again = QPushButton("Suggest again")
+            again.setAccessibleName(f"Suggest {name} again")
+            again.clicked.connect(
+                lambda _checked=False, taken=roll: self.suggest_again.emit(taken))
+            row.addWidget(label, 1)
+            row.addWidget(again)
+            lines.addLayout(row)
+            height = again.sizeHint().height()
+        self.scroller.setWidget(page)
+        self.scroller.setFixedHeight(height * min(count, REJECTED_ROWS_SHOWN))
 
 
 class _OneOrTwoLines(QBoxLayout):
@@ -816,19 +1332,37 @@ class AdvisorBar(QWidget):
     #: AK-302: the player asked for the effect filter window. The window
     #: opens it, because the window knows what the player owns.
     filters_requested = Signal()
+    #: AK-432: `comparing` has changed, so the vessel list says something else.
+    comparison_changed = Signal()
 
     def __init__(self, asking, parent: QWidget | None = None, *,
                  controller: AdvisorController | None = None,
+                 comparison: VesselComparison | None = None,
                  filters=None, data=None) -> None:
         super().__init__(parent)
         self._asking = asking
         #: The two marked sets (`effectfilters.EffectFilters`), read for the
         #: AK-280 clauses of the tooltip and for nothing else here.
         self._filters = filters
-        self._controller = (AdvisorController(self) if controller is None
-                            else controller)
+        cache = advisor_run.ResultCache()
+        self._controller = (AdvisorController(self, cache=cache)
+                            if controller is None else controller)
+        #: AD-062, on the same cache: the chosen vessel's question is a hit,
+        #: and so is a vessel the player then opens (AK-435).
+        self.comparison = (VesselComparison(cache, self)
+                           if comparison is None else comparison)
+        self.comparison.row_ready.connect(self._on_comparison_row)
+        self.comparison.finished.connect(self._on_comparison_finished)
+        self.comparison.failed.connect(self._on_comparison_failed)
+        #: What the vessel list draws; `None` is a list without a comparison.
+        self.comparing: Comparing | None = None
         self._situation = Situation(State.NOTHING_YET)
         self._answer = None
+        #: AK-425, AK-426, AK-429: what a run asked for from the block says
+        #: if it is stopped and when it is done, and what the tooltip adds.
+        self._stopped_note = ""
+        self._done_note = ""
+        self._done_tip = ""
         #: The asking a running or finished run was started from: 4.4 counts
         #: its relics and slots, and no answer carries them back.
         self._asked = None
@@ -974,6 +1508,13 @@ class AdvisorBar(QWidget):
         # one action seen from two sides -- two buttons would have to disagree
         # about which of them is live, and the table gives the row one state
         # for it (4.13).
+        #: QA-331: the one state with both sides up, after `Switch to it` moved
+        #: holds. `Clear` gives way to it, so the row keeps three (AK-07).
+        self.apply_rest_button = QPushButton(APPLY_CAPTIONS[False])
+        self.apply_rest_button.setVisible(False)
+        self.apply_rest_button.clicked.connect(self.apply_all_requested)
+        doing.addWidget(self.apply_rest_button)
+
         self.apply_button = QPushButton("Apply all")
         self.apply_button.clicked.connect(self._apply_or_undo)
         doing.addWidget(self.apply_button)
@@ -1122,6 +1663,100 @@ class AdvisorBar(QWidget):
         self._stop_shows = None
         self._forget_the_answer()
         self._show(self._resting())
+        self._check_the_comparison()
+
+    def _check_the_comparison(self) -> None:
+        """AK-434, one seam instead of a call at every cause (AD-062.8)."""
+        comparing = self.comparing
+        if comparing is None or comparing.state not in (Compared.RUNNING,
+                                                        Compared.DONE):
+            return
+        asking = self._asking(self.goal_id())
+        if (asking is None
+                or comparison_signature(asking) != comparing.signature):
+            self.the_comparison_is_out_of_date()
+
+    def the_comparison_is_out_of_date(self) -> None:
+        """The figures stay, without `BEST` (AK-432, AK-434)."""
+        if self.comparing is None:
+            return
+        self.comparison.cancel()
+        self.comparing.state = Compared.OUTDATED
+        self.comparison_changed.emit()
+
+    def show_the_answer_if_known(self) -> bool:
+        """The comparison already answered for the vessel now open (AK-435).
+
+        Draws it, starts no run and compares nothing anew (AD-062.3, .7). With
+        holds or rejections here the question differs and it is simply a miss
+        (AK-454). An answer from an earlier run is a miss too, whatever the
+        cache holds: the row beside it says another figure (QA-329).
+        """
+        comparing = self.comparing
+        if comparing is None or comparing.state not in (Compared.RUNNING,
+                                                        Compared.DONE):
+            return False
+        asking = self._asking(self.goal_id())
+        question = (None if asking is None
+                    else comparing.questions.get(asking.vessel_id))
+        known = (None if question is None
+                 or advisor_run.cache_key(question)
+                 != advisor_run.cache_key(asking.request)
+                 else self._controller.known_answer(asking.request,
+                                                    asking.inventory))
+        if known is None:
+            return False
+        self._asked = asking
+        self._stopped_note = self._done_note = self._done_tip = ""
+        self._draw_the_answer(known)
+        return True
+
+    def comparison_knows(self, vessel_id: int) -> bool:
+        """Would that vessel's row answer at once, once its holds are there?"""
+        asked = self._asked
+        request = (None if self.comparing is None
+                   else self.comparing.questions.get(vessel_id))
+        return (request is not None and asked is not None
+                and self._controller.known_answer(
+                    request, asked.inventory) is not None)
+
+    def _the_comparison_begins(self, asking) -> None:
+        """AK-453: from the start of a run no old figure stands."""
+        self.comparison.cancel()
+        self.comparing = None
+        if asking is not None and asking.vessels:
+            request = asking.request
+            other = advisor_goals.OTHER_GOAL[request.goal_id]
+            held_relics = len(types.held_relics(request.problem))
+            self.comparing = Comparing(
+                goal_label=self._goal_label(),
+                other_label=self.goal_box.itemText(
+                    self.goal_box.findData(other)),
+                vessel_ids=tuple(vessel["id"] for vessel in asking.vessels),
+                asked_vessel=asking.vessel_id,
+                held_relics=held_relics,
+                carries=bool(held_relics or request.problem.rejected),
+                signature=comparison_signature(asking))
+        self.comparison_changed.emit()
+
+    def _no_comparison(self) -> None:
+        """AK-453: the suggestion never came, so nothing was compared."""
+        self.comparison.cancel()
+        self.comparing = None
+        self.comparison_changed.emit()
+
+    def _on_comparison_row(self, row) -> None:
+        self.comparing.rows[row.vessel_id] = row
+        self.comparison_changed.emit()
+
+    def _on_comparison_finished(self, _rows) -> None:
+        self.comparing.state = Compared.DONE
+        self.comparison_changed.emit()
+
+    def _on_comparison_failed(self, reason: str) -> None:
+        self.comparing.state = Compared.FAILED
+        self.comparing.reason = reason.rstrip(". ")
+        self.comparison_changed.emit()
 
     def the_data_is_changing(self) -> None:
         """Called before the save or the dataset is read again (AD-006.7).
@@ -1132,12 +1767,15 @@ class AdvisorBar(QWidget):
         """
         self._forget_the_answer()
         self._controller.before_the_data_changes()
+        self.comparison.before_the_data_changes()
+        self.the_comparison_is_out_of_date()
 
     def shutdown(self) -> None:
-        """The window is closing: stop the run and wait for the thread."""
+        """The window is closing: stop the runs and wait for the threads."""
         self._wait_timer.stop()
         self._figures_timer.stop()
         self._controller.shutdown()
+        self.comparison.shutdown()
 
     def clear(self) -> None:
         """Put the answer away and go back to 4.1."""
@@ -1174,6 +1812,14 @@ class AdvisorBar(QWidget):
         if self._situation.state is not State.APPLIED:
             self._applied_over = self._situation
         self._show(Situation(State.APPLIED))
+
+    def the_holds_moved_here(self, count: int) -> None:
+        """`Switch to it` put held relics in the slots (AK-454): 4.13, and
+        `Undo apply` is about them; the rest of the answer is not applied."""
+        if self._answer is None:
+            return
+        self._applied_over = self._situation
+        self._show(Situation(State.APPLIED, holds_moved=count))
 
     def the_suggestion_was_undone(self) -> None:
         """The window has put the slots back: the row goes back with them."""
@@ -1266,19 +1912,48 @@ class AdvisorBar(QWidget):
 
     def _optimize_or_cancel(self) -> None:
         if self._situation.state in WORKING_STATES:
-            self._stop_shows = Situation(State.STOPPED)
+            self._stop_shows = Situation(State.STOPPED,
+                                         stopped_note=self._stopped_note)
             self._controller.cancel()
             return
         self._ask()
 
     def _ask(self) -> None:
         asking = self._asking(self.goal_id())
+        self._the_comparison_begins(asking)
         if asking is None:
             self._show(self._no_save())
             return
         self._asked = asking
+        self._stopped_note = self._done_note = self._done_tip = ""
         self._forget_the_answer()
         self._controller.ask(asking.request, asking.inventory, asking.ctx)
+
+    def ask_again(self, *, stopped: str = "", done: str = "",
+                  done_tip: str = "") -> None:
+        """The same question with one mark more, asked from the block (AD-061).
+
+        Unlike `_ask` the answer stays on screen until the new one arrives, so
+        nothing jumps (AK-425), and there is no debounce: the block is locked
+        meanwhile, so nothing can overtake this (AK-424). The state changes at
+        once because the window reads it to lock the block.
+        """
+        asking = self._asking(self.goal_id())
+        self._the_comparison_begins(asking)
+        if asking is None:
+            self._forget_the_answer()
+            self._show(self._no_save())
+            return
+        self._asked = asking
+        self._stopped_note, self._done_note = stopped, done
+        self._done_tip = done_tip
+        self._show(Situation(State.WORKING_QUIETLY))
+        self._controller.ask(asking.request, asking.inventory, asking.ctx,
+                             debounce_ms=0)
+
+    def is_working(self) -> bool:
+        """Is a run being waited for?"""
+        return self._situation.state in WORKING_STATES
 
     def goal_id(self) -> str:
         """The direction the combo is standing on."""
@@ -1349,7 +2024,23 @@ class AdvisorBar(QWidget):
         Which of 4.6, 4.9 and 4.11 this is depends on what the run could not
         do, and an empty slot is said before a silent effect: a slot with
         nothing in it is the one the player can see for themselves.
+
+        The budget of A6 ends here, and the vessels are compared from here on
+        (AD-062.3).
         """
+        self._draw_the_answer(result)
+        comparing, asked = self.comparing, self._asked
+        if comparing is None or comparing.state is not Compared.WAITING:
+            return
+        questions = advisor_run.vessel_questions(
+            asked.request, asked.vessels, asked.vessel_id, asked.deep)
+        comparing.questions = {question.vessel_id: question.request
+                               for question in questions if question.request}
+        comparing.state = Compared.RUNNING
+        self.comparison_changed.emit()
+        self.comparison.start(questions, asked.inventory, asked.ctx)
+
+    def _draw_the_answer(self, result) -> None:
         self._stop_the_clocks()
         self._answer = result
         label = result.goal_label
@@ -1364,23 +2055,25 @@ class AdvisorBar(QWidget):
         filled = chosen + len(result.held)
         curses = len(result.curses_without_a_figure)
         left_out = len(result.not_counted)
+        said = {"goal_label": label, "slots": slots, "slots_filled": filled,
+                "favourite_effects_unmet": len(result.required_left_out),
+                "favourite_relics_left_out": len(result.pins_left_out),
+                "note": self._done_note,
+                "details": (*result.required_unmet,
+                            *(f"{pin.name}: {pin.because}"
+                              for pin in result.pins_left_out),
+                            *((self._done_tip,) if self._done_tip else ()))}
         if slots - filled > 0:
-            situation = Situation(State.SUGGESTED_WITH_AN_EMPTY_SLOT,
-                                  goal_label=label, slots=slots,
-                                  slots_filled=filled,
+            situation = Situation(State.SUGGESTED_WITH_AN_EMPTY_SLOT, **said,
                                   slots_without_a_choice=slots - filled,
-                                  blocked_by_a_requirement=(
-                                      result.blocked_by_a_requirement),
+                                  empty_slots=result.empty_slots,
                                   no_carrier_for=result.no_carrier_for)
         elif curses or left_out:
-            situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS,
-                                  goal_label=label, slots=slots,
-                                  slots_filled=filled,
+            situation = Situation(State.SUGGESTED_WITH_SILENT_EFFECTS, **said,
                                   curses_without_a_number=curses,
                                   effects_left_out=left_out)
         else:
-            situation = Situation(State.SUGGESTED, goal_label=label,
-                                  slots=slots, slots_filled=filled)
+            situation = Situation(State.SUGGESTED, **said)
         self._show(situation)
         self.suggestion_changed.emit(result)
 
@@ -1391,6 +2084,8 @@ class AdvisorBar(QWidget):
         not given a second one.
         """
         self._stop_the_clocks()
+        self._forget_the_answer()
+        self._no_comparison()
         self._show(Situation(State.FAILED, reason=reason.rstrip(". ")))
 
     def _on_stopped(self) -> None:
@@ -1399,6 +2094,7 @@ class AdvisorBar(QWidget):
         situation = self._stop_shows or Situation(State.STOPPED)
         self._stop_shows = None
         self._forget_the_answer()
+        self._no_comparison()
         self._show(situation)
 
     # -- drawing ------------------------------------------------------------
@@ -1443,7 +2139,7 @@ class AdvisorBar(QWidget):
         """
         self._situation = situation
         working = situation.state in WORKING_STATES
-        self.status.set_whole_text(status_line(situation))
+        self.status.set_whole_text(status_line(situation), situation.details)
         carrier = situation.no_carrier_for
         self.warning.setText(
             f"⚠ {advisor_run.no_carrier_sentence(carrier)}" if carrier else "")
@@ -1453,7 +2149,7 @@ class AdvisorBar(QWidget):
         # carries the sentence too. The AK-280 count of what the player
         # marked stands on the button that changes it (AK-302), not here.
         line = status_line(situation)
-        self.setToolTip(f"<span>{html.escape(line)}</span>" if line else "")
+        self.setToolTip(_a_tooltip(line, situation.details))
         self.filters_button.setToolTip("<span>" + html.escape(CLAUSES.join(
             (FILTERS_TOOLTIP, *marking_clauses(self._filters)))) + "</span>")
         # 4.2 is a run with nothing drawn: the bar comes up with the text, at
@@ -1491,7 +2187,9 @@ class AdvisorBar(QWidget):
         self.apply_button.setVisible(acting and (applied
                                                  or self._can_be_applied()))
         self.why_button.setVisible(acting)
-        self.clear_button.setVisible(acting)
+        the_rest = bool(situation.holds_moved) and self._can_be_applied()
+        self.apply_rest_button.setVisible(the_rest)
+        self.clear_button.setVisible(acting and not the_rest)
 
     def _can_be_applied(self) -> bool:
         """Does the answer on screen name a relic for any slot at all?"""

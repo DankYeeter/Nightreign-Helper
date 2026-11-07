@@ -11,10 +11,11 @@ from __future__ import annotations
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QLabel
+from PySide6.QtWidgets import QTreeWidget, QApplication, QLabel
 
 from nrplanner import effectfilterdialog as dlg
 from nrplanner import effectfilters, effecttext, inventory
+from nrplanner.theme import BAD
 
 EFFECTS = {
     "10": {"name": "Vigor +2"},
@@ -283,6 +284,19 @@ def test_sorting_by_a_column_keeps_the_boxes_and_the_families_together(
     assert _head(window).childCount() == 2
 
 
+def test_sorting_by_type_puts_a_family_heading_with_its_empty_cell_first(window):
+    """A heading has no type: its cell held nothing a `<` could compare with
+    the text of a row, and the click on the column head raised `TypeError`."""
+    window.tree.sortItems(dlg.COL_TYPE, Qt.AscendingOrder)
+    top = _top_level(window)
+    assert top[0] is _head(window)
+    assert [item.text(dlg.COL_TYPE) for item in top[1:]] == [
+        "Curse", "Effect", "Effect", "Effect"]
+    window.tree.sortItems(dlg.COL_TYPE, Qt.DescendingOrder)
+    assert _top_level(window)[-1] is _head(window)
+    assert _head(window).childCount() == 2
+
+
 def test_the_frozen_save_names_its_rows_out_of_the_dataset(qapp, filters,
                                                             frozen_inventory,
                                                             game_data):
@@ -302,16 +316,220 @@ def test_the_frozen_save_names_its_rows_out_of_the_dataset(qapp, filters,
     assert by_id[7330000].family == by_id[7080000].family == "Improved Attack Power"
 
 
+def test_the_longer_legend_leaves_the_tree_its_height(window):
+    """AK-445, AK-303."""
+    window.show()
+    QApplication.processEvents()
+    assert window.findChildren(QTreeWidget)[0].height() == 449
+
+
 def test_marks_explanation_label_is_present_and_unfocusable(window):
-    """AK-317.1: the window carries the exact wording, and the label cannot
+    """AK-445: the window carries the exact wording, and the label cannot
     take keyboard focus (it must not join the tab order)."""
     assert dlg.MARKS_EXPLANATION == (
-        "Favourite: every suggestion must include this effect. Avoid: it "
-        "never counts — on a family header, it avoids every member below "
-        "unless one is set to Allow. Allow lets that one member back in "
-        "without allowing the rest of the family. These marks steer "
-        "Optimize only — they are not the star on a relic.")
+        "Favourite: every suggestion for this Nightfarer must carry this "
+        "effect, if it can. Avoid: no "
+        "suggestion uses a relic that carries it — on a family header, every "
+        "member below, unless one is set to Allow. Allow lets that one member "
+        "back in without allowing the rest of the family. These marks are saved "
+        "for every Nightfarer; one that only works for another "
+        "Nightfarer is ignored here. They are separate from the ★ you can give a "
+        "relic in the relic picker: that is per Nightfarer, and Optimize puts "
+        "a favourited relic in when it fits. Stacks: how many stacks Optimize "
+        "and the relic picker's figures count for an effect that stacks, not "
+        "the stat sheet; 0 does not count it, empty uses the count ticked on "
+        "the stat sheet, otherwise 1.")
+    assert dlg.FAVOURITE_TOOLTIP == (
+        "Every suggestion for this Nightfarer must carry this effect, if it "
+        "can.")
+    assert dlg.AVOID_TOOLTIP == (
+        "No suggestion uses a relic that carries this effect.")
+    assert dlg.FAMILY_AVOID_TOOLTIP == (
+        "No suggestion uses a relic that carries an effect of this family, "
+        "unless a member below is set to Allow.")
     labels = [label for label in window.findChildren(QLabel)
               if label.text() == dlg.MARKS_EXPLANATION]
     assert len(labels) == 1
     assert labels[0].focusPolicy() == Qt.NoFocus
+
+
+def test_the_name_takes_the_room_and_copies_only_its_content(window):
+    """QA-334: both stood at 162 px of an opened window, names cut at 20 letters."""
+    window.resize(*dlg.OPENING_SIZE)
+    window.show()
+    QApplication.processEvents()
+    header = window.tree.header()
+    assert header.sectionSize(dlg.COL_NAME) > header.sectionSize(dlg.COL_COPIES)
+    window.hide()
+
+
+STACKING = 15
+STACKING_MEMBER = 16
+STACK_EFFECTS = {**EFFECTS,
+                 "15": {"name": "Attack up for each kill",
+                        "modifiers": {"saveCategory": 9}},
+                 "16": {"name": "Fire Damage Negation for each kill",
+                        "modifiers": {"saveCategory": 9}}}
+STACK_FAMILIES = {**FAMILIES, 15: "Attack up for each kill", 16: FAMILY}
+
+
+@pytest.fixture
+def stack_window(qapp, filters):
+    rows = dlg.rows_from(
+        _owned(_relic(10, 15), _relic(13, 16), _relic(11)),
+        STACK_EFFECTS, STACK_FAMILIES)
+    dialog = dlg.EffectFilterWindow(filters, rows)
+    yield dialog
+    dialog.close()
+    dialog.deleteLater()
+    for effect_id in set(filters.stacks):
+        filters.set_stacks(effect_id, None)
+
+
+def test_only_a_stack_effect_has_a_stacks_field(stack_window):
+    """A headless single and a family member, not a heading, not a plain row."""
+    window = stack_window
+    assert dlg.HEADINGS[dlg.COL_STACKS] == "Stacks"
+    assert set(window.stack_fields) == {STACKING, STACKING_MEMBER}
+    assert window.tree.itemWidget(_head(window), dlg.COL_STACKS) is None
+    field = window.stack_fields[STACKING]
+    assert field.toolTip() == dlg.STACKS_TOOLTIP == (
+        "How many stacks Optimize and the relic picker's figures count, a whole "
+        "number from 0 to 10; 0 leaves this effect out. Empty: the count ticked "
+        "on the stat sheet, otherwise 1. Anything else turns red and counts as "
+        "empty. The stat sheet itself does not change.")
+    assert field.accessibleName() == "Stacks: Attack up for each kill"
+    assert window.tree.itemWidget(window._marks[STACKING][-1],
+                                  dlg.COL_STACKS) is field
+
+
+def test_typing_a_stacks_value_writes_through_and_clearing_empties_it(
+        stack_window, filters):
+    field = stack_window.stack_fields[STACKING]
+    QTest.keyClicks(field, "2")
+    assert filters.stacks == {STACKING: 2}
+    assert effectfilters.stored_stacks() == {STACKING: 2}
+    QTest.keyClick(field, Qt.Key_Backspace)
+    assert filters.stacks == {} and field.text() == ""
+    QTest.keyClicks(field, "0")
+    assert filters.stacks == {STACKING: 0} and field.text() == "0"
+
+
+@pytest.mark.parametrize("typed", ["2.5", "-1", "x", "11", "100", "2 "])
+def test_a_text_that_is_no_count_stays_as_typed_in_red_and_counts_as_empty(
+        stack_window, filters, typed):
+    """`2.5` once became 25: the validator swallowed the point and let the 5
+    through, and 100 became 10 the same way."""
+    field = stack_window.stack_fields[STACKING]
+    QTest.keyClicks(field, typed)
+    assert field.text() == typed
+    assert BAD in field.styleSheet()
+    assert filters.stacks == {}
+    assert effectfilters.stored_stacks() == {}
+
+
+def test_a_refused_text_stays_when_another_mark_is_drawn_and_can_be_put_right(
+        stack_window, filters):
+    field = stack_window.stack_fields[STACKING]
+    QTest.keyClicks(field, "2.5")
+    filters.mark(10, effectfilters.REQUIRED)
+    assert field.text() == "2.5" and BAD in field.styleSheet()
+    field.clear()
+    QTest.keyClicks(field, "5")
+    assert filters.stacks == {STACKING: 5}
+    assert field.text() == "5" and field.styleSheet() == ""
+
+
+def test_a_stacks_field_counts_the_largest_value_and_a_zero_in_front(
+        stack_window, filters):
+    field = stack_window.stack_fields[STACKING]
+    QTest.keyClicks(field, "10")
+    assert filters.stacks == {STACKING: 10} and field.styleSheet() == ""
+    field.clear()
+    QTest.keyClicks(field, "07")
+    assert filters.stacks == {STACKING: 7} and field.text() == "7"
+
+
+def test_a_stacks_field_refuses_a_digit_of_another_script(stack_window, filters):
+    """By `insert`, as a paste: `QTest.keyClicks` ends the process on anything
+    outside Latin-1."""
+    field = stack_window.stack_fields[STACKING]
+    field.insert("٣")
+    assert field.text() == "٣" and BAD in field.styleSheet()
+    assert filters.stacks == {}
+
+
+def test_a_stacks_value_is_drawn_at_opening_and_when_it_changes(
+        qapp, filters, stack_window):
+    filters.set_stacks(STACKING, 4)
+    assert stack_window.stack_fields[STACKING].text() == "4"
+    filters.set_stacks(STACKING, None)
+    assert stack_window.stack_fields[STACKING].text() == ""
+    filters.set_stacks(STACKING_MEMBER, 0)
+    rows = dlg.rows_from(_owned(_relic(13, 16)), STACK_EFFECTS, STACK_FAMILIES)
+    opened = dlg.EffectFilterWindow(filters, rows)
+    assert opened.stack_fields[STACKING_MEMBER].text() == "0"
+    opened.deleteLater()
+
+
+def test_sorting_by_stacks_puts_empty_under_zero_and_keeps_the_family(
+        stack_window, filters):
+    window = stack_window
+    filters.set_stacks(STACKING, 0)
+    filters.set_stacks(STACKING_MEMBER, 3)
+    window.tree.sortItems(dlg.COL_STACKS, Qt.DescendingOrder)
+    top = _top_level(window)
+    assert top[0].data(dlg.COL_NAME, Qt.UserRole) == STACKING
+    assert window.tree.itemWidget(top[0], dlg.COL_STACKS) is (
+        window.stack_fields[STACKING])
+    head = _head(window)
+    assert head.childCount() == 2
+    assert head.child(0).data(dlg.COL_NAME, Qt.UserRole) == STACKING_MEMBER
+    window.tree.sortItems(dlg.COL_STACKS, Qt.AscendingOrder)
+    assert _top_level(window)[-1].data(dlg.COL_NAME, Qt.UserRole) == STACKING
+
+
+def test_the_search_hides_a_row_with_its_stacks_field_and_keeps_the_value(
+        stack_window, filters):
+    filters.set_stacks(STACKING, 2)
+    stack_window.search.setText("vigor")
+    assert STACKING not in stack_window.shown_ids()
+    stack_window.search.setText("")
+    assert STACKING in stack_window.shown_ids()
+    assert stack_window.stack_fields[STACKING].text() == "2"
+
+
+def test_a_row_with_a_stacks_field_is_as_high_as_one_without(stack_window):
+    """AK-469: the field's own size hint made its row 1.5 times as high. A red
+    text changes the field's style, and must not bring that back."""
+    window = stack_window
+    window.show()
+    QApplication.processEvents()
+
+    def row_heights() -> dict[int, int]:
+        return {effect_id: window.tree.visualItemRect(
+                    window._marks[effect_id][-1]).height()
+                for effect_id in (11, STACKING, STACKING_MEMBER)}
+
+    assert len(set(row_heights().values())) == 1, row_heights()
+    QTest.keyClicks(window.stack_fields[STACKING], "11")
+    QApplication.processEvents()
+    assert len(set(row_heights().values())) == 1, row_heights()
+    assert row_heights()[11] > 0
+
+
+def test_tab_reaches_the_stacks_field_after_the_boxes_of_its_row(stack_window):
+    """On a member after Allow, on a single after Avoid."""
+    window = stack_window
+    window.show()
+    QApplication.processEvents()
+    avoid = window.boxes(STACKING)[1]
+    avoid.setFocus()
+    QApplication.processEvents()
+    QTest.keyClick(avoid, Qt.Key_Tab)
+    assert QApplication.focusWidget() is window.stack_fields[STACKING]
+    allow = window.allow_box(STACKING_MEMBER)
+    allow.setFocus()
+    QApplication.processEvents()
+    QTest.keyClick(allow, Qt.Key_Tab)
+    assert QApplication.focusWidget() is window.stack_fields[STACKING_MEMBER]

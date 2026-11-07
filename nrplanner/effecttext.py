@@ -435,6 +435,8 @@ def describe(effect: dict) -> str:
     if conditions:
         text = f"{text} ({', '.join(conditions)})" if text else \
             f"conditional ({', '.join(conditions)})"
+    if effect.get("id") in model.ON_THE_ENEMY_EFFECT_IDS:
+        return f"On the enemy: {text}"
     return text
 
 
@@ -451,6 +453,21 @@ def counts_armaments(effect: dict) -> bool:
     """
     mods = effect.get("modifiers") or {}
     return "wepTypeTriggerCount" in mods and "startGoodsId" not in mods
+
+
+# The ailment an enemy carries for "Attack power up when facing
+# frostbite-afflicted enemy" (`enemyStateInfoTrigger` 260) and its twins, in
+# the labels of `inflicts`. The params name no ailment; every holder of a
+# value names it, and `tests/test_ailment_conditions.py` holds the names to
+# the table.
+AILMENT_OF_ENEMY_STATE = {2: "Poison", 5: "Scarlet Rot", 260: "Frost"}
+
+
+def ailment_awaited(effect: dict) -> str | None:
+    """The ailment an enemy must carry for this effect to be live, `None`
+    for an effect that waits on no enemy ailment."""
+    return AILMENT_OF_ENEMY_STATE.get(
+        (effect.get("modifiers") or {}).get("enemyStateInfoTrigger"))
 
 
 def describe_full(effect: dict) -> str:

@@ -158,6 +158,19 @@ def _heading(text: str) -> QLabel:
     return label
 
 
+#: Not a fact about the game, only a stop for a slip of the keyboard: above it
+#: the count is left at this. Measured 2026-11-07, offscreen, on "Attack power
+#: increased for each Night Invader defeated": the page takes 12 ms at 99; at
+#: 100000 it takes 1.4 s, the attack rating is infinite and `damage.displayed`
+#: raises in the middle of drawing it. Not `effectfilters.MOST_STACKS`: that one
+#: holds Optimize to its budget, and this page computes only one build.
+MOST_COUNT = 99
+
+
+def _within_reason(count: int) -> int:
+    return min(max(count, 1), MOST_COUNT)
+
+
 class SituationalRow(QFrame):
     """One gated effect, with a switch and -- if it stacks -- a count.
 
@@ -197,14 +210,14 @@ class SituationalRow(QFrame):
         head.addWidget(self.title, 1)
 
         if entry.accumulates:
-            # Free text, not a spin box with a ceiling. How many Night Invaders
-            # a map can hold, or how many Sites of Grace are in reach, is a
-            # fact about the run rather than about this program -- so the
-            # player states the number and the arithmetic follows it.
+            # Free text, not a spin box. How many Night Invaders a map can
+            # hold, or how many Sites of Grace are in reach, is a fact about
+            # the run rather than about this program -- so the player states
+            # the number and the arithmetic follows it, up to `MOST_COUNT`.
             self.times = QLabel("×")
             self.times.setStyleSheet(f"color: {MUTED}; border: none;")
             head.addWidget(self.times, 0, Qt.AlignTop)
-            self.count = QLineEdit(str(max(count, 1)))
+            self.count = QLineEdit(str(_within_reason(count)))
             self.count.setFixedWidth(42)
             self.count.setAlignment(Qt.AlignCenter)
             self.count.setToolTip("How many times this is true right now")
@@ -255,7 +268,7 @@ class SituationalRow(QFrame):
         try:
             # A blank or nonsense box means "it is true", not "it is true zero
             # times" -- switching it on is already the statement that it holds.
-            return max(int(text), 1)
+            return _within_reason(int(text))
         except ValueError:
             return 1
 

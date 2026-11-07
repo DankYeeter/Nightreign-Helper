@@ -24,9 +24,14 @@ from . import (advisorblock, chalices, datasource, effectfilterdialog,
                gamepath, inventory, model, savereader, shortcut,
                singleinstance, uiscale, weaponslots)
 from .advisor import run as advisor_run
+from .advisor import types as advisor_types
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
-from .advisorbar import AdvisorBar, asking_from
+from .advisorbar import (COMPARE_POINT_PX, VESSEL_LINE_ROLE, AdvisorBar,
+                         RejectedList, VesselRowDelegate, asking_from,
+                         comparison_base, comparison_status, held_slot,
+                         vessel_accessible_name,
+                         vessel_compared_lines, vessel_line)
 from .effectstab import EffectsTab
 from .iconpack import IconPack
 from .arsenaltab import ArsenalTab
@@ -37,7 +42,7 @@ from .depthstab import DepthsTab
 from .eventstab import WorldEventsTab
 from .relicslots import (RelicSlot, _custom_effects,
                          _relic_count, slot_chip)
-from .statsheet import StatSheet, _heading
+from .statsheet import HAND_CAPTIONS, StatSheet, _heading
 from .theme import (ACCENT, BORDER, MUTED, NAME_POINT_SIZE, PANEL,
                     SLOT_COLOURS)
 
@@ -245,13 +250,14 @@ def colour_names(colours) -> str:
     return ", ".join(model.COLOUR_NAMES.get(c, "?") for c in colours)
 
 
-def vessel_tooltip(vessel: dict, worn: bool) -> str:
+def vessel_tooltip(vessel: dict, worn: bool, compared=()) -> str:
     """The tooltip of one selectable vessel row, in the order `UI_SPEC` 4.4
     fixes.
 
     The Deep of Night line follows the vessel, not the switch: what the
     vessel would add is a fact about the vessel, and the tooltip is where
-    the player compares vessels before he chooses one.
+    the player compares vessels before he chooses one. `compared` is what the
+    comparison says of it (AK-432).
     """
     lines = [vessel["name"], f"Slots: {colour_names(vessel['slots'])}"]
     if model.WHITE_SLOT in vessel["slots"]:
@@ -260,6 +266,7 @@ def vessel_tooltip(vessel: dict, worn: bool) -> str:
         lines.append(
             f"Deep of Night adds: {colour_names(vessel['deep_slots'])}")
     lines.append(WHY_SEVERAL_VESSELS)
+    lines.extend(compared)
     if worn:
         # The mark is on the vessel, not after the name: the name is what
         # the list is read for, and a label pushed the longer chalice names
@@ -637,6 +644,10 @@ class Planner(QMainWindow):
         # `Undo puts your slots back as they were` -- as they were before any
         # of it, which is the only reading a single button can carry.
         self._slots_before_applying: list[str] | None = None
+        #: AK-454: the holds and rejections of both vessels before `Switch to
+        #: it` moved them, for `Undo apply`. Goes with the slots above.
+        self._before_switching: tuple[dict, dict, bool] | None = None
+        self._switch_target: int | None = None
         # Which slots the player is holding, per (Nightfarer, vessel, Deep),
         # and which copy each hold was made on (AD-017.2). Session state of
         # the window and **nowhere else**: nothing here reaches `QSettings`,
@@ -646,6 +657,13 @@ class Planner(QMainWindow):
         # written down today points at a copy that may be melted tomorrow.
         self._holds: dict[tuple[int, int | None, bool],
                           dict[int, int | None]] = {}
+        # The rolls rejected per (Nightfarer, vessel), with the name the list
+        # shows (AD-060.1): session state of the window for the same reasons.
+        self._rejects: dict[tuple[int, int | None],
+                            dict[advisor_types.Roll, str]] = {}
+        # The card an X or `Reject` was pressed on with the focus in its
+        # block, until the answer that asked for arrives (AK-426).
+        self._focus_after_asking: RelicSlot | None = None
 
         # The data version is a build number off the game install. It means
         # nothing to a player and ate half the title bar, so the title just
@@ -900,11 +918,29 @@ class Planner(QMainWindow):
         # next to Urns and Goblets. "Vessel" is the category; a Chalice is one
         # kind of vessel.
         layout.addWidget(_heading("Vessel"))
+        # AK-432: the comparison, in the column it is about. Before the list
+        # in the layout, and so `Switch to it` before it in the Tab order
+        # (AK-436); the status line takes two lines at most, the tooltip has
+        # the whole of it.
+        self.compare_status = QLabel()
+        self.compare_status.setWordWrap(True)
+        self.compare_status.setTextFormat(Qt.PlainText)
+        self.compare_status.setStyleSheet(
+            f"color: {MUTED}; font-size: {COMPARE_POINT_PX}px;")
+        self.compare_status.setMaximumHeight(
+            2 * self.compare_status.fontMetrics().lineSpacing())
+        self.compare_status.hide()
+        layout.addWidget(self.compare_status)
+        self.switch_button = QPushButton("Switch to it")
+        self.switch_button.clicked.connect(self._switch_to_the_best)
+        self.switch_button.hide()
+        layout.addWidget(self.switch_button)
         self.chalice_list = QListWidget()
+        self.chalice_list.setItemDelegate(VesselRowDelegate(self.chalice_list))
         # Wide enough for the vessel's own icon plus its slots drawn beside
         # it; six of them in Deep of Night is the widest case.
         self.chalice_list.setIconSize(QSize(34 + 5 + 6 * 24, 34))
-        self.chalice_list.currentRowChanged.connect(lambda *_: self.apply_chalice())
+        self.chalice_list.currentRowChanged.connect(self._vessel_row_chosen)
         layout.addWidget(self.chalice_list, 1)
 
         self.deep_check = QCheckBox(DEEP_SWITCH)
@@ -1108,6 +1144,9 @@ class Planner(QMainWindow):
             lambda goal_id: asking_from(self, goal_id), column,
             filters=self.effect_filters, data=self.data)
         stack.addWidget(self.advisor_bar)
+        self.rejected_list = RejectedList()
+        self.rejected_list.suggest_again.connect(self._suggest_again)
+        stack.addWidget(self.rejected_list)
 
         # The relic picker's track: the same class, a second instance, and
         # three figures of its own -- the pool rather than the whole answer,
@@ -1228,10 +1267,10 @@ class Planner(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt naming
         """Stop every thread of this window and wait for it before it goes.
 
-        The one place a `wait()` in the main thread is right (AD-006 point 4):
-        a `QThread` that outlives the window it belongs to is destroyed while
-        its run is still going, and that ends the process rather than the
-        run.
+        The one place a `wait()` for a run in the main thread is right (AD-006
+        point 4): a `QThread` that outlives the window it belongs to is
+        destroyed while its run is still going, and that ends the process
+        rather than the run.
 
         Three threads and not two now: the two advisor tracks and the reading
         of the save. All three raise their generation before they wait, so an
@@ -1674,6 +1713,175 @@ class Planner(QMainWindow):
             item.setIcon(QIcon(self._vessel_row_art(
                 vessel, items, vessel["id"] == self._worn_vessel_id(),
                 row == current)))
+        self._show_the_comparison()
+
+    def _show_the_comparison(self) -> None:
+        """AK-432: the comparison on the list, the status line and the button.
+
+        Every row, because the rows say what they say whichever is open; the
+        status line follows the open one (AK-450). No run, no figure of its
+        own: everything here is read off `AdvisorBar.comparing`.
+        """
+        if not hasattr(self, "advisor_bar"):
+            return
+        comparing = self.advisor_bar.comparing
+        worn_id = self._worn_vessel_id()
+        for row in range(self.chalice_list.count()):
+            item = self.chalice_list.item(row)
+            vessel = item.data(Qt.UserRole)
+            if not vessel:
+                continue
+            item.setData(VESSEL_LINE_ROLE, vessel_line(comparing, vessel["id"]))
+            item.setToolTip(vessel_tooltip(
+                vessel, vessel["id"] == worn_id, vessel_compared_lines(
+                    comparing, vessel["id"],
+                    lambda eid: advisorblock.effect_name(self.effects, eid))))
+            item.setData(Qt.AccessibleTextRole, vessel_accessible_name(
+                comparing, vessel["id"], vessel["name"]))
+        line, self._switch_target = ("", None) if comparing is None else (
+            comparison_status(comparing, self.current_vessel()["id"], worn_id,
+                              {vessel["id"]: vessel["name"]
+                               for vessel in self.hero_vessels}))
+        self.compare_status.setText(line)
+        base = "" if comparing is None else comparison_base(comparing)
+        self.compare_status.setToolTip(f"{line} {base}" if base else line)
+        self.compare_status.setVisible(bool(line))
+        self.switch_button.setVisible(self._switch_target is not None)
+        self.switch_button.setToolTip(self._what_the_switch_does(comparing))
+
+    def _what_the_switch_does(self, comparing) -> str:
+        """The tooltip of `Switch to it` (AK-454, QA-331), and the hand of the
+        question where it is not the one stored there (AD-062.8)."""
+        target = self._switch_target
+        opens = "Opens this vessel with its suggestion."
+        if comparing is None or target is None:
+            return opens
+        question = comparing.questions[target]
+        if comparing.carries and target != comparing.asked_vessel:
+            if comparing.held_relics:
+                what = ("held relics and rejections" if question.problem.rejected
+                        else "held relics")
+                opens = (f"Moves your {what} to this vessel, into the slots they "
+                         f"fit; the other slots stay as saved. Undo apply puts "
+                         f"them back.")
+            else:
+                opens = ("Opens this vessel with its suggestion and brings your "
+                         "rejections along. Nothing is saved until you apply it.")
+        stored = chalices.load(self.current_hero()["id"], target)[3]
+        if question.two_handed == stored:
+            return opens
+        return (f"{opens} It opens in {HAND_CAPTIONS[question.two_handed]}, the "
+                f"hand it was compared in.")
+
+    def _vessel_row_chosen(self, *_) -> None:
+        """AK-435: a click opens the vessel, with its answer if it is known."""
+        self.apply_chalice()
+        if not self._restoring:
+            self.advisor_bar.show_the_answer_if_known()
+
+    def _open_row(self, row: int) -> None:
+        with QSignalBlocker(self.chalice_list):
+            self.chalice_list.setCurrentRow(row)
+        self.apply_chalice()
+
+    def _row_of_vessel(self, vessel_id: int) -> int:
+        return next(index for index in range(self.chalice_list.count())
+                    if (self.chalice_list.item(index).data(Qt.UserRole) or {}
+                        ).get("id") == vessel_id)
+
+    def _switch_to_the_best(self) -> None:
+        """`Switch to it` (AK-435, AK-454, AD-062.7): the vessel the comparison
+        named, in the state its row was compared in, so that the row's figure
+        is the figure of the suggestion. That is the holds and rejections of
+        the vessel the comparison was asked from, whichever row is open now,
+        and the hand of the question (QA-324). The asked vessel itself is
+        already in that state: nothing moves, it only opens (QA-330).
+
+        Nothing is written without `Undo apply`: without moved holds the
+        target's stored slots and hand stay until the player applies something,
+        and only moved holds count as applied (QA-331).
+        """
+        bar = self.advisor_bar
+        comparing = bar.comparing
+        row = self._row_of_vessel(self._switch_target)
+        vessel = self.chalice_list.item(row).data(Qt.UserRole)
+        hand = comparing.questions[vessel["id"]].two_handed
+        with bar.while_the_player_applies_it():
+            if self.current_vessel()["id"] != comparing.asked_vessel:
+                self._open_row(self._row_of_vessel(comparing.asked_vessel))
+            carries = (vessel["id"] != comparing.asked_vessel
+                       and comparing.carries
+                       and bar.comparison_knows(vessel["id"]))
+            cards = self._all_slots()
+            holds_from, rejects_from = self._hold_key(), self._reject_key()
+            holds = self._holds.get(holds_from, {})
+            moved = () if not carries else advisor_run.held_moved_to(
+                [held_slot(index, cards[index]) for index in sorted(holds)],
+                advisor_run.vessel_slots(vessel, self.deep_check.isChecked()))[0]
+            kept_keys = {there.index: cards[here].saved_key()
+                         for here, there in moved}
+            moved_from = {here for here, _there in moved}
+            self._open_row(row)
+            hand_there = self.stat_sheet.hand_switch.isChecked()
+            if hand_there != hand:
+                self._show_this_hand_without_storing_it(hand)
+            if carries:
+                before, kept = self._move_the_holds(
+                    holds_from, rejects_from, moved, kept_keys, moved_from)
+        if not bar.show_the_answer_if_known():
+            bar.the_build_changed()
+        elif carries:
+            self._before_switching = (*kept, hand_there)
+            if moved:
+                self._slots_before_applying = before
+                bar.the_holds_moved_here(len(moved))
+                self.show_the_suggestion(bar.answer)
+        elif hand_there != hand:
+            self._before_switching = ({}, {}, hand_there)
+
+    def _show_this_hand_without_storing_it(self, hand: bool) -> None:
+        self._set_two_handed(hand)
+        self._restoring = True
+        try:
+            self.recompute()
+        finally:
+            self._restoring = False
+
+    def _move_the_holds(self, holds_from, rejects_from, moved, kept_keys,
+                        moved_from) -> tuple[list[str], tuple[dict, dict]]:
+        """The holds and rejections over to the vessel now open, its slots
+        written the way applying writes them. Hands back what `Undo apply`
+        needs: the slots here, and the holds and rejections of both vessels."""
+        holds_to, rejects_to = self._hold_key(), self._reject_key()
+        holds = self._holds.get(holds_from, {})
+        kept = ({key: dict(self._holds.get(key, {}))
+                 for key in (holds_from, holds_to)},
+                {key: dict(self._rejects.get(key, {}))
+                 for key in (rejects_from, rejects_to)})
+        self._set_or_drop(self._holds, holds_from,
+                          {index: handle for index, handle in holds.items()
+                           if index not in moved_from})
+        self._set_or_drop(self._holds, holds_to,
+                          {there.index: there.relic.handle
+                           for _here, there in moved})
+        self._set_or_drop(self._rejects, rejects_to,
+                          kept[1][rejects_from])
+        if rejects_from != rejects_to:
+            self._rejects.pop(rejects_from, None)
+        before = [slot.saved_key() for slot in self._all_slots()]
+        if moved:
+            self._put_these_keys_in_the_slots(
+                [kept_keys.get(index, key) for index, key in enumerate(before)])
+        self._show_the_rejects()
+        return before, kept
+
+    @staticmethod
+    def _set_or_drop(store: dict, key, value: dict) -> None:
+        """`_holds` and `_rejects` carry no empty entries."""
+        if value:
+            store[key] = value
+        else:
+            store.pop(key, None)
 
     def refresh_vessel_row(self) -> None:
         """Redraw the selected vessel's row so its slots show what is in them."""
@@ -2141,7 +2349,9 @@ class Planner(QMainWindow):
 
         Scoped to the vessel on screen now that each keeps its own build --
         clearing every vessel's work from one button would be a far bigger
-        thing than the label promises.
+        thing than the label promises. It stays open: another vessel shown
+        empty would have its stored build written over by the next relic
+        placed (QA-327).
         """
         vessel = self.current_vessel()
         chalices.clear(self.current_hero()["id"],
@@ -2154,12 +2364,6 @@ class Planner(QMainWindow):
             # goes back to `1H` with the slots; left on `2H`, the next relic
             # placed wrote that hand onto the default vessel (QA-272).
             self._set_two_handed(False)
-            # Row 0 is the group caption, which cannot be selected; the first
-            # real vessel is whatever follows it.
-            for i in range(self.chalice_list.count()):
-                if self.chalice_list.item(i).data(Qt.UserRole) is not None:
-                    self.chalice_list.setCurrentRow(i)
-                    break
             self.apply_chalice()
             for slot in list(self.base_slots) + list(self.deep_slots):
                 slot.clear_relic()
@@ -2180,6 +2384,7 @@ class Planner(QMainWindow):
         chalices.set_selected_build(self.current_hero()["id"],
                                     chalices.UNSAVED_NAME)
         self.refresh_build_list(keep=chalices.UNSAVED_NAME)
+        self.advisor_bar.the_comparison_is_out_of_date()
 
     def current_vessel(self) -> dict | None:
         """The vessel selected in the list, ignoring the caption rows."""
@@ -2945,6 +3150,11 @@ class Planner(QMainWindow):
         self.advisor_bar.filters_requested.connect(self.open_effect_filters)
         self.advisor_bar.apply_all_requested.connect(self.apply_all)
         self.advisor_bar.undo_apply_requested.connect(self.undo_apply)
+        self.advisor_bar.comparison_changed.connect(self._show_the_comparison)
+        # A vessel bringing its stored hand back is no change of the question
+        # (AK-434); `_set_two_handed` holds this signal, a player's click not.
+        self.stat_sheet.hand_switch.toggled.connect(
+            lambda _on: self.advisor_bar.the_comparison_is_out_of_date())
         # A marking is a different question, the same way a direction is
         # (AK-183): the answer goes, a run in flight says AK-289, none starts.
         self.effect_filters.changed.connect(
@@ -2952,6 +3162,11 @@ class Planner(QMainWindow):
         for card in list(self.base_slots) + list(self.deep_slots):
             card.suggestion.use_requested.connect(
                 lambda slot=card: self.use_the_suggestion(slot))
+            card.suggestion.reject_requested.connect(
+                lambda slot=card: self._reject_from_the_block(slot))
+            card.suggestion.avoid_requested.connect(
+                lambda effect_id, slot=card:
+                self._avoid_from_the_block(slot, effect_id))
             # AK-274: the card's own `Why` opens the very dialog the bar's
             # does -- same handler, so there is no second account to keep in
             # step with the first.
@@ -2968,7 +3183,94 @@ class Planner(QMainWindow):
         since.
         """
         self._slots_before_applying = None
+        self._before_switching = None
         self.show_the_suggestion(result)
+        card, self._focus_after_asking = self._focus_after_asking, None
+        if card is not None:
+            first_x = None if result is None else card.suggestion.first_x()
+            (first_x or self.advisor_bar.optimize_button).setFocus()
+
+    # -- asking again from the block ----------------------------------------
+
+    def _reject_key(self) -> tuple:
+        """Which build a rejection belongs to (AD-060.2). No Deep, unlike a
+        hold: a hold sits on a slot, and a rejection on none."""
+        vessel = self.current_vessel()
+        return self.current_hero()["id"], vessel["id"] if vessel else None
+
+    def rejected_rolls(self) -> frozenset:
+        """The rolls rejected for the build now on screen."""
+        return frozenset(self._rejects.get(self._reject_key(), {}))
+
+    def _show_the_rejects(self) -> None:
+        self.rejected_list.show_these([
+            (roll, name, ", ".join(advisorblock.effect_name(self.effects, eid)
+                                   for eid in roll[1]))
+            for roll, name in self._rejects.get(self._reject_key(), {}).items()])
+
+    def _ask_again_from(self, card, **said) -> None:
+        """The block's marks changed, so the question is new (AD-061). The
+        focus is read before the block locks and lets it go (AK-426)."""
+        focused = self.focusWidget()
+        if card.suggestion.isAncestorOf(focused):
+            self._focus_after_asking = card
+        self.advisor_bar.ask_again(**said)
+        self._lock_the_blocks()
+
+    def _lock_the_blocks(self) -> None:
+        """AK-425: the blocks stay and take no press while a run replaces them."""
+        working = self.advisor_bar.is_working()
+        for card in self._all_slots():
+            card.suggestion.setEnabled(not working)
+
+    def _avoid_from_the_block(self, card, effect_id: int) -> None:
+        """An X at a line (AK-424). The mark would otherwise throw the answer
+        away as an outdating; this one the row asked for itself."""
+        name = advisorblock.effect_name(self.effects, effect_id)
+        with self.advisor_bar.while_the_player_applies_it():
+            self.effect_filters.mark(effect_id, effectfilters.EXCLUDED)
+        self._ask_again_from(card, stopped=f"Stopped. “{name}” stays avoided.",
+                             done=f"“{name}” avoided.",
+                             done_tip="Undo this in Filters.")
+
+    def _reject_from_the_block(self, card) -> None:
+        """`Reject` on a block (AK-429): this roll, for this build."""
+        result = self.advisor_bar.answer
+        if result is None or not result.suggestions:
+            return
+        index = self._all_slots().index(card)
+        choice = next((choice for choice in result.suggestions[0].choices
+                       if choice.slot_index == index), None)
+        copy = (None if choice is None
+                else self._relics_by_handle().get(choice.handle))
+        if copy is None:
+            return
+        self._rejects.setdefault(self._reject_key(), {})[
+            advisor_types.roll_of(copy)] = copy.name
+        self._show_the_rejects()
+        self._ask_again_from(card,
+                             stopped=f"Stopped. “{copy.name}” stays rejected.",
+                             done=f"“{copy.name}” rejected.")
+
+    def _suggest_again(self, roll) -> None:
+        """AK-430: the rejection goes, and a standing answer is asked anew. A
+        run on its way was asked with the rejection, so it is out of date."""
+        key = self._reject_key()
+        rejects = self._rejects.get(key, {})
+        rejects.pop(roll, None)
+        if not rejects:
+            self._rejects.pop(key, None)
+        pressed_here = self.rejected_list.isAncestorOf(self.focusWidget())
+        self._show_the_rejects()
+        if pressed_here:
+            (self.rejected_list.fold if rejects
+             else self.advisor_bar.optimize_button).setFocus()
+        if self.advisor_bar.answer is None:
+            self.advisor_bar.the_build_changed()
+            self.advisor_bar.the_comparison_is_out_of_date()
+            return
+        self.advisor_bar.ask_again()
+        self._lock_the_blocks()
 
     # -- applying an answer -------------------------------------------------
 
@@ -3022,6 +3324,7 @@ class Planner(QMainWindow):
             holds.pop(slots.index(card), None)
         if not holds:
             self._holds.pop(key, None)
+        self.advisor_bar.the_comparison_is_out_of_date()
         # A held slot is one no applying may touch, so the card's own `Use`
         # comes and goes with the hold.
         self.show_the_suggestion(self.advisor_bar.answer)
@@ -3155,6 +3458,10 @@ class Planner(QMainWindow):
         before = self._slots_before_applying
         if before is None:
             return
+        switched, self._before_switching = self._before_switching, None
+        if switched is not None:
+            self._put_back_what_a_switch_moved(before, switched)
+            return
         held = self.held_slot_indices()
         keys = [slot.saved_key() if index in held else before[index]
                 for index, slot in enumerate(self._all_slots())]
@@ -3162,6 +3469,20 @@ class Planner(QMainWindow):
         self._put_these_keys_in_the_slots(keys)
         self.advisor_bar.the_suggestion_was_undone()
         self.show_the_suggestion(self.advisor_bar.answer)
+
+    def _put_back_what_a_switch_moved(self, before: list[str],
+                                      switched: tuple[dict, dict, bool]) -> None:
+        """AK-454, QA-324: slots, holds, rejections and hand as they were. The
+        answer goes: it was the answer to the question with them moved."""
+        holds, rejects, hand = switched
+        for store, kept in ((self._holds, holds), (self._rejects, rejects)):
+            for key, value in kept.items():
+                self._set_or_drop(store, key, value)
+        self._slots_before_applying = None
+        self._set_two_handed(hand)
+        self._put_these_keys_in_the_slots(before)
+        self._show_the_rejects()
+        self.advisor_bar.the_build_changed()
 
     def _put_these_keys_in_the_slots(self, keys: list[str]) -> None:
         """Set every slot from a list of stored keys, as a restore does.
@@ -3188,6 +3509,11 @@ class Planner(QMainWindow):
             self._settle_slots()
             self.recompute()
             self._store_chalice()
+        # An empty build is not written over a stored one (`_store_chalice`),
+        # and undoing an applying onto an empty vessel has to take it away.
+        vessel = self.current_vessel()
+        if vessel and not any(keys):
+            chalices.clear(self.current_hero()["id"], vessel["id"])
 
     def show_the_suggestion(self, result) -> None:
         """Put the living answer on the slot cards, or take it off them.
@@ -3209,11 +3535,12 @@ class Planner(QMainWindow):
         cards = self.active_slots()
         for card in list(self.base_slots) + list(self.deep_slots):
             card.put_the_suggestion_away()
+        self._lock_the_blocks()
         if result is None or not result.suggestions:
             return
         suggestion = result.suggestions[0]
-        if any(group.slot_index >= len(cards)
-               for group in suggestion.reasons):
+        if any(entry.slot_index >= len(cards)
+               for entry in (*suggestion.reasons, *result.empty_slots)):
             return
         by_slot = {choice.slot_index: choice for choice in suggestion.choices}
         # AK-274: the card's `Why` follows the bar's own gate
@@ -3240,7 +3567,13 @@ class Planner(QMainWindow):
                 by_slot.get(group.slot_index), may_explain=may_explain,
                 held_favourite_line=(result.favourites_met_line
                                      if group.slot_index == held_favourite_slot
-                                     else ""))
+                                     else ""),
+                pinned=group.slot_index in result.pins_placed,
+                names={line.effect_id: advisorblock.effect_name(
+                    self.effects, line.effect_id) for line in group.lines},
+                favourited=self.effect_filters.required)
+        for empty in result.empty_slots:
+            cards[empty.slot_index].show_no_suggestion(empty.line)
 
     def open_why(self, card=None) -> None:
         """The long form of the answer on screen (`UI_SPEC` §3.4).
@@ -3385,6 +3718,7 @@ class Planner(QMainWindow):
         # cause it, because a fifth arrived once already and did not know it
         # had to say so (see `populate`'s note about narrowing a slot).
         self._show_the_holds()
+        self._show_the_rejects()
         # Every path that changes a vessel, a mode or a relic ends here, so
         # this is the one place the stored build has to be kept up to date.
         self._store_chalice()
@@ -3416,7 +3750,15 @@ class Planner(QMainWindow):
         self.recompute()
 
 
+#: AD-062.9: how long the worker of a comparison keeps the GIL while the window
+#: waits for it. At Python's default of 5 ms every PySide call waited that out,
+#: and the picker took 1247 ms during a comparison against 107 ms idle (QA-323).
+GIL_SWITCH_SECONDS = 0.0005
+
+
 def main() -> int:
+    sys.setswitchinterval(GIL_SWITCH_SECONDS)
+
     # Before the QApplication, which is when Qt reads it and so the last
     # moment it can be said.
     uiscale.apply_to_environment()

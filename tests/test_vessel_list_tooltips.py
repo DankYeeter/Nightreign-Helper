@@ -73,3 +73,10 @@ def test_the_list_carries_the_tooltips_whatever_the_deep_switch_says(
             assert "Deep of Night adds: " in row.toolTip()
         tips[deep_on] = [r.toolTip() for r in vessels]
     assert tips[True] == tips[False]
+
+
+def test_the_comparison_stands_before_the_equipped_line():
+    """AK-432."""
+    tip = appmod.vessel_tooltip(WITH_NEITHER, worn=True,
+                                compared=("Compared: 1.",))
+    assert tip.endswith("Compared: 1.\nEquipped in game")

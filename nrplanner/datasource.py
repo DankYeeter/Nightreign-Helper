@@ -6,6 +6,7 @@ Fallback: the snapshot bundled into the executable.
 
 from __future__ import annotations
 
+import gc
 import json
 import pathlib
 import sys
@@ -129,11 +130,19 @@ def load_data() -> dict:
     model.configure has to run before anything computes a build: it is what
     tells the model which fields multiply and which add, taken from the data
     rather than guessed from the field name.
+
+    **Frozen for the collector afterwards** (AD-062.9). A full collection over
+    the dataset holds the GIL past A6's 50 ms, and with a run in a thread that
+    stops the window. The dataset is read-only and lives as long as the
+    program, so there is nothing in it to collect.
     """
+    gc.unfreeze()
     data = _load_data()
     from . import model
 
     model.configure(data)
+    gc.collect()
+    gc.freeze()
     return data
 
 

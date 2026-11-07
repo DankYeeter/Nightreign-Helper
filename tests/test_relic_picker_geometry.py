@@ -49,7 +49,7 @@ ANSWER_FUSE_S = 30.0
 PICKER_WIDTHS = (None, 900, 700)
 
 
-def open_the_picker(planner):
+def open_the_picker(planner, search_text=""):
     """The picker for the first relic slot of a real window, answered.
 
     A real slot, not a stub: the card list comes from `available_items()` and
@@ -58,7 +58,7 @@ def open_the_picker(planner):
     planner.show()
     rendered.settle()
     slot = planner.base_slots[0]
-    dialog = relicpicker.RelicPicker(slot, planner.icons, "",
+    dialog = relicpicker.RelicPicker(slot, planner.icons, search_text,
                                      lambda _text: None)
     dialog.show()
     rendered.settle()
@@ -194,6 +194,43 @@ def test_the_height_asked_for_is_the_figure_of_the_sizing_and_stays_it(
     dialog = open_the_picker(planner)
     try:
         assert dialog.wanted_height(cards(dialog)) == at_the_sizing[0]
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+        rendered.settle(2)
+
+
+def test_few_cards_stand_at_the_top_at_the_height_of_their_content(
+        planner, qapp):
+    """A filter with a handful of hits leaves the room under the grid.
+
+    1.19.0 user test, `changes compatibl` at 1 400 x 1 400 px: every card was
+    stretched to the full height of the scroll area (560 px against 226 of
+    content), the icon and the name sat in the middle of it and the value
+    rows stood at a different height on every card.
+    """
+    dialog = open_the_picker(planner, "changes compatibl")
+    try:
+        dialog.resize(1400, 1400)
+        rendered.settle()
+        drawn = cards(dialog)
+        assert len(drawn) >= 2, "the filter left nothing to compare"
+        by_top: dict[int, list] = {}
+        for card in drawn:
+            by_top.setdefault(card.y(), []).append(card)
+        for top, row in sorted(by_top.items()):
+            tallest = max(card.heightForWidth(card.width()) for card in row)
+            heights = [card.height() for card in row]
+            assert heights == [tallest] * len(row), (
+                f"row at {top} px: cards {heights} px tall, its tallest "
+                f"content {tallest} px")
+        icons_at = {card.button.y() for card in drawn}
+        assert len(icons_at) == 1, (
+            f"the icons stand at {sorted(icons_at)} px, not at the top")
+        bottom = max(card.y() + card.height() for card in drawn)
+        assert bottom < dialog.scroll.viewport().height(), (
+            "the cards fill the scroll area instead of leaving the room "
+            "under them")
     finally:
         dialog.close()
         dialog.deleteLater()

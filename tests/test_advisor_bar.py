@@ -23,8 +23,11 @@ import pytest
 from PySide6.QtCore import QObject, QSettings, Qt, Signal
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 
-from nrplanner import advisorbar, favourites
+from nrplanner import advisorbar, effecttext, favourites, relicpicker
 from nrplanner.advisor import goals, types
+from nrplanner.advisor import run as advisor_run
+from nrplanner.advisor.evaluate import evaluate
+from tests import advisor_cases as advisor
 from tests import rendered
 from tests.advisor_row_at_the_window import NARROW_DESKTOPS
 
@@ -114,21 +117,39 @@ TABLE = [
     ("4.11", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
         goal_label="Maximise damage", slots=4, slots_filled=3,
-        slots_without_a_choice=1),
-     "Maximise damage — 3 of 4 slots filled  ·  1 slot has nothing to choose "
-     "from."),
-    ("4.11 blocked, one", advisorbar.Situation(
+        slots_without_a_choice=1,
+        empty_slots=(types.EmptySlot(3, types.EMPTY_NOTHING),)),
+     "Maximise damage — 3 of 4 slots filled  ·  1 slot empty: nothing left to "
+     "choose from."),
+    ("4.11 two of one reason (AK-443)", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=4, slots_filled=2,
+        slots_without_a_choice=2,
+        empty_slots=(types.EmptySlot(2, types.EMPTY_AVOIDED),
+                     types.EmptySlot(3, types.EMPTY_AVOIDED))),
+     "Maximise damage — 2 of 4 slots filled  ·  2 slots empty: everything "
+     "left carries an effect you avoided."),
+    ("4.11 two reasons (AK-443)", advisorbar.Situation(
+        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+        goal_label="Maximise damage", slots=4, slots_filled=2,
+        slots_without_a_choice=2,
+        empty_slots=(types.EmptySlot(2, types.EMPTY_AVOIDED),
+                     types.EmptySlot(3, types.EMPTY_REJECTED))),
+     "Maximise damage — 2 of 4 slots filled  ·  2 slots empty for different "
+     "reasons — see the slot cards."),
+    *[(f"4.11 {reason} (AK-457)", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
         goal_label="Maximise damage", slots=1, slots_filled=0,
-        slots_without_a_choice=1, blocked_by_a_requirement=True),
-     "Maximise damage — 0 of 1 slots filled  ·  1 slot is blocked by a "
-     "requirement you marked."),
-    ("4.11 blocked, three", advisorbar.Situation(
-        advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
-        goal_label="Maximise damage", slots=3, slots_filled=0,
-        slots_without_a_choice=3, blocked_by_a_requirement=True),
-     "Maximise damage — 0 of 3 slots filled  ·  3 slots are blocked by a "
-     "requirement you marked."),
+        slots_without_a_choice=1,
+        empty_slots=(types.EmptySlot(0, reason, relic_name="Urn"),)),
+       f"Maximise damage — 0 of 1 slots filled  ·  1 slot empty: {short}.")
+      for reason, short in (
+          (types.EMPTY_REQUIREMENT,
+           "what is left is needed for your Favourite effects"),
+          (types.EMPTY_PIN, "your favourite “Urn” uses the rest"),
+          (types.EMPTY_AVOIDED_AND_REJECTED,
+           "everything left is rejected or carries an avoided effect"),
+          (types.EMPTY_REJECTED, "everything left is rejected"))],
     ("4.11 no carrier, one (AK-365)", advisorbar.Situation(
         advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
         goal_label="Maximise damage", slots=1, slots_filled=0,
@@ -219,8 +240,9 @@ class _Controller(QObject):
         self.shutdowns = 0
         self.running = False
 
-    def ask(self, request, inventory, ctx) -> int:
+    def ask(self, request, inventory, ctx, debounce_ms=None) -> int:
         self.asked.append(request)
+        self.debounce_ms = debounce_ms
         self.running = True
         return len(self.asked)
 
@@ -269,7 +291,7 @@ def _an_asking(relics: int = 292, slots: int = 6) -> advisorbar.Asking:
 
 def _an_answer(filled: int = 6, curses: tuple = (),
                not_counted: tuple = (),
-               blocked: bool = False, held: int = 0) -> types.AdvisorResult:
+               held: int = 0, empty: tuple = ()) -> types.AdvisorResult:
     """An answer that fills `filled` slots of the question above, with
     `held` more already decided before the search ran (QA-284)."""
     choices = tuple(types.SlotChoice(slot_index=index, handle=100 + index,
@@ -282,7 +304,7 @@ def _an_answer(filled: int = 6, curses: tuple = (),
         goal_id="max_damage", goal_label="Maximise damage",
         suggestions=(types.Suggestion(choices=choices, score=score),),
         curses_without_a_figure=curses, not_counted=not_counted,
-        blocked_by_a_requirement=blocked, held=held_slots)
+        held=held_slots, empty_slots=empty)
 
 
 @pytest.fixture
@@ -524,10 +546,9 @@ def test_an_answer_with_an_empty_slot_says_so_before_it_says_anything_else(bar):
     """4.11 rather than 4.6: a slot with nothing in it is the loud one."""
     bar.optimize_button.click()
     bar._controller.begins()
-    bar._controller.answers(_an_answer(filled=5))
+    bar._controller.answers(_an_answer(filled=5, empty=(types.EmptySlot(5, types.EMPTY_NOTHING),)))
     assert bar.status.accessibleName() == (
-        "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
-        "choose from.")
+        "Maximise damage — 5 of 6 slots filled  ·  1 slot empty: nothing left to choose from.")
 
 
 def test_nothing_owned_reaching_the_choice_is_a_yellow_line_under_the_row(
@@ -577,24 +598,12 @@ def test_a_held_slot_does_not_count_as_nothing_to_choose_from(bar):
     choose from."""
     bar.optimize_button.click()
     bar._controller.begins()
-    bar._controller.answers(_an_answer(filled=4, held=1))
+    bar._controller.answers(_an_answer(
+        filled=4, held=1,
+        empty=(types.EmptySlot(5, types.EMPTY_NOTHING),)))
     assert bar.status.accessibleName() == (
-        "Maximise damage — 5 of 6 slots filled  ·  1 slot has nothing to "
-        "choose from.")
-
-
-def test_an_empty_slot_under_an_unmeetable_requirement_names_the_requirement(
-        bar):
-    """AK-294 (QA-270): the pools were full, the `Favourite` effect had no
-    constellation -- the second clause says so instead of claiming the slots
-    had nothing to choose from. Same state 4.11, the other cause."""
-    bar.optimize_button.click()
-    bar._controller.begins()
-    bar._controller.answers(_an_answer(filled=0, blocked=True))
-    assert bar.situation.state is advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT
-    assert bar.status.accessibleName() == (
-        "Maximise damage — 0 of 6 slots filled  ·  6 slots are blocked by a "
-        "requirement you marked.")
+        "Maximise damage — 5 of 6 slots filled  ·  1 slot empty: nothing "
+        "left to choose from.")
 
 
 def test_a_marking_that_changes_under_a_run_names_the_marking_not_the_build(
@@ -1252,7 +1261,17 @@ def test_a_declared_condition_outlives_the_baseline(planner):
               if effecttext.counts_armaments(
                   planner.data["effects"][str(effect_id)])}
     assert assumed <= counts
-    assert declared.keys() | counts >= set(model.advisor_defaults())
+    # The weapon-type buffs follow the selected tile's type (01.11.2026):
+    # `tests/test_one_armament_count_type.py`.
+    weapon_type = {effect_id for effect_id in model.advisor_defaults()
+                   if "triggerOnWepType" in planner.data["effects"][
+                       str(effect_id)]["modifiers"]}
+    # So do the enemy-ailment conditions the grid does not inflict
+    # (01.11.2026): `tests/test_ailment_conditions.py`.
+    awaiting = set(asking.ctx.awaiting_ailment)
+    assert not awaiting & declared.keys()
+    assert declared.keys() | counts | weapon_type | awaiting >= set(
+        model.advisor_defaults())
 
 
 def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
@@ -1278,6 +1297,110 @@ def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
         filters.mark_family(family, False)
         for effect_id in (11, 22, 7330000):
             filters.mark(effect_id, None)
+
+
+def _answer_of_the_window(planner):
+    """The real run on what the window asks, fingerprint filled as
+    `AdvisorController.ask` fills it."""
+    from nrplanner.advisor import run as advisor_run
+
+    asking = advisorbar.asking_from(planner, "max_damage")
+    frozen = advisor_run.frozen_inventory(asking.inventory,
+                                          asking.request.problem)
+    return advisor_run.run(
+        dataclasses.replace(asking.request,
+                            inventory_fingerprint=advisor_run.
+                            inventory_fingerprint(frozen)),
+        frozen, asking.ctx, goals.GOALS)
+
+
+def _guardian_effect_on_a_copy(planner) -> int:
+    """A "[Guardian]" effect the frozen slot carries, so a requirement would
+    change the answer on another Nightfarer."""
+    for relic in planner.owned.relics:
+        for effect_id in relic.effect_ids:
+            name = planner.data["effects"].get(str(effect_id), {}).get("name", "")
+            if name.startswith("[Guardian]"):
+                return effect_id
+    pytest.fail("no copy in the frozen slot carries a [Guardian] effect")
+
+
+def _an_effect_no_copy_carries(planner, works_on_wylder: bool) -> int:
+    carried = {effect_id for relic in planner.owned.relics
+               for effect_id in relic.effect_ids}
+    return next(int(key) for key, effect in planner.data["effects"].items()
+                if int(key) not in carried and effect.get("name")
+                and effecttext.works_for(effect, "Wylder") == works_on_wylder)
+
+
+def _select_hero(planner, name: str) -> None:
+    planner.select_hero(next(index for index, hero in enumerate(planner.heroes)
+                             if hero["name"] == name))
+
+
+def test_a_favourite_of_another_nightfarer_changes_no_answer(planner):
+    """User decision 07.11.2026: a "[Guardian]" favourite on Wylder takes no
+    slot and costs no figure. The mark stays. Red with the split in
+    `asking_from` taken out."""
+    from nrplanner import effectfilters
+
+    _select_hero(planner, "Wylder")
+    free = _answer_of_the_window(planner)
+    foreign = _guardian_effect_on_a_copy(planner)
+    planner.effect_filters.mark(foreign, effectfilters.REQUIRED)
+    try:
+        marked = _answer_of_the_window(planner)
+        problem = advisorbar.asking_from(planner, "max_damage").request.problem
+        assert problem.favourites_of_others == {foreign}
+        assert foreign in planner.effect_filters.required
+    finally:
+        planner.effect_filters.mark(foreign, None)
+    assert marked.suggestions[0].score == free.suggestions[0].score
+    assert marked.suggestions[0].choices == free.suggestions[0].choices
+    assert marked.required_left_out == ()
+    assert marked.unknowns == free.unknowns
+
+
+def test_the_same_favourite_binds_on_its_own_nightfarer(planner):
+    """The other half of the decision: on Guardian the mark is what it was."""
+    from nrplanner import effectfilters
+
+    _select_hero(planner, "Guardian")
+    own = _guardian_effect_on_a_copy(planner)
+    planner.effect_filters.mark(own, effectfilters.REQUIRED)
+    try:
+        assert advisorbar.asking_from(
+            planner, "max_damage").request.problem.required == {own}
+        answer = _answer_of_the_window(planner)
+    finally:
+        planner.effect_filters.mark(own, None)
+    assert answer.required_left_out == ()
+    carriers = {relic.handle for relic in planner.owned.relics
+                if own in relic.effect_ids}
+    assert carriers & {choice.handle for choice in answer.suggestions[0].choices}
+
+
+def test_a_favourite_of_another_nightfarer_is_not_missing_in_the_comparison(
+        planner):
+    """Nothing counts it as left out (AK-455, the vessel list's rank); a
+    favourite of the Nightfarer's own that no copy carries still does."""
+    from nrplanner import effectfilters
+    from nrplanner.advisor import run as advisor_run
+
+    _select_hero(planner, "Wylder")
+    foreign = _an_effect_no_copy_carries(planner, works_on_wylder=False)
+    own = _an_effect_no_copy_carries(planner, works_on_wylder=True)
+    filters = planner.effect_filters
+    filters.mark(own, effectfilters.REQUIRED)
+    try:
+        without = advisor_run.vessel_row(7, _answer_of_the_window(planner))
+        filters.mark(foreign, effectfilters.REQUIRED)
+        with_foreign = advisor_run.vessel_row(7, _answer_of_the_window(planner))
+    finally:
+        filters.mark(own, None)
+        filters.mark(foreign, None)
+    assert with_foreign.required_left_out == (own,)
+    assert advisor_run.rank_key(with_foreign) == advisor_run.rank_key(without)
 
 
 def test_the_question_carries_the_starting_armament_without_its_rolls(planner):
@@ -1444,7 +1567,8 @@ def test_the_row_stands_between_the_build_line_and_the_hint(planner):
     stack = column.layout()
     order = [stack.itemAt(i).widget() for i in range(stack.count())]
     area = _the_slot_area(planner)
-    assert order.index(planner.advisor_bar) == order.index(area) - 1
+    assert order[order.index(planner.advisor_bar) + 1:order.index(area)] == [
+        planner.rejected_list]
     # The build list is above the row and outside the area; the hint is
     # below it and inside.
     assert planner.build_box not in area.findChildren(type(planner.build_box))
@@ -1855,3 +1979,943 @@ def test_closing_the_window_waits_for_the_thread(planner, monkeypatch):
                         lambda: told.append(True))
     planner.close()
     assert told
+
+
+# --- what the suggestion goes without (AK-455, AK-439) -----------------------
+
+@pytest.mark.parametrize("state,extra,head", [
+    (advisorbar.State.SUGGESTED, {},
+     "Maximise damage — 6 of 6 slots filled"),
+    (advisorbar.State.SUGGESTED_WITH_SILENT_EFFECTS,
+     {"curses_without_a_number": 1},
+     "Maximise damage — 6 of 6 slots filled  ·  1 curse carries no number."),
+    (advisorbar.State.SUGGESTED_WITH_AN_EMPTY_SLOT,
+     {"slots_without_a_choice": 1,
+      "empty_slots": (types.EmptySlot(5, types.EMPTY_NOTHING),)},
+     "Maximise damage — 6 of 6 slots filled  ·  1 slot empty: nothing left to "
+     "choose from."),
+])
+def test_all_three_result_states_say_what_they_go_without(state, extra, head):
+    """AK-455: empty slots, then effects, then relics, in each of the three."""
+    situation = advisorbar.Situation(
+        state, goal_label="Maximise damage", slots=6, slots_filled=6,
+        favourite_effects_unmet=2, favourite_relics_left_out=3, **extra)
+
+    assert advisorbar.status_line(situation) == (
+        f"{head}  ·  2 favourite effects could not be met.  ·  3 favourited "
+        f"relics did not fit.")
+
+
+def test_one_of_each_is_said_in_the_singular():
+    situation = advisorbar.Situation(
+        advisorbar.State.SUGGESTED, goal_label="Maximise damage", slots=6,
+        slots_filled=6, favourite_effects_unmet=1, favourite_relics_left_out=1)
+
+    assert advisorbar.status_line(situation) == (
+        "Maximise damage — 6 of 6 slots filled  ·  1 favourite effect could "
+        "not be met.  ·  1 favourited relic did not fit.")
+
+
+def test_a_full_suggestion_with_every_favourite_met_says_neither(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    assert bar.status.accessibleName() == (
+        "Maximise damage — 6 of 6 slots filled.")
+
+
+def test_the_clauses_count_the_answer_and_the_tooltip_says_each_one(bar):
+    """AK-455: `{n}` is the length of `required_left_out`, the tooltip is the
+    sentence the `Why` dialog reads. AK-439: `{name}: {reason}`. A name out of
+    the save comes through as text (SEC-019)."""
+    pin = types.PinLeftOut("<b>Urn</b>", (1, (), ()), types.PIN_REJECTED,
+                           because="you rejected it for this build")
+    answer = dataclasses.replace(
+        _an_answer(), required_left_out=(7, 8),
+        required_unmet=("No copy you own carries A.", "No copy you own carries B."),
+        pins_left_out=(pin,))
+
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(answer)
+
+    assert bar.status.accessibleName() == (
+        "Maximise damage — 6 of 6 slots filled  ·  2 favourite effects could "
+        "not be met.  ·  1 favourited relic did not fit.")
+    for tooltip in (bar.status.toolTip(), bar.toolTip()):
+        assert "No copy you own carries A.<br>No copy you own carries B." in tooltip
+        assert "&lt;b&gt;Urn&lt;/b&gt;: you rejected it for this build" in tooltip
+        assert "<b>" not in tooltip
+
+
+def test_the_next_state_takes_the_details_off_the_tooltip(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(dataclasses.replace(
+        _an_answer(), required_left_out=(7,), required_unmet=("Unmet.",)))
+
+    bar.the_build_changed()
+
+    assert "Unmet." not in bar.status.toolTip()
+
+
+# --- asking again from the block (AD-061, AK-424 to AK-426, AK-429) ----------
+
+def test_asking_again_keeps_the_answer_and_waits_for_nothing(bar):
+    """AK-424: no debounce. AK-425: the old blocks stay until the new one."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    answer = _an_answer()
+    bar._controller.answers(answer)
+
+    bar.ask_again(done="“Strength” avoided.")
+
+    assert bar.answer is answer
+    assert bar.is_working()
+    assert bar._controller.debounce_ms == 0
+    assert len(bar._controller.asked) == 2
+
+
+def test_the_answer_names_what_the_player_asked_for_last(bar):
+    """AK-426: the last clause, and where to take it back in the tooltip."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    bar.ask_again(done="“Strength” avoided.", done_tip="Undo this in Filters.")
+    bar._controller.begins()
+    bar._controller.answers(dataclasses.replace(_an_answer(),
+                                                required_left_out=(7,)))
+
+    assert bar.status.accessibleName() == (
+        "Maximise damage — 6 of 6 slots filled  ·  1 favourite effect could "
+        "not be met.  ·  “Strength” avoided.")
+    assert "Undo this in Filters." in bar.status.toolTip()
+
+
+def test_the_next_optimize_forgets_that_clause(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.ask_again(stopped="Stopped. “Urn” stays rejected.",
+                  done="“Urn” rejected.")
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    assert bar.status.accessibleName() == (
+        "Maximise damage — 6 of 6 slots filled.")
+
+
+def test_cancel_says_what_stays_and_the_blocks_go(bar):
+    """AK-425, AK-429."""
+    seen = []
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.suggestion_changed.connect(seen.append)
+
+    bar.ask_again(stopped="Stopped. “Strength” stays avoided.")
+    bar._controller.begins()
+    bar.optimize_button.click()
+
+    assert bar.status.accessibleName() == "Stopped. “Strength” stays avoided."
+    assert bar.answer is None
+    assert seen == [None]
+
+
+def test_a_plain_cancel_keeps_its_sentence(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.ask_again(stopped="Stopped. “Strength” stays avoided.")
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar.optimize_button.click()
+
+    assert bar.status.accessibleName() == "Stopped. Nothing was changed."
+
+
+def test_a_failed_run_takes_the_old_blocks_with_it(bar):
+    """Otherwise they would stand locked under a line saying it failed."""
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+
+    bar.ask_again()
+    bar._controller.failed.emit("the run gave up")
+
+    assert bar.answer is None
+    assert bar.situation.state is advisorbar.State.FAILED
+
+
+def test_a_build_changed_under_a_run_from_the_block_still_outdates_it(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.ask_again(stopped="Stopped. “Strength” stays avoided.")
+    bar._controller.begins()
+
+    bar.the_build_changed()
+
+    assert bar.situation.state is advisorbar.State.OUTDATED
+    assert bar.answer is None
+
+
+def test_asking_again_without_a_save_says_so_and_takes_the_blocks(bar):
+    bar.optimize_button.click()
+    bar._controller.begins()
+    bar._controller.answers(_an_answer())
+    bar.asking["value"] = None
+
+    bar.ask_again()
+
+    assert bar.situation.state is advisorbar.State.NO_SAVE
+    assert bar.answer is None
+
+
+# --- the list of what was rejected (AK-430) ----------------------------------
+
+@pytest.fixture
+def rejected(qapp):
+    widget = advisorbar.RejectedList()
+    yield widget
+    widget.deleteLater()
+
+
+def test_with_nothing_rejected_the_list_takes_no_room(rejected):
+    rejected.show_these([])
+
+    assert rejected.isHidden()
+
+
+def test_closed_it_is_one_line_that_counts(rejected):
+    rejected.show_these([((1, (), ()), "Urn", "")])
+    assert not rejected.isHidden()
+    assert rejected.scroller.isHidden()
+    assert rejected.fold.text() == "▸ 1 relic rejected for this build"
+
+    rejected.show_these([((1, (), ()), "Urn", ""), ((2, (), ()), "Jar", "")])
+    assert rejected.fold.text() == "▸ 2 relics rejected for this build"
+
+
+def test_open_it_names_each_and_gives_it_back(rejected):
+    roll = (1, (2,), ())
+    rejected.show_these([(roll, "<b>Urn</b>", "Strength, Vigor")])
+    rejected.fold.click()
+    seen = []
+    rejected.suggest_again.connect(seen.append)
+
+    assert rejected.fold.text() == "▾ 1 relic rejected for this build"
+    label = rejected.scroller.widget().findChild(advisorbar._ElidingLabel)
+    assert label.accessibleName() == "<b>Urn</b> — Strength, Vigor"
+    assert label.textFormat() == Qt.PlainText
+    assert "&lt;b&gt;Urn" in label.toolTip()
+    again = rejected.scroller.widget().findChild(QPushButton)
+    assert again.text() == "Suggest again"
+    again.click()
+    assert seen == [roll]
+
+
+def test_past_four_it_scrolls_in_here(rejected):
+    """AK-430: four rows at most, the rest in the list's own scrolling."""
+    four = [((index, (), ()), f"Relic {index}", "") for index in range(4)]
+    six = [((index, (), ()), f"Relic {index}", "") for index in range(6)]
+
+    rejected.show_these(four)
+    height_of_four = rejected.scroller.maximumHeight()
+    rejected.show_these(six)
+
+    assert rejected.scroller.maximumHeight() == height_of_four
+
+
+def test_six_blocks_with_x_and_reject_stay_inside_the_narrow_column(planner):
+    """AK-421, AK-427, measured at the window's least width: no sideways
+    scrolling under six cards, no button cut, and a line is as tall as its X
+    and no taller."""
+    planner.deep_check.setChecked(True)
+    cards = planner.active_slots()
+    lines = tuple(types.ReasonLine(slot_index=0, effect_id=index + 1,
+                                   text=f"Effect {index}: Physical Attack +1")
+                  for index in range(3)) + (
+        types.ReasonLine(slot_index=0, effect_id=4, text="Curse: Vigor -1",
+                         is_curse=True),)
+    groups = tuple(types.SlotReasons(
+        slot_index=index, relic_name="Grand Luminous Scene", effects_total=3,
+        effects_with_a_figure=3, count_line="3 of its 3 effects moved a number.",
+        lines=lines) for index in range(len(cards)))
+    answer = types.AdvisorResult(
+        goal_id="max_damage", goal_label="Maximise damage",
+        suggestions=(types.Suggestion(
+            choices=tuple(types.SlotChoice(index, 900 + index, 1, "Relic")
+                          for index in range(len(cards))),
+            score=types.GoalScore(1.0, "1", ""), reasons=groups),))
+    planner.advisor_bar._answer = answer
+    planner.advisor_bar._show(advisorbar.Situation(
+        advisorbar.State.SUGGESTED, goal_label="Maximise damage",
+        slots=len(cards), slots_filled=len(cards)))
+    planner.show_the_suggestion(answer)
+    planner.resize(planner.minimumWidth(), 900)
+    planner.show()
+    rendered.settle()
+    try:
+        area = _the_slot_area(planner)
+        assert area.horizontalScrollBar().maximum() == 0
+        block = cards[0].suggestion
+        for button in (block.use_button, block.why_button, block.reject_button):
+            assert button.width() >= button.minimumSizeHint().width(), (
+                f"{button.text()} is cut: {button.width()} of "
+                f"{button.minimumSizeHint().width()}")
+            assert button.geometry().right() <= block.contentsRect().right()
+        assert [line.height() for line in block.drawn_lines] == [24] * 4
+    finally:
+        planner.advisor_bar.clear()
+        planner.hide()
+
+
+# -- the row starts and stops the vessel comparison (AD-062.3, .4) ------------
+
+class _Comparison(QObject):
+    """What the row asks of `VesselComparison`, written down."""
+
+    row_ready = Signal(object)
+    finished = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = []
+
+    def start(self, questions, inventory, ctx) -> None:
+        self.calls.append(("start", questions))
+
+    def cancel(self) -> None:
+        self.calls.append("cancel")
+
+    def before_the_data_changes(self) -> None:
+        self.calls.append("data")
+
+    def shutdown(self) -> None:
+        self.calls.append("shutdown")
+
+
+FOUR_VESSELS = tuple({"id": index, "slots": [1, 1, 1], "deep_slots": [1, 1, 1]}
+                     for index in (7, 8, 9, 10))
+
+
+@pytest.fixture
+def comparing_bar(qapp):
+    asked = dataclasses.replace(_an_asking(), vessels=FOUR_VESSELS, vessel_id=8,
+                                deep=True)
+    widget = advisorbar.AdvisorBar(lambda goal_id: asked,
+                                   controller=_Controller(),
+                                   comparison=_Comparison())
+    widget.asked = asked
+    yield widget
+    widget.deleteLater()
+
+
+def test_an_answer_starts_the_comparison_with_the_chosen_vessel_first(
+        comparing_bar):
+    comparing_bar._ask()
+    assert comparing_bar.comparison.calls == ["cancel"]
+    comparing_bar._on_ready(_an_answer())
+    _cancel, (name, questions) = comparing_bar.comparison.calls
+    assert name == "start"
+    assert [question.vessel_id for question in questions] == [8, 7, 9, 10]
+    assert questions[0].request is comparing_bar.asked.request
+
+
+def test_a_row_with_no_vessels_compares_nothing(bar):
+    bar._on_ready(_an_answer())
+    assert bar.comparison._waiting == []
+    assert bar.comparison._controller._thread is None
+
+
+@pytest.mark.parametrize("what_happens, expected", [
+    (lambda widget: widget._ask(), "cancel"),
+    (lambda widget: widget.ask_again(), "cancel"),
+    (lambda widget: widget.the_data_is_changing(), "data"),
+    (lambda widget: widget.shutdown(), "shutdown"),
+], ids=["optimize", "ask_again", "data", "shutdown"])
+def test_what_stops_the_comparison(comparing_bar, what_happens, expected):
+    """AD-062.4; the last two are not optional (AD-006.7)."""
+    what_happens(comparing_bar)
+    assert comparing_bar.comparison.calls[0] == expected
+
+
+# -- what the comparison says (AK-432, AK-449 to AK-453, AK-463 to AK-465) -----
+
+NAMES = {1: "Urn", 2: "Chalice", 3: "Goblet", 4: "Grail"}
+
+
+def _comparing(*rows, state=advisorbar.Compared.DONE, vessel_ids=(1, 2, 3, 4),
+               held=0, carries=False) -> advisorbar.Comparing:
+    return advisorbar.Comparing(
+        goal_label="Maximise damage", other_label="Minimise damage taken",
+        vessel_ids=vessel_ids, asked_vessel=1, held_relics=held,
+        carries=carries, signature=(),
+        rows={row.vessel_id: row for row in rows}, state=state)
+
+
+def _row(vessel_id, value, other=1.0, figure=None, **kwargs) -> types.VesselRow:
+    return types.VesselRow(vessel_id, figure or f"Attack rating {int(value)}",
+                           value, other, **kwargs)
+
+
+def _status(*rows, chosen=1, worn=None):
+    return advisorbar.comparison_status(_comparing(*rows), chosen, worn, NAMES)
+
+
+def test_the_chosen_vessel_being_the_best_offers_nothing():
+    """AK-450 (1)."""
+    assert _status(_row(1, 120), _row(2, 100), _row(3, 90), _row(4, 80)) == (
+        "This is the best of 4 vessels for Maximise damage: AR 120.",
+        None)
+
+
+def test_a_better_vessel_is_named_with_the_difference():
+    """AK-450 (2): also where it meets more favourites besides (AK-464)."""
+    rows = (_row(1, 100, required_left_out=(5,)), _row(2, 118), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows) == (
+        "Best of 4 for Maximise damage: Chalice — AR 118, 18 more than this "
+        "one.", 2)
+
+
+def test_the_same_value_with_more_favourites_says_so():
+    """AK-464 (3)."""
+    rows = (_row(1, 100, pins_left_out=("Urn",)), _row(2, 100), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows) == (
+        "Best of 4 for Maximise damage: Chalice — AR 100, same as this one, "
+        "but it meets more of your favourites.", 2)
+
+
+def test_the_same_value_and_favourites_is_decided_by_the_other_direction():
+    """AK-464 (3b): neither (3) nor (5)."""
+    rows = (_row(1, 100, other=5.0), _row(2, 100, other=9.0), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows) == (
+        "Best of 4 for Maximise damage: Chalice — AR 100, same as this one, "
+        "but better for Minimise damage taken.", 2)
+
+
+def test_a_smaller_value_is_explained_by_the_favourites():
+    """AK-464 (4); nowhere the word "more" for the figure."""
+    rows = (_row(1, 118, required_left_out=(5,)), _row(2, 100), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows) == (
+        "Best of 4 for Maximise damage: Chalice — AR 100, 18 less than this "
+        "one, but it meets more of your favourites.", 2)
+
+
+@pytest.mark.parametrize("best, here, clause", [
+    (100.4, 100.1, ""),
+    (100.1, 100.4, ", but it meets more of your favourites"),
+], ids=["higher", "lower"])
+def test_a_difference_that_reads_zero_is_left_out(best, here, clause):
+    """AK-449."""
+    left_out = {"required_left_out": (5,)} if best < here else {}
+    rows = (_row(1, here, **left_out), _row(2, best), _row(3, 1), _row(4, 1))
+    assert _status(*rows)[0] == (
+        f"Best of 4 for Maximise damage: Chalice — AR 100{clause}.")
+
+
+def test_the_difference_is_that_of_the_numbers_on_screen():
+    """QA-333: 118.16 and 113.18 stand as 118 and 113, and 5 is what that says."""
+    rows = (_row(1, 113.18, figure="Attack rating 113"),
+            _row(2, 118.16, figure="Attack rating 118"), _row(3, 1), _row(4, 1))
+    assert "AR 118, 5 more than this one." in _status(*rows)[0]
+
+
+def test_a_multiplier_differs_in_two_places():
+    """AK-449: the form of the figure."""
+    rows = (_row(1, 1.2, figure="Attack multipliers ×1.20"),
+            _row(2, 1.42, figure="Attack multipliers ×1.42"), _row(3, 0.0),
+            _row(4, 0.0))
+    assert "— ×1.42, 0.22 more than this one." in _status(*rows)[0]
+    assert advisorbar.vessel_line(_comparing(*rows), 2) == ("BEST  ×1.42", "")
+
+
+def test_a_tie_needs_every_key_of_the_rank_level():
+    """AK-464 (5): with the chosen one among them, no button."""
+    rows = (_row(1, 100), _row(2, 100), _row(3, 90), _row(4, 80))
+    assert _status(*rows) == (
+        "2 vessels tie for best at AR 100: Urn, Chalice", None)
+
+
+def test_a_tie_without_the_chosen_goes_to_the_worn_then_the_first():
+    """AK-432."""
+    rows = (_row(1, 80), _row(2, 100), _row(3, 100), _row(4, 90))
+    assert _status(*rows, worn=3)[1] == 3
+    assert _status(*rows, worn=4)[1] == 2
+
+
+def test_three_names_of_a_tie_are_cut_and_all_of_them_are_one_sentence():
+    rows = (_row(1, 100), _row(2, 100), _row(3, 100), _row(4, 80))
+    assert _status(*rows)[0] == (
+        "3 vessels tie for best at AR 100: Urn, Chalice …and 1 more")
+    rows = (_row(1, 100), _row(2, 100), _row(3, 100), _row(4, 100))
+    assert _status(*rows) == ("All 4 vessels tie at AR 100.", None)
+
+
+def test_an_unfit_vessel_opened_compares_with_no_figure_of_its_own():
+    rows = (_row(1, 100), types.VesselRow(2, unfit_holds=("Urn",)), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows, chosen=2) == (
+        "Best of 4 for Maximise damage: Urn — AR 100.", 1)
+
+
+@pytest.mark.parametrize("state, reason, line", [
+    (advisorbar.Compared.WAITING, "", "Comparing your vessels for Maximise damage…"),
+    (advisorbar.Compared.RUNNING, "",
+     "Comparing your vessels for Maximise damage… 1 of 4"),
+    (advisorbar.Compared.OUTDATED, "",
+     "Out of date — use Optimize again to compare."),
+    (advisorbar.Compared.FAILED, "It broke",
+     "Could not compare the vessels — It broke."),
+])
+def test_the_states_around_the_result(state, reason, line):
+    comparing = _comparing(_row(1, 100), state=state)
+    comparing.reason = reason
+    assert advisorbar.comparison_status(comparing, 1, None, NAMES) == (line, None)
+
+
+def test_best_waits_for_the_last_row():
+    """AK-433: open rows show dots, and no mark flickers on the way."""
+    running = _comparing(_row(1, 100), state=advisorbar.Compared.RUNNING)
+    assert advisorbar.vessel_line(running, 1) == ("", "AR 100")
+    assert advisorbar.vessel_line(running, 2) == ("", "…")
+    done = _comparing(_row(1, 100), _row(2, 90))
+    assert advisorbar.vessel_line(done, 1) == ("BEST  AR 100", "")
+    assert advisorbar.vessel_line(done, 2) == ("", "AR 90")
+
+
+def test_no_comparison_no_line_and_outdated_keeps_the_figures_without_best():
+    """AK-453, AK-432."""
+    assert advisorbar.vessel_line(None, 1) is None
+    outdated = _comparing(_row(1, 100), state=advisorbar.Compared.OUTDATED)
+    assert advisorbar.vessel_line(outdated, 1) == ("", "AR 100")
+    assert advisorbar.vessel_line(outdated, 2) is None
+
+
+def test_missing_favourites_stand_in_the_tooltip_not_on_the_line():
+    """AK-452, AK-465 since `GOAL.md` A28: the line has no room for them."""
+    one = _row(1, 100, pins_left_out=("Urn",))
+    two = _row(2, 90, required_left_out=(5,), pins_left_out=("Urn",))
+    comparing = _comparing(one, two)
+    assert advisorbar.vessel_line(comparing, 1) == ("BEST  AR 100", "")
+    assert advisorbar.vessel_line(comparing, 2) == ("", "AR 90")
+    assert "Misses: 5, Urn." in advisorbar.vessel_compared_lines(comparing, 2, str)
+
+
+def test_the_row_of_a_vessel_that_cannot_take_the_holds():
+    """AK-451: no figure, never `BEST`, a tooltip and a spoken form of its own."""
+    unfit = types.VesselRow(2, unfit_holds=("A", "B", "C"))
+    comparing = _comparing(_row(1, 100), unfit)
+    assert advisorbar.vessel_line(comparing, 2) == (
+        "", "Your held relics do not fit")
+    assert advisorbar.vessel_compared_lines(comparing, 2, str) == [
+        "Not compared: A, B …and 1 more would not fit any slot of this vessel."]
+    assert advisorbar.vessel_accessible_name(comparing, 2, "Chalice") == (
+        "Chalice, your held relics do not fit, not ranked")
+
+
+def test_the_tooltip_of_a_row_names_rank_misses_and_what_travelled():
+    """AK-432, AK-452, AK-454: equal figures, equal rank."""
+    rows = (_row(1, 100), _row(2, 100),
+            _row(3, 90, required_left_out=(5, 6), pins_left_out=("Urn",)))
+    comparing = _comparing(*rows, vessel_ids=(1, 2, 3), held=2, carries=True)
+    assert advisorbar.vessel_compared_lines(comparing, 1, str) == [
+        "Compared: Attack rating 100 for Maximise damage — rank 1 of 3."]
+    assert advisorbar.vessel_compared_lines(comparing, 3, lambda eid: f"E{eid}") == [
+        "Compared: Attack rating 90 for Maximise damage — rank 3 of 3.",
+        "Misses: E5, E6, Urn.",
+        "Compared with your 2 held relics placed in it.",
+        "Click opens it as you left it. Switch to it brings your held relics "
+        "and rejections along."]
+    assert advisorbar.vessel_compared_lines(None, 1, str) == []
+
+
+def test_misses_are_cut_after_four_names():
+    row = _row(1, 90, required_left_out=(1, 2, 3, 4, 5))
+    assert advisorbar.vessel_compared_lines(
+        _comparing(row), 1, str)[1] == "Misses: 1, 2, 3, 4 …and 1 more."
+
+
+def test_what_a_screen_reader_says_of_a_row():
+    """AK-436."""
+    comparing = _comparing(_row(1, 100), _row(2, 90))
+    spoken = advisorbar.vessel_accessible_name
+    assert spoken(comparing, 1, "Urn") == "Urn, Attack rating 100, best of 4"
+    assert spoken(comparing, 2, "Urn") == "Urn, Attack rating 90, rank 2 of 4"
+    assert spoken(None, 2, "Urn") == "Urn"
+
+
+def _answered(comparing_bar):
+    comparing_bar._ask()
+    comparing_bar._controller.answers(_an_answer())
+    return comparing_bar.comparing
+
+
+def test_the_comparison_runs_through_its_states(comparing_bar):
+    """AK-453: dots from the start of the run, figures as they come."""
+    comparing_bar._ask()
+    assert comparing_bar.comparing.state is advisorbar.Compared.WAITING
+    comparing_bar._on_ready(_an_answer())
+    assert comparing_bar.comparing.state is advisorbar.Compared.RUNNING
+    comparing_bar.comparison.row_ready.emit(_row(8, 100))
+    assert list(comparing_bar.comparing.rows) == [8]
+    comparing_bar.comparison.finished.emit(())
+    assert comparing_bar.comparing.state is advisorbar.Compared.DONE
+
+
+def test_a_new_run_shows_no_old_figure(comparing_bar):
+    """AK-453."""
+    comparing = _answered(comparing_bar)
+    comparing_bar.comparison.row_ready.emit(_row(8, 100))
+    comparing_bar.ask_again()
+    assert comparing_bar.comparing is not comparing
+    assert comparing_bar.comparing.rows == {}
+
+
+def test_cancel_leaves_a_list_without_a_comparison(comparing_bar):
+    """AK-453: `Cancel` of the suggestion, no `Comparison stopped.`."""
+    comparing_bar._ask()
+    comparing_bar._on_started()
+    comparing_bar._controller.running = True
+    comparing_bar._optimize_or_cancel()
+    assert comparing_bar.comparing is None
+
+
+def test_a_run_that_failed_leaves_a_list_without_a_comparison(comparing_bar):
+    comparing_bar._ask()
+    comparing_bar._on_failed("no")
+    assert comparing_bar.comparing is None
+
+
+def test_a_failed_comparison_says_why(comparing_bar):
+    _answered(comparing_bar)
+    comparing_bar.comparison.failed.emit("It broke.")
+    comparing = comparing_bar.comparing
+    assert comparing.state is advisorbar.Compared.FAILED
+    assert comparing.reason == "It broke"
+
+
+def _changed(asking, **fields):
+    return dataclasses.replace(asking, request=dataclasses.replace(
+        asking.request, **fields))
+
+
+@pytest.mark.parametrize("change", [
+    lambda asked: _changed(asked, level=14),
+    lambda asked: _changed(asked, goal_id="min_damage_taken"),
+    lambda asked: _changed(asked, hero_id=2),
+    lambda asked: _changed(asked, hit_with="Sorceries"),
+    lambda asked: dataclasses.replace(asked, deep=False),
+    lambda asked: _changed(asked, problem=dataclasses.replace(
+        asked.request.problem, excluded=frozenset({1}))),
+    lambda asked: _changed(asked, problem=dataclasses.replace(
+        asked.request.problem, pinned=((1, (), ()),))),
+], ids=["level", "goal", "hero", "hit_with", "deep", "avoid", "star"])
+def test_what_makes_the_comparison_out_of_date(qapp, change):
+    """AK-434, read from one seam (AD-062.8). The figures stay."""
+    asked = {"value": dataclasses.replace(
+        _an_asking(), vessels=FOUR_VESSELS, vessel_id=8, deep=True)}
+    widget = advisorbar.AdvisorBar(lambda goal_id: asked["value"],
+                                   controller=_Controller(),
+                                   comparison=_Comparison())
+    try:
+        _answered(widget)
+        widget.comparison.row_ready.emit(_row(8, 100))
+        asked["value"] = change(asked["value"])
+        widget.the_build_changed()
+        assert widget.comparing.state is advisorbar.Compared.OUTDATED
+        assert widget.comparison.calls[-1] == "cancel"
+        assert list(widget.comparing.rows) == [8]
+    finally:
+        widget.deleteLater()
+
+
+@pytest.mark.parametrize("change", [
+    lambda asked: dataclasses.replace(asked, vessel_id=9),
+    lambda asked: _changed(asked, two_handed=True),
+    lambda asked: _changed(asked, problem=dataclasses.replace(
+        asked.request.problem, slots=asked.request.problem.slots[:1])),
+    lambda asked: _changed(asked, problem=dataclasses.replace(
+        asked.request.problem, held=(types.HeldSlot(0),),
+        rejected=frozenset({(1, (), ())}))),
+], ids=["vessel", "stored hand", "slots", "another vessel's holds"])
+def test_what_a_change_of_vessel_brings_does_not_outdate_it(qapp, change):
+    """AK-434; the holds of the open vessel say so themselves (`_hold_changed`)."""
+    asked = {"value": dataclasses.replace(
+        _an_asking(), vessels=FOUR_VESSELS, vessel_id=8, deep=True)}
+    widget = advisorbar.AdvisorBar(lambda goal_id: asked["value"],
+                                   controller=_Controller(),
+                                   comparison=_Comparison())
+    try:
+        _answered(widget)
+        asked["value"] = change(asked["value"])
+        widget.the_build_changed()
+        assert widget.comparing.state is advisorbar.Compared.RUNNING
+    finally:
+        widget.deleteLater()
+
+
+def test_the_data_changing_outdates_the_comparison(comparing_bar):
+    """AK-434: the save read again."""
+    _answered(comparing_bar)
+    comparing_bar.the_data_is_changing()
+    assert comparing_bar.comparing.state is advisorbar.Compared.OUTDATED
+    assert "data" in comparing_bar.comparison.calls
+
+
+def test_an_answer_the_comparison_knows_is_drawn_without_a_run(comparing_bar):
+    """AK-435."""
+    known = _an_answer(filled=2)
+    comparing_bar._controller.known_answer = lambda *_: known
+    assert comparing_bar.show_the_answer_if_known() is False, "nothing compared"
+    _answered(comparing_bar)
+    comparing_bar._forget_the_answer()
+    asked_before = len(comparing_bar._controller.asked)
+    calls_before = list(comparing_bar.comparison.calls)
+
+    assert comparing_bar.show_the_answer_if_known() is True
+    assert comparing_bar.answer is known
+    assert len(comparing_bar._controller.asked) == asked_before
+    assert comparing_bar.comparison.calls == calls_before, "AD-062.3"
+
+
+def test_an_unknown_answer_leaves_the_row_alone(comparing_bar):
+    comparing_bar._controller.known_answer = lambda *_: None
+    _answered(comparing_bar)
+    comparing_bar._forget_the_answer()
+    assert comparing_bar.show_the_answer_if_known() is False
+    assert comparing_bar.answer is None
+
+
+def test_an_outdated_comparison_answers_for_no_vessel(comparing_bar):
+    comparing_bar._controller.known_answer = lambda *_: _an_answer()
+    _answered(comparing_bar)
+    comparing_bar.the_comparison_is_out_of_date()
+    assert comparing_bar.show_the_answer_if_known() is False
+
+
+@pytest.mark.parametrize("figure, base, said", [
+    ("Attack rating 90", "Attack rating 56", "AR 90 (+61 %)"),
+    ("Fire attack rating 90", "Fire attack rating 45", "AR 90 (+100 %)"),
+    ("Spell damage (Weapon art) 90", "Spell damage (Weapon art) 60",
+     "Spell 90 (+50 %)"),
+    ("Weapon art (Spell Parry) 90", "Weapon art (Spell Parry) 60",
+     "Art 90 (+50 %)"),
+    ("Effective HP 1100", "Effective HP 1000", "EHP 1100 (+10 %)"),
+    ("Offensive attributes 33", "Offensive attributes 30", "33 pts (+10 %)"),
+    ("Attack multipliers ×1.23", "Attack multipliers ×1.00", "×1.23 (+23 %)"),
+    ("Attack rating 50", "Attack rating 100", "AR 50 (-50 %)"),
+    ("Fire attack rating 90", "Fire attack rating 0", "AR 90"),
+    ("Attack rating 90", "", "AR 90"),
+    ("Spell damage not counted", "Spell damage not counted", "—"),
+], ids=["ar", "typed", "spell", "art", "ehp", "points", "factor", "down",
+        "base-zero", "no-base", "no-figure"])
+def test_the_figure_says_its_unit_and_how_far_it_is_from_no_relics(figure, base,
+                                                                   said):
+    """GOAL.md A28: what "90" means; a base of 0 has no percentage."""
+    row = _row(1, 90, figure=figure, base_figure=base)
+    assert advisorbar.vessel_line(
+        _comparing(row, state=advisorbar.Compared.RUNNING), 1) == ("", said)
+
+
+def test_every_direction_says_a_unit_the_row_can_read(game_data, wylder):
+    """The unit is read off the goal's own wording, so that wording is held."""
+    _inventory, problem, ctx, _request = advisor.a_question(game_data, wylder)
+    said = {}
+    for goal in goals.GOALS.values():
+        figure = goal.score(evaluate(problem, (), ctx, goal=goal), ctx).display
+        said[goal.id] = advisorbar.vessel_line(_comparing(
+            _row(1, 1, figure=figure), state=advisorbar.Compared.RUNNING), 1)[1]
+    assert said["max_damage"].startswith("AR ")
+    assert said["min_damage_taken"].startswith("EHP ")
+    assert said["max_attributes"].endswith(" pts")
+
+
+def test_the_sentence_and_the_tooltips_carry_the_percent_and_the_base():
+    """GOAL.md A28: the base itself stands in the tooltip."""
+    rows = (_row(1, 100, base_figure="Attack rating 50"),
+            _row(2, 118, base_figure="Attack rating 50"),
+            _row(3, 90, base_figure="Attack rating 50"),
+            _row(4, 80, base_figure="Attack rating 50"))
+    comparing = _comparing(*rows)
+    assert advisorbar.comparison_status(comparing, 1, None, NAMES)[0] == (
+        "Best of 4 for Maximise damage: Chalice — AR 118 (+136 %), 18 more "
+        "than this one.")
+    assert advisorbar.comparison_status(comparing, 2, None, NAMES)[0] == (
+        "This is the best of 4 vessels for Maximise damage: AR 118 (+136 %).")
+    assert advisorbar.vessel_line(comparing, 2) == ("BEST  AR 118 (+136 %)", "")
+    assert "Without relics: Attack rating 50." in (
+        advisorbar.vessel_compared_lines(comparing, 3, str))
+    assert advisorbar.comparison_base(comparing) == (
+        "Without relics: Attack rating 50.")
+    comparing.state = advisorbar.Compared.OUTDATED
+    assert advisorbar.comparison_base(comparing) == ""
+
+
+NIGHT_INVADER = 7060200
+#: "Max HP increased for each great enemy defeated at a Great Church".
+HP_PER_GREAT_CHURCH_ENEMY = 6060300
+
+
+def _stacks_in_the_question(planner):
+    return dict(advisorbar.asking_from(planner, "max_damage").request.declared)
+
+
+def test_the_stacks_value_goes_over_the_stat_sheet_and_leaves_it_alone(planner):
+    """User decision 07.11.2026: empty is what it was (declared, else 1), a
+    value goes over it, in the context and in the key alike, and the stat
+    sheet's own declaration stays as it stood."""
+    filters = planner.effect_filters
+    try:
+        assert _stacks_in_the_question(planner)[NIGHT_INVADER] == 1
+        planner.declared = {NIGHT_INVADER: 5}
+        assert _stacks_in_the_question(planner)[NIGHT_INVADER] == 5
+        for count in (2, 0):
+            filters.set_stacks(NIGHT_INVADER, count)
+            asking = advisorbar.asking_from(planner, "max_damage")
+            assert dict(asking.request.declared)[NIGHT_INVADER] == count
+            assert asking.request.declared == asking.ctx.declared
+        assert planner.declared == {NIGHT_INVADER: 5}
+    finally:
+        filters.set_stacks(NIGHT_INVADER, None)
+    assert _stacks_in_the_question(planner)[NIGHT_INVADER] == 5
+
+
+def test_a_changed_stacks_value_is_another_key(planner):
+    """An old answer must not come back out of the cache for a new value."""
+    filters = planner.effect_filters
+    requests = []
+    try:
+        for count in (None, 2, 3, 0):
+            filters.set_stacks(NIGHT_INVADER, count)
+            requests.append(
+                advisorbar.asking_from(planner, "max_damage").request)
+    finally:
+        filters.set_stacks(NIGHT_INVADER, None)
+    assert len(set(requests)) == len(requests)
+
+
+class _AnsweredAtOnce:
+    """A picker track that computes the real pool in the same call."""
+
+    def ask_and_answer_if_known(self, request, inventory, ctx):
+        request = dataclasses.replace(
+            request,
+            inventory_fingerprint=advisor_run.inventory_fingerprint(inventory))
+        return advisor_run.slot_pool(request, inventory, ctx, goals.GOALS)
+
+
+def _picker_gain(planner, effect_id: int, goal_id: str) -> float:
+    """What the picker of the first slot offering a relic with this effect
+    shows for that relic: the real `SlotAdvice`, the real pool."""
+    for slot in planner.active_slots():
+        ranking = relicpicker.SlotAdvice(
+            slot, planner.advisor_bar, _AnsweredAtOnce()).ask(None).ranking
+        for candidate in ranking.pool.candidates:
+            if effect_id in candidate.effect_ids:
+                return types.marginal_for(candidate, goal_id)
+    raise AssertionError(f"the frozen save offers no relic with {effect_id}")
+
+
+@pytest.mark.parametrize("effect_id, goal_id", [
+    (NIGHT_INVADER, "max_damage"),
+    (HP_PER_GREAT_CHURCH_ENEMY, "min_damage_taken"),
+])
+def test_the_relic_picker_counts_the_stacks_value_too(
+        planner, effect_id, goal_id):
+    """QA-335, user decision 07.11.2026: the picker's question is built on
+    `asking_from` and carries the value, in every column it moves, not only
+    Damage. Red with the value taken out of `asking_from`."""
+    planner.deep_check.setChecked(True)
+    filters = planner.effect_filters
+    try:
+        filters.set_stacks(effect_id, 0)
+        none = _picker_gain(planner, effect_id, goal_id)
+        filters.set_stacks(effect_id, 4)
+        four = _picker_gain(planner, effect_id, goal_id)
+    finally:
+        filters.set_stacks(effect_id, None)
+    assert four != none
+
+
+def test_a_stacks_change_reaches_the_row_as_a_marking(planner, monkeypatch):
+    heard = []
+    monkeypatch.setattr(planner.advisor_bar, "the_build_changed",
+                        lambda **kwargs: heard.append(kwargs))
+    planner.effect_filters.set_stacks(NIGHT_INVADER, 2)
+    planner.effect_filters.set_stacks(NIGHT_INVADER, None)
+    assert heard == [{"marking_changed": True}] * 2
+
+
+def test_a_stacks_value_counts_as_declared_where_the_baseline_sorts_out(
+        planner, monkeypatch):
+    """The three places that ask "did the player say so": a value keeps a
+    condition the baseline would take away for the armament or the ailment,
+    and it does not stand among the assumed armament counts. None of the eight
+    stack effects carries such a gate today, so three that do are made one."""
+    from nrplanner import effecttext, model
+
+    effects = planner.data["effects"]
+    ids = {
+        "weapon type": next(i for i in sorted(model.advisor_defaults())
+                            if effects[str(i)]["modifiers"].get(
+                                "triggerOnWepType") is not None
+                            and i not in _stacks_in_the_question(planner)),
+        "ailment": next(i for i in sorted(model.advisor_defaults())
+                        if effecttext.ailment_awaited(effects[str(i)])
+                        and i not in _stacks_in_the_question(planner)),
+        "count": next(i for i in sorted(model.advisor_defaults())
+                      if effecttext.counts_armaments(effects[str(i)])),
+    }
+    for effect_id in ids.values():
+        monkeypatch.setitem(effects[str(effect_id)]["modifiers"],
+                            "saveCategory", 9)
+    filters = planner.effect_filters
+    try:
+        for effect_id in ids.values():
+            filters.set_stacks(effect_id, 2)
+        asking = advisorbar.asking_from(planner, "max_damage")
+    finally:
+        for effect_id in ids.values():
+            filters.set_stacks(effect_id, None)
+    declared = dict(asking.request.declared)
+    assert {declared[effect_id] for effect_id in ids.values()} == {2}
+    assert not set(ids.values()) & set(asking.ctx.assumed_armament_counts)
+    assert not set(ids.values()) & set(asking.ctx.awaiting_ailment)
+
+
+def test_the_store_cannot_make_another_condition_count_several_times(planner):
+    """A hand in the registry: an id that is no stack effect, and one the
+    dataset does not carry. Neither reaches the question."""
+    from nrplanner import model
+
+    other = next(effect_id for effect_id in sorted(model.advisor_defaults())
+                 if effect_id in _stacks_in_the_question(planner)
+                 and not model.accumulates(
+                     planner.data["effects"][str(effect_id)]))
+    lost = 999_999_999
+    filters = planner.effect_filters
+    filters.set_stacks(other, 5)
+    filters.set_stacks(lost, 5)
+    try:
+        declared = _stacks_in_the_question(planner)
+    finally:
+        filters.set_stacks(other, None)
+        filters.set_stacks(lost, None)
+    assert declared[other] == 1
+    assert lost not in declared

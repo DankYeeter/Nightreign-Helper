@@ -344,13 +344,16 @@ Effekte**.
 - **Ausschlussfilter:** Der Spieler kann einzelne Effekte (z. B. `at low
   HP`-Varianten) als *don't include* markieren. Ein markierter Effekt zaehlt
   in keinem Vorschlag und in keiner Rangfolge des Beraters, egal welches
-  Relikt ihn traegt; das Relikt selbst bleibt waehlbar, wenn seine uebrigen
-  Effekte tragen. Die Markierung wird gespeichert und beim naechsten Start
-  wieder angewandt.
+  Relikt ihn traegt. **Ersetzt am 06.11.2026 (Nutzer: "avoided effekte duerfen
+  nie mitkommen"):** Ein Relikt, das einen markierten Effekt oder Fluch traegt,
+  wird nie vorgeschlagen. Von Hand darf der Spieler es weiter waehlen oder
+  halten. Die Markierung wird gespeichert und beim naechsten Start wieder
+  angewandt.
 - **Nachweis:** `qa-engineer` bestaetigt an einem Spielstand mit mindestens
-  einem markierten Effekt, dass kein Vorschlag ihn zaehlt, und dass die
-  Rangfolge ohne Markierung der heutigen Best-case-Rangfolge entspricht.
-- **Nicht-Ziel:** Sperrliste fuer ganze Relikte, Bedingungsklassen-Schalter.
+  einem markierten Effekt, dass kein Vorschlag ein Relikt mit diesem Effekt
+  enthaelt.
+- **Nicht-Ziel:** Bedingungsklassen-Schalter. Die Sperrliste fuer ganze Relikte
+  ist seit A28 kein Nicht-Ziel mehr.
 
 *Folgen fuer die Spec: AK-268 (Lesarten) und AK-273 (Benennung) entfallen;
 AK-194/AK-05 (Leistenbreite) neu messen. Folgen fuer die Architektur:
@@ -368,6 +371,9 @@ effekt XYZ die beste waere."*
   gewaehltes Relikt jeden markierten Effekt traegt, und optimiert den Rest
   nach der gewaehlten Richtung. Gibt es im Besitz keine passende Kopie fuer
   die freien Slots, sagt er das (A7) statt den Filter still fallen zu lassen.
+  **Ergaenzt 06.11.2026 (A28):** Passen nicht alle markierten Effekte in das
+  Gefaess, liefert er die groesste erreichbare Teilmenge und nennt die
+  fehlenden; der Vorschlag blockiert nicht mehr.
 - Ausschluss (A18) und Pflicht (A19) sind zwei Listen mit derselben Bedienung
   und derselben Persistenz.
 - **Nachweis:** `qa-engineer` bestaetigt an einem Spielstand, dass jeder
@@ -601,3 +607,41 @@ als A27 nach Release 1.17.0; Inhalt AR + Weapon art + Startzauber.*
   Trainingspuppe, kein Unkalibriert-Hinweis mehr) und
   ein Physical-Attack-Relikt bewegt beide Zeilen sichtbar; Wylder zeigt
   "Weapon art" und ein Skill-Buff bewegt nur diese Zeile.
+
+### A28 — Bester Chalice, Pflicht-Relikte, Ablehnen im Vorschlag (Nutzer, 06.11.2026)
+
+**Woertlich:** *"Welcher Chalice waere insgesamt der beste fuer die relikte die
+ich will. ich will gewisse relikte als favourite setzen koennen. oder effekte
+direkt im build bevor ich effekte uebernehme ablehnen koennen."*
+
+Entschieden per Fragewerkzeug am 06.11.2026:
+
+- **Chalice-Vergleich automatisch bei `Optimize`:** Jeder Lauf bewertet alle
+  Gefaesse des Nightfarers (eigene und Grails) mit Ziel, Filtern und gehaltenen
+  Relikten und nennt das beste. Der Vorschlag fuer das gewaehlte Gefaess bleibt
+  der angezeigte, das Gefaess wechselt nicht ungefragt.
+- **Stern auf einem Relikt:** Das Relikt muss in den Vorschlag, wenn es passt.
+  Passt nicht jedes markierte Relikt, nennt der Berater die uebrigen, statt den
+  ganzen Vorschlag zu blockieren.
+- **Ablehnen im Vorschlag:** Jede Effektzeile hat ein X, das den Effekt dauerhaft
+  auf Avoid setzt (A18). Das Relikt hat ein `Reject`, das nur fuer diesen Build
+  gilt. Der Vorschlag rechnet danach sofort neu.
+- **Weisse Slots und Favoriten:** Bleibt ein Slot wegen Effekt-Favoriten leer
+  oder blockiert, nennt der Berater den Grund, und der Vorschlag fuellt die
+  uebrigen Slots soweit moeglich (Nutzer: "Bleibt leer / blockiert").
+- **Budget:** Die 6 s aus A6 gelten bis zum Vorschlag fuer das gewaehlte Gefaess;
+  der Vergleich darf danach im Hintergrund fertig werden. Entscheidung des
+  Directors, vom Nutzer nicht vorgegeben.
+- **Rang im Chalice-Vergleich (Nutzer, 06.11.2026, OF-62):** *"die relikte als
+  beste markieren die die meisten effekte die ich will zulassen, darinn dann
+  sortiert nach dmg und defense ranking."* BEST ist das Gefaess mit den meisten
+  erfuellten Effekt-Favoriten. Innerhalb gleicher Anzahl entscheidet die Zahl
+  des gewaehlten Ziels, bei Gleichstand das jeweils andere Ziel (Schaden bzw.
+  Abwehr). Stern-Relikte stehen zwischen Favoriten und Zahl (Director).
+- **Fremde Favoriten (Nutzer, 07.11.2026):** Ein Effekt-Favorit eines anderen
+  Nightfarers wird beim aktuellen Helden ignoriert: kein Slot, nicht als fehlend
+  gezaehlt; die Marke bleibt gespeichert.
+- **Bezug der Zahl (Nutzer, 07.11.2026):** *"was sagt mir "90" als wert ? ich habe
+  keine baseline, keinen bezug."* Die Zahl in Chalice-Liste und Leiste steht mit
+  Einheit und Prozent gegenueber dem Stand ohne Relikte, z. B. `AR 90 (+61 %)`;
+  der Ausgangswert steht im Tooltip.

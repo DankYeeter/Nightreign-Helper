@@ -11,6 +11,10 @@ ACCENT = "#c8a45c"
 MUTED = "#8a8a8a"
 PANEL = "#1e1f23"
 BORDER = "#2e2f35"
+# Purple against the gold of a selected card: the two states have to be told
+# apart at a glance, and gold's opposite is the one colour the rest of the
+# window never uses.
+FAVOURITE = "#a86fe0"
 GOOD = "#6fbf73"
 BAD = "#d1655f"
 #: Curses are a cost, and read in the same colour as one.

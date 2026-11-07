@@ -1129,3 +1129,111 @@ Beobachtung: Der Fenstertitel steht waehrend des Neubaus ohne Version
 Fortschrittsanzeige. Ungeprueft: neues Konto/VM, echter Windows-Neustart,
 SmartScreen, langsamere Rechner. Die Datei unter `roaming` (1 Stueck) wurde
 vor dem Aufraeumen nicht benannt.
+
+## 1.20.0 (build+notes, clean-room T-1200) - 2026-11-01
+
+Modi `notes`, `build`, `clean-room`. `docs/legal/AUFLAGEN.md` gelesen: keine
+rote Auflage offen (A-010 zurueckgestellt, A-020/A-025 abgenommen bzw.
+entschieden); Restpflicht A-023 (Hinweistext `RELEASE_BODY.md`) ist im
+Release-Text enthalten, das Hinweispaket als Asset bleibt Aufgabe beim
+Veroeffentlichen (A-020). 60-Tage-Ende GPL § 8: 2026-11-07.
+
+**Notes:** `__version__` 1.20.0 (`nrplanner/__init__.py`), CHANGELOG
+`[Unreleased]` -> `[1.20.0] - 2026-11-01`, Eintrag `1.20.0` in
+`docs/release/RELEASE_BODY.md`. Projektweite Suche nach `1\.19\.1` ausserhalb
+`.git`, `.venv`, `build`, `dist`, `.claude`: Treffer nur in CHANGELOG-/Release-
+Verlauf, `qa/findings.md`, `docs/plan-restarbeiten.md` und einer
+Test-Docstring (`tests/test_ailment_conditions.py:239`) - alles Verlauf, keine
+Versionsstelle. Einzige Versionsquelle: `nrplanner/__init__.py` (der
+Release-Workflow liest sie, `release.yml:75`). Notes-Commit `bb8141a`.
+
+**Build:** aus `bb8141a`, Arbeitsbaum vor dem Bau sauber (nach Lauf: sauber).
+Werkzeuge: `.venv`, Python 3.12.10, PyInstaller 6.21.0 (Hooks 2026.7), kein
+`upx` im PATH, 0 Treffer `UPX!` in der EXE. Befehl:
+`PYTHONHASHSEED=0 SOURCE_DATE_EPOCH=1761600000 .venv/Scripts/python.exe -m PyInstaller NightreignHelper.spec --noconfirm --clean --log-level WARN`,
+66 s und 57 s, Log je 4 INFO-Zeilen, keine Warnung. Zwei `--clean`-Laeufe:
+**bitgleich**.
+
+**Artefakt:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **59.238.241 Bytes**, SHA-256
+`ed3346d512daaa04dffbc0ad2ab30e1b682549f483e747655759e8549715f6d2`.
+Vorgaenger v1.19.1 (Release-Asset): 59.252.654 B, `36a29f67...bd05`.
+`dist/` und `build/` stehen in `.gitignore` (`git check-ignore`).
+
+**clean-room:** Ausloeser `EXTRACT_VERSION` 18 -> 19. Isolierung: je Umgebung
+eigenes `LOCALAPPDATA`, `APPDATA`, `TEMP`/`TMP` und `NIGHTREIGN_SETTINGS_ORG`
+(`DankYeeterT-1200cr1`/`cr2`) in derselben Kommandozeile wie der Start; `PATH`
+auf `C:\Windows\system32;C:\Windows` (kein Python, kein Git); nur die EXE im
+Lauf-Ordner, nichts aus dem Repo. NICHT isoliert: gleiches Nutzerkonto, kein
+VM/Container, kein echter Windows-Neustart, echter Spielstand lesbar
+(nur lesend, `Path.home()`), Steam-Installation des Entwicklungsrechners.
+Treiber: `scripts/drive_window.ps1` (UIA-Muster; Filter-Haken per echtem Klick).
+
+Umgebung 1 (frisch, 1.20.0):
+- Erststart ohne Cache: bestanden. `nightreign_data.json` nach 46,6 s,
+  Titel "Nightreign Helper 1.20.0" nach 78,0 s (1026 Dateien in `icons`).
+- Echte Aktion: bestanden. Relikt in Slot 1 gesetzt, Build `CR-Fresh-A`
+  gespeichert (Registry `builds\1`, `__schema=3`), Favorit-Effekt 11000
+  gesetzt (`advisor/required`).
+- Zweitstart (Prozess neu, kein Systemneustart): bestanden. 4,0 s bis
+  Titel, `nightreign_data.json` nicht neu geschrieben, Build mit Relikt
+  (AR 62/64) und Favorit da.
+- Start-Menue-Verknuepfung unter dem umgelenkten `APPDATA` angelegt; die
+  echte Verknuepfung (mtime 14.09.2026) unveraendert.
+
+Umgebung 2 (Update, Cache aus 1.19.1 selbst gebaut, nicht Testabzug):
+- 1.19.1 (Release-Asset, Hash gleich `.sha256`): Erststart 79,6 s,
+  `extract_version` 18; Build `CR-Update-B` + Favorit 11000 angelegt.
+- 1.20.0 darueber: bestanden. Cache-Neubau 46,7 s, Titel nach 48,3 s,
+  `extract_version` 19, Symbole unveraendert 1026 (`ICON_VERSION` 4 gleich -
+  kein Icon-Neubau). Build `CR-Update-B` (gleicher Registerwert) und Favorit
+  vorhanden, "Filters" zeigt den Favoriten, "Optimize" laeuft.
+- Aufraeumen: beide Registryschluessel und das Scratch-Verzeichnis
+  geloescht, 0 Prozesse, `TEMP` leer (kein `_MEI`-Rest).
+
+**Korrektur am Text:** Der Entwurf von CHANGELOG/Release-Text sagte "about 40
+seconds, plus the icon pack". Gemessen: 46-47 s fuer den Datenneubau, und bei
+einem Update ueber 1.19.1 kein Icon-Neubau. Text auf "about 45 seconds; the
+icon pack is not rebuilt" korrigiert. Messungen der Vorgaenger: 38,1/38,8 s.
+
+Ungeprueft: neues Konto/VM, echter Neustart, SmartScreen, langsamere
+Rechner, Update ueber eine aeltere Version als 1.19.1, Erststart mit
+nicht automatisch gefundener Spielinstallation (A15-Dialog, nicht Teil des
+Ausloesers). Der Testabzug `NightreignHelper-Testabzug` ist bereits auf v19
+(vorheriger Lauf), das Verzeichnis `-v18` enthaelt nur die JSON; fuer den
+Update-Test war beides nicht noetig. Das Fenster ist beim Neuaufbau (rund 48
+s) ohne Fortschrittsanzeige (Beobachtung aus 1.19.0 gilt weiter).
+
+## 1.21.0 (build+notes, Testabzug T-336j) - 2026-11-07
+
+Kein Veroeffentlichen, kein Tag. `AUFLAGEN.md` gelesen: keine rote Auflage
+offen (A-010 zurueckgestellt, A-020 erfuellt).
+
+**Notes:** `__version__` bleibt 1.21.0 (`nrplanner/__init__.py`, einzige
+Versionsquelle). CHANGELOG `[Unreleased]` in `[1.21.0] - 2026-11-07`
+eingearbeitet (Stacks-Feld, x-Zahl bis 99, Why-Zahl, Sortierung nach Type),
+`[Unreleased]` bleibt leer; Eintrag `1.21.0` in `RELEASE_BODY.md` ergaenzt.
+Projektweite Suche `1\.21\.0` (ohne `.git`, `.venv`, `build`, `dist`,
+`.claude`): Versionsstellen nur `__init__.py`, CHANGELOG, RELEASE_BODY; sonst
+Verlauf. Notes-Commit `298a0c9`.
+
+**clean-room:** nicht ausgeloest. `git diff --stat v1.20.1..HEAD` auf
+`NightreignHelper.spec`, `requirements.txt`, `nrdata/extract.py`, `run.py`:
+leer; `EXTRACT_VERSION` 19, `ICON_VERSION` 4 unveraendert.
+
+**Build:** aus `298a0c9`, Arbeitsbaum vor und nach dem Bau sauber. `.venv`,
+Python 3.12.10, PyInstaller 6.21.0 (Hooks 2026.7), kein `upx`, 0 Treffer
+`UPX!`. Befehl wie 1.20.0 (`PYTHONHASHSEED=0 SOURCE_DATE_EPOCH=1761600000`,
+`--noconfirm --clean --log-level WARN`), 77 s und 61 s, keine Warnung. Zwei
+Laeufe **bitgleich**.
+
+**Artefakt:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- 59.300.781 Bytes, SHA-256
+`c5aa2e89efc6e824634c0abf2f663dcc59744a0372e752071c3ee495627becbb`.
+Die vorherige `dist/`-Datei (6.11., 59.256.833 B) ist ersetzt.
+
+**Startprobe:** Kopie der EXE, Umlenkung `DankYeeterT-336j`, `LOCALAPPDATA`,
+`APPDATA`, `TEMP` auf Scratch (Testabzug hineinkopiert). Fenstertitel
+"Nightreign Helper 1.21.0". Beide Prozesse beendet, Schluessel
+`HKCU:\Software\DankYeeterT-336j` per Literalpfad geloescht, Scratch geloescht.
+Ungeprueft: Aktion, Update-Pfad, Zweitstart (kein Ausloeser).

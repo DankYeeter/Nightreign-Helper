@@ -199,3 +199,18 @@ def test_game_text_on_the_slot_card_is_shown_not_rendered(qapp):
     assert "<b>Gladius" not in tooltip
     assert "&lt;b&gt;Gladius&lt;/b&gt;" in tooltip
     card.deleteLater()
+
+
+def test_the_dataset_is_kept_out_of_the_collector(monkeypatch):
+    """AD-062.9: a full collection over it stops the window while a run goes."""
+    import gc
+
+    monkeypatch.setattr(datasource, "_load_data", lambda: {})
+    monkeypatch.setattr(model, "configure", lambda data: None)
+    try:
+        gc.unfreeze()
+        loaded = datasource.load_data()
+        assert loaded == {}
+        assert gc.get_freeze_count() > 0
+    finally:
+        gc.unfreeze()

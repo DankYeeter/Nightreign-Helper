@@ -862,6 +862,15 @@ GOALS = MappingProxyType({
     MAX_ATTRIBUTES.id: MAX_ATTRIBUTES,
 })
 
+#: Whose figure settles a vessel comparison the asked direction leaves level
+#: (AK-463: "Schaden bzw. Abwehr"). Attributes are neither, and hand on to
+#: damage, the direction they exist for.
+OTHER_GOAL = MappingProxyType({
+    MAX_DAMAGE.id: MIN_DAMAGE_TAKEN.id,
+    MIN_DAMAGE_TAKEN.id: MAX_DAMAGE.id,
+    MAX_ATTRIBUTES.id: MAX_DAMAGE.id,
+})
+
 #: The direction a slot pool is **put in order** under when the question is
 #: the picker's -- an ordering for the request, never a direction the player
 #: picked (Nachtrag IX-2).

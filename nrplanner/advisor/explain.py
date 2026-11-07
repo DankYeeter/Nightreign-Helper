@@ -162,9 +162,13 @@ def _attributed(chosen: Sequence[types.Candidate], base: model.Build,
     several of them, through `model.collapse_by_label` -- the model's own
     rule, and the reason one relic does not produce five lines saying that FP
     costs 8 % less.
+
+    A condition declared n times is n entries for one copy (`model.compute`);
+    its line says what all n moved, the figure the build was ranked on.
     """
     added = _added(base, built)
     claimed = [False] * len(added)
+    declared = dict(ctx.declared)
     out: list[_Contribution] = []
     for candidate in sorted(chosen, key=lambda copy: copy.slot_index):
         curses = set(candidate.curse_ids)
@@ -173,12 +177,19 @@ def _attributed(chosen: Sequence[types.Candidate], base: model.Build,
             if name is None:
                 continue
             moved: dict[str, float] = {}
+            taken: dict[str, int] = {}
             for position, (key, entry) in enumerate(added):
                 if (claimed[position] or entry.effect_id != effect_id
-                        or key in moved):
+                        or taken.get(key, 0) == declared.get(effect_id, 1)):
                     continue
                 claimed[position] = True
-                moved[key] = entry.own
+                taken[key] = taken.get(key, 0) + 1
+                if key not in moved:
+                    moved[key] = entry.own
+                elif _scales(key, built):
+                    moved[key] *= entry.own
+                else:
+                    moved[key] += entry.own
             for key, own in model.collapse_by_label(moved).items():
                 if (_moved_nothing(key, own, built)
                         or _real_field(key) in effecttext.CONDITIONS):
@@ -551,6 +562,12 @@ def _waits_on_its_condition(effect_id: int, built: model.Build) -> bool:
                for entry in built.situational)
 
 
+def _avoided_sentence(name: str) -> str:
+    """AK-458, verbatim."""
+    return (f"{name}: you avoided it. This relic is in the build because you "
+            f"chose it, and the effect is left out of the figure.")
+
+
 def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
                  problem: types.SlotProblem, *, is_curse: bool
                  ) -> types.ReasonLine | None:
@@ -561,10 +578,11 @@ def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
     player looking for a reason that is their own decision (AD-036.3); a
     required one that moved no figure is in the build because they asked
     for it, and that is the whole reason the copy was suggested (AK-290.2).
-    Wording `UI_SPEC` AK-290.1 and AK-290.2, verbatim.
+    Wording `UI_SPEC` AK-458 and AK-290.2, verbatim. No suggestion offers a
+    copy with an avoided effect (AD-057), so this copy is the player's own.
     """
     if effect_id in problem.excluded:
-        text = f"{name}: you avoided it, so it is not counted."
+        text = _avoided_sentence(name)
         silence = types.SILENT_EXCLUDED
     elif effect_id in problem.required:
         text = f"{name}: you favourited it, so it always counts."
@@ -574,6 +592,12 @@ def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
     return types.ReasonLine(
         slot_index=candidate.slot_index, effect_id=effect_id, text=text,
         is_curse=is_curse, silence=silence)
+
+
+def _works_for_another(name: str, effect: Mapping) -> str:
+    nightfarer = effecttext.owner(effect) or "another Nightfarer"
+    return (f"{name}: you favourited it, but it only works for {nightfarer}, "
+            f"so it moves no number.")
 
 
 def _silent_effect(candidate: types.Candidate, effect_id: int,
@@ -622,24 +646,53 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
                     "no name here and counted for nothing.",
                     types.SILENT_NOT_IN_THE_DATA)
     effect = ctx.data["effects"][str(effect_id)]
-    # AK-383: AK-290.2 holds only for an effect that counts. A favourited
-    # weapon-count condition the player did not declare counts only for the
-    # type of the selected armament tile, and only when no other type is
-    # declared by hand (`advisorbar.asking_from`,
-    # `evaluate._declared_variants`); otherwise it waits on its condition.
+    hero = str(ctx.hero.get("name", ""))
+    # AK-383: AK-290.2 holds only for an effect that counts. One of another
+    # Nightfarer or one that acts on the enemy never does, and no condition
+    # parks either (`model.compute_qualitative`).
+    if effect_id in problem.favourites_of_others:
+        return said(_works_for_another(name, effect),
+                    types.SILENT_ANOTHER_NIGHTFARER)
     if (effect_id in problem.required
-            and effecttext.counts_armaments(effect)
+            and effect_id in model.ON_THE_ENEMY_EFFECT_IDS):
+        return said(f"{name}: you favourited it, but it acts on the enemy, so "
+                    f"it moves no number.", types.SILENT_REQUIRED_OTHER_TYPE)
+    # A favourited weapon-count condition the player did not declare counts
+    # only for the type of the selected armament tile, and only when no other
+    # type is declared by hand (`advisorbar.asking_from`,
+    # `evaluate._declared_variants`); otherwise it waits on its condition.
+    # The same holds for a weapon-type bonus of another type and for a
+    # condition on an enemy ailment the build does not inflict (01.11.2026,
+    # QA-321).
+    if (effect_id in problem.required
             and effect_id not in dict(ctx.declared)
             and _waits_on_its_condition(effect_id, built)):
-        return said(f"{name}: you favourited it, but a weapon-count "
-                    f"condition counts only for the weapon type of the "
-                    f"selected armament tile or one you set by hand, so "
-                    f"this one is not counted.",
-                    types.SILENT_REQUIRED_OTHER_TYPE)
+        ailment = effecttext.ailment_awaited(effect)
+        if effecttext.counts_armaments(effect):
+            unless = ("a weapon-count condition counts only for the weapon "
+                      "type of the selected armament tile or one you set by "
+                      "hand")
+        elif "triggerOnWepType" in effect["modifiers"]:
+            unless = ("a weapon-type bonus counts only for the weapon type "
+                      "of the selected armament tile or one you set by hand")
+        elif ailment is not None:
+            unless = (f"it counts only when your selected armament or a relic "
+                      f"inflicts {ailment.lower()} or you set it by hand")
+        else:
+            unless = ""
+        if unless:
+            return said(f"{name}: you favourited it, but {unless}, so this "
+                        f"one is not counted.",
+                        types.SILENT_REQUIRED_OTHER_TYPE)
+    # Only the Stacks column declares 0 (the stat sheet leaves such an entry
+    # out); "you favourited it, so it always counts" would be false of it.
+    if (effect_id not in problem.excluded
+            and dict(ctx.declared).get(effect_id) == 0):
+        return said(f"{name}: you set its stacks to 0, so it is not counted.",
+                    types.SILENT_UNDER_A_CONDITION)
     marked = _marked_line(candidate, effect_id, name, problem, is_curse=False)
     if marked is not None:
         return marked
-    hero = str(ctx.hero.get("name", ""))
     if not effecttext.works_for(effect, hero):
         owner = effecttext.owner(effect)
         return said(
@@ -701,7 +754,9 @@ def _count_line(effects: int, with_a_figure: int, moved_something: bool
 # --- the lines themselves --------------------------------------------------
 
 def chosen_for(suggestion: types.Suggestion,
-               pools: Sequence[types.SlotPool]) -> tuple[types.Candidate, ...]:
+               pools: Sequence[types.SlotPool],
+               placed: Sequence[types.Candidate] = ()
+               ) -> tuple[types.Candidate, ...]:
     """The copies a suggestion names, back as the candidates they came from.
 
     A `SlotChoice` carries what the window needs to put a relic in a slot --
@@ -714,10 +769,17 @@ def chosen_for(suggestion: types.Suggestion,
     Loud when a choice is in no pool: that means the pools and the suggestion
     are from two different runs, and explaining one with the other would name
     effects that are not in the build.
+
+    A starred relic laid before the search is in no pool: `placed` is where
+    its roll is (AD-059.4).
     """
     by_slot = {pool.slot_index: pool for pool in pools}
+    laid = {copy.slot_index: copy for copy in placed}
     found = []
     for choice in suggestion.choices:
+        if choice.slot_index in laid:
+            found.append(laid[choice.slot_index])
+            continue
         pool = by_slot.get(choice.slot_index)
         if pool is None:
             raise KeyError(
@@ -1230,63 +1292,198 @@ def _felt_by_the_goal(problem: types.SlotProblem,
     return felt
 
 
-def required_but_unmet(problem: types.SlotProblem,
+def required_but_unmet(left_out: Sequence[int],
+                       problem: types.SlotProblem,
                        pools: Sequence[types.SlotPool],
                        ctx: types.GoalContext,
                        inventory) -> tuple[str, ...]:
-    """Why an empty beam under a required effect is an answer (A7, AK-281).
+    """Why a favourited effect is not in the suggestion (A7, AK-281, AD-058.5).
 
-    One AK-281 sentence per required effect that no held relic carries and
-    no pool of a free slot offers a carrier for. The pools decide *which*
-    effect is missing a carrier; whether a sentence may say "no copy you
-    own" is a second, separate question, answered against `inventory` (the
-    whole save, not only what fits the open slots): QA-273 found the pools'
-    verdict read as a verdict on possession, when a copy the player owns can
-    fail every pool for a structural reason -- wrong colour, or Deep of
-    Night switched off for this vessel -- and still be owned. The sentence
-    then says so and, when Deep is the whole reason, names it (AD-036.4
-    stays silent about colour: a copy can fail several open slots for
-    different colours at once, and naming one would read as the only one).
-    When every effect has a carrier somewhere and the beam still found no
-    constellation for the free slots together, one sentence names them all,
-    alphabetically by display name (AK-291: an order by id reads as
-    arbitrary).
+    One sentence per id in `left_out`, alphabetically by display name (AK-291:
+    an order by id reads as arbitrary). A carrier in some pool means the free
+    slots could not hold it beside the others. With none, the pools decide
+    *that* the effect is missing a carrier; whether a sentence may say "no
+    copy you own" is a second, separate question, answered against `inventory`
+    (the whole save, not only what fits the open slots): QA-273 found the
+    pools' verdict read as a verdict on possession, when a copy the player
+    owns can fail every pool for a structural reason -- wrong colour, or Deep
+    of Night switched off for this vessel -- and still be owned. The sentence
+    then says so and, when Deep is the whole reason, names it (AD-036.4 stays
+    silent about colour: a copy can fail several open slots for different
+    colours at once, and naming one would read as the only one).
+
+    "No suggestion can meet that" stands only where the player owns no copy
+    (AK-462); where every owned copy was turned down the sentence names the
+    way back (AK-461), because the player can change it.
     """
-    held = types.held_relics(problem)
-    unmet = [eid for eid in sorted(problem.required)
-             if not any(eid in relic.effect_ids or eid in relic.curse_ids
-                        for relic in held)]
-    if not unmet:
-        return ()
-
     def named(effect_id: int) -> str:
         return _effect_name(ctx, effect_id) or f"effect {effect_id}"
 
-    uncarried = [eid for eid in unmet
-                 if not any(eid in copy.effect_ids or eid in copy.curse_ids
-                            for pool in pools for copy in pool.candidates)]
-    if uncarried:
-        no_deep_slot_in_play = not any(slot.deep for slot in problem.slots)
-        lines = []
-        for eid in uncarried:
-            owned = [relic for relic in inventory.relics
-                    if eid in relic.effect_ids or eid in relic.curse_ids]
-            if not owned:
-                lines.append(
-                    f"No copy you own carries {named(eid)}, which you "
-                    f"favourited — no suggestion can meet that.")
-                continue
-            noun = "copy" if len(owned) == 1 else "copies"
-            reason = (" (Deep of Night is off)"
-                      if no_deep_slot_in_play
-                      and all(relic.is_deep for relic in owned) else "")
+    no_deep_slot_in_play = not any(slot.deep for slot in problem.slots)
+    lines = []
+    for eid in sorted(left_out, key=named):
+        if any(eid in copy.effect_ids or eid in copy.curse_ids
+               for pool in pools for copy in pool.candidates):
             lines.append(
-                f"You own {len(owned)} {noun} carrying {named(eid)}, but "
-                f"none fits the open slots{reason}.")
-        return tuple(lines)
-    return (f"No combination of the copies you own carries "
-            f"{', '.join(sorted(named(eid) for eid in unmet))}, which you "
-            f"favourited — no suggestion can meet that.",)
+                f"Your copies can carry “{named(eid)}”, which you favourited, "
+                f"but not together with the favourites this suggestion "
+                f"already meets.")
+            continue
+        owned = [relic for relic in inventory.relics
+                 if eid in relic.effect_ids or eid in relic.curse_ids]
+        if not owned:
+            lines.append(
+                f"No copy you own carries “{named(eid)}”, which you "
+                f"favourited — no suggestion can meet that.")
+            continue
+        noun = "copy" if len(owned) == 1 else "copies"
+        turned_down = _every_copy_turned_down(owned, problem, ctx)
+        if turned_down:
+            lines.append(f"You own {len(owned)} {noun} carrying "
+                         f"“{named(eid)}”, which you favourited, but "
+                         f"{turned_down}")
+            continue
+        reason = (" (Deep of Night is off)"
+                  if no_deep_slot_in_play
+                  and all(relic.is_deep for relic in owned) else "")
+        lines.append(
+            f"You own {len(owned)} {noun} carrying “{named(eid)}”, but "
+            f"none fits the open slots{reason}.")
+    return tuple(lines)
+
+
+def _every_copy_turned_down(owned: Sequence, problem: types.SlotProblem,
+                            ctx: types.GoalContext) -> str:
+    """How `required_but_unmet` ends where the player turned every copy down.
+
+    Empty where a copy is left that merely does not fit: then the bare
+    "none fits" stays true. Avoid is AK-461; `Reject` and both at once are
+    sentences of the same form, pointing at `Suggest again` (AK-430).
+    """
+    avoided = {eid for relic in owned
+               for eid in problem.excluded.intersection(
+                   (*relic.effect_ids, *relic.curse_ids))}
+    carrying = [relic for relic in owned if not problem.excluded.isdisjoint(
+        (*relic.effect_ids, *relic.curse_ids))]
+    if not all(types.unwanted(problem, relic) for relic in owned):
+        return ""
+    one = len(owned) == 1
+    it = "it" if one else "them"
+    names = _named_at_most_two(ctx, sorted(
+        avoided, key=lambda eid: _effect_name(ctx, eid) or ""))
+    if len(carrying) == len(owned):
+        return (f"{'it' if one else 'each'} also carries an effect you "
+                f"avoided: {names}. Remove the avoid under Filters to use {it}.")
+    if not carrying:
+        return (f"you rejected {it} for this build. Use Suggest again to bring "
+                f"{it} back.")
+    return (f"each is rejected for this build or also carries an effect you "
+            f"avoided: {names}. Use Suggest again, or remove the avoid under "
+            f"Filters, to use them.")
+
+
+def _named_at_most_two(ctx: types.GoalContext,
+                       effect_ids: Sequence[int]) -> str:
+    """`“a”, “b” and {n} more` (AK-457)."""
+    names = [f"“{_effect_name(ctx, eid) or f'effect {eid}'}”"
+             for eid in effect_ids[:2]]
+    more = len(effect_ids) - len(names)
+    return ", ".join(names) + (f" and {more} more" if more else "")
+
+
+def _empty_slot(problem: types.SlotProblem, pool: types.SlotPool,
+                ctx: types.GoalContext) -> types.EmptySlot:
+    """One free slot without a choice, by AD-057.4's order of reasons."""
+    index = pool.slot_index
+    wanted = tuple(eid for eid in sorted(problem.required)
+                   if any(eid in copy.effect_ids or eid in copy.curse_ids
+                          for copy in pool.candidates))
+    if wanted:
+        return types.EmptySlot(
+            index, types.EMPTY_REQUIREMENT, effect_ids=wanted,
+            line=f"The relics that could go here are needed elsewhere to "
+                 f"carry {_named_at_most_two(ctx, wanted)}, which you "
+                 f"favourited.")
+    if not pool.candidates and pool.pin_taken:
+        relic = pool.pin_taken[0]
+        return types.EmptySlot(
+            index, types.EMPTY_PIN, relic_name=relic,
+            line=f"The relics that could go here are used by your favourite "
+                 f"“{relic}”.")
+    # A copy still in the pool was spent by another slot (`empty_slots`), so
+    # it does not change what the turned-down ones are.
+    if pool.avoided_by and pool.rejected_out:
+        return types.EmptySlot(
+            index, types.EMPTY_AVOIDED_AND_REJECTED,
+            line="Every relic left for this slot is rejected or carries an "
+                 "effect you avoided.")
+    if pool.avoided_by:
+        return types.EmptySlot(
+            index, types.EMPTY_AVOIDED, effect_ids=pool.avoided_by,
+            line=f"Every relic left for this slot carries an effect you "
+                 f"avoided: {_named_at_most_two(ctx, pool.avoided_by)}.")
+    if pool.rejected_out:
+        return types.EmptySlot(
+            index, types.EMPTY_REJECTED,
+            line="Every relic left for this slot is one you rejected.")
+    white = types.slot_at(problem, index).colour == model.WHITE_SLOT
+    return types.EmptySlot(
+        index, types.EMPTY_NOTHING,
+        line=f"You own no unused relic of {'any' if white else 'this'} "
+             f"colour for this slot.")
+
+
+def empty_slots(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
+                chosen: Sequence[types.Candidate],
+                ctx: types.GoalContext) -> tuple[types.EmptySlot, ...]:
+    """Every free slot the suggestion leaves empty, and why (AK-441, AK-457).
+
+    A pool that still has copies had them all spent by other slots: the search
+    leaves a slot empty only then (`search._successors`).
+    """
+    filled = {copy.slot_index for copy in chosen}
+    return tuple(_empty_slot(problem, pool, ctx) for pool in pools
+                 if pool.slot_index not in filled)
+
+
+def _pin_because(left: types.PinLeftOut, problem: types.SlotProblem,
+                 ctx: types.GoalContext) -> str:
+    """AK-456's `{reason}`. An unknown reason is a `KeyError`, not a fallback."""
+    effect = ("" if left.effect_id is None
+              else _effect_name(ctx, left.effect_id)
+              or f"effect {left.effect_id}")
+    deep_is_off = left.is_deep and not any(slot.deep for slot in problem.slots)
+    return {
+        types.PIN_AVOIDED: f"it carries “{effect}”, which you avoided",
+        types.PIN_REJECTED: "you rejected it for this build",
+        types.PIN_NO_COPY: "you own no copy that is free",
+        types.PIN_NO_SLOT: ("it is a Deep of Night relic and Deep of Night is "
+                            "off" if deep_is_off else
+                            "this vessel has no slot that fits its colour"),
+        types.PIN_SLOTS_HELD: "every slot it could go in is held",
+        types.PIN_OTHER_PIN: (
+            "another favourited copy takes the only slot it could use"
+            if left.other == left.name else
+            f"“{left.other}” is favourited too and takes the only slot it "
+            f"could use"),
+        types.PIN_BLOCKS_REQUIREMENT: f"placing it would leave “{effect}” "
+                                      f"(Favourite) unmet",
+    }[left.reason]
+
+
+def pins_left_out(left_out: Sequence[types.PinLeftOut],
+                  problem: types.SlotProblem, ctx: types.GoalContext
+                  ) -> tuple[types.PinLeftOut, ...]:
+    """The stars left out, with their sentences (AK-439, AK-456)."""
+    written = []
+    for left in left_out:
+        because = _pin_because(left, problem, ctx)
+        names = [_effect_name(ctx, eid) or f"effect {eid}"
+                 for eid in left.roll[1]]
+        carried = f" ({', '.join(names)})" if names else ""
+        written.append(dataclasses.replace(
+            left, because=because, line=f"{left.name}{carried} — {because}"))
+    return tuple(written)
 
 
 def required_met_by_a_hold(problem: types.SlotProblem,
@@ -1313,6 +1510,34 @@ def required_met_by_a_hold(problem: types.SlotProblem,
         name = _effect_name(ctx, effect_id) or f"effect {effect_id}"
         lines.append(f"{name}, which you favourited, is carried by {where}.")
     return tuple(lines)
+
+
+def avoided_on_a_hold(problem: types.SlotProblem,
+                      ctx: types.GoalContext) -> tuple[str, ...]:
+    """AK-458 where it can really happen (QA-325): a suggestion never offers a
+    copy with an avoided effect (AD-057) and `Why` lists no held slot
+    (AD-014.6), so the sentence goes beside the held-slots line, with the relic
+    it is about."""
+    return tuple(
+        f"{entry.relic.name}, held in Slot {entry.index + 1} — "
+        + _avoided_sentence(_effect_name(ctx, effect_id)
+                            or f"effect {effect_id}")
+        for entry in problem.held if entry.relic is not None
+        for effect_id in (*entry.relic.effect_ids, *entry.relic.curse_ids)
+        if effect_id in problem.excluded)
+
+
+def favourite_of_another_on_a_hold(problem: types.SlotProblem,
+                                   ctx: types.GoalContext) -> tuple[str, ...]:
+    """The `_silent_effect` sentence for a relic `Why` does not list (AD-014.6),
+    beside the held-slots line like `avoided_on_a_hold`."""
+    return tuple(
+        f"{entry.relic.name}, held in Slot {entry.index + 1} — "
+        + _works_for_another(_effect_name(ctx, effect_id),
+                             ctx.data["effects"][str(effect_id)])
+        for entry in problem.held if entry.relic is not None
+        for effect_id in (*entry.relic.effect_ids, *entry.relic.curse_ids)
+        if effect_id in problem.favourites_of_others)
 
 
 def held_favourites_card_line(lines: tuple[str, ...]) -> str:

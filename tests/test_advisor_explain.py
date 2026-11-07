@@ -32,12 +32,15 @@ five fields, instead of hunting the dataset for one and hoping it stays.
 from __future__ import annotations
 
 import dataclasses
+import os
 import pathlib
+import subprocess
+import sys
 
 import pytest
 
 from nrplanner import effecttext, model
-from nrplanner.advisor import candidates, explain, goals, search, types
+from nrplanner.advisor import candidates, explain, goals, run, search, types
 from nrplanner.advisor.evaluate import evaluate
 
 from tests import advisor_cases as advisor
@@ -979,7 +982,9 @@ def test_an_excluded_effect_says_so_before_every_other_filling(game_data,
                              built, ctx, goals.GOALS[DAMAGE])
 
     line, = groups[0].lines
-    assert line.text == f"{name}: you avoided it, so it is not counted."
+    assert line.text == (
+        f"{name}: you avoided it. This relic is in the build because you "
+        f"chose it, and the effect is left out of the figure.")
     assert line.silence == types.SILENT_EXCLUDED
     assert not line.is_curse
     assert name not in explain.not_counted(built)
@@ -1004,7 +1009,9 @@ def test_an_excluded_curse_is_named_as_excluded_not_as_a_price(game_data,
                              goals.GOALS[DAMAGE])
 
     line, = groups[0].lines
-    assert line.text == f"{name}: you avoided it, so it is not counted."
+    assert line.text == (
+        f"{name}: you avoided it. This relic is in the build because you "
+        f"chose it, and the effect is left out of the figure.")
     assert line.silence == types.SILENT_EXCLUDED
     assert line.is_curse and types.drawn_in_the_block(line)
 
@@ -2363,6 +2370,111 @@ def test_a_favourite_of_a_type_the_selected_tile_is_not_says_so(
         types.SILENT_REQUIRED_OTHER_TYPE]
 
 
+def test_a_favourite_that_acts_on_the_enemy_says_it_moves_no_number(game_data):
+    """QA-321, third cause: no condition parks it, so it fell through to "it
+    always counts" while the sheet counted nothing for it."""
+    raider = cases.hero_by_name(game_data, "Raider")
+    ctx = advisor.context(game_data, raider)
+    goal = goals.GOALS[DAMAGE]
+    for effect_id in sorted(model.ON_THE_ENEMY_EFFECT_IDS):
+        if not effecttext.works_for(game_data["effects"][str(effect_id)], "Raider"):
+            continue
+        problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                      required=frozenset({effect_id}))
+        chosen = (a_copy(0, 1, "Relic", [effect_id]),)
+        name, = effect_names(game_data, [effect_id])
+
+        groups = explain.reasons(problem, chosen,
+                                 evaluate(problem, (), ctx, goal=goal),
+                                 evaluate(problem, chosen, ctx, goal=goal),
+                                 ctx, goal)
+
+        line, = groups[0].lines
+        assert line.silence == types.SILENT_REQUIRED_OTHER_TYPE
+        assert line.text == (f"{name}: you favourited it, but it acts on the "
+                             f"enemy, so it moves no number.")
+
+
+def test_no_favourite_that_waits_on_a_qa_321_cause_says_it_always_counts(
+        game_data, wylder, armament):
+    """All of them, undeclared as `asking_from` leaves them: a weapon type, a
+    weapon count, an enemy ailment, whatever acts on the enemy, and whatever
+    works only for another Nightfarer."""
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    goal = goals.GOALS[DAMAGE]
+    wep_type = armament.weapon.get("wep_type")
+    asked = 0
+    for effect in game_data["effects"].values():
+        if (effecttext.works_for(effect, wylder["name"])
+                and not (model.is_conditional(effect, wep_type)
+                         and (effect["id"] in model.ON_THE_ENEMY_EFFECT_IDS
+                              or effecttext.counts_armaments(effect)
+                              or "triggerOnWepType" in effect["modifiers"]
+                              or effecttext.ailment_awaited(effect)))):
+            continue
+        asked += 1
+        marks = ("required" if effecttext.works_for(effect, wylder["name"])
+                 else "favourites_of_others")
+        problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                      **{marks: frozenset({effect["id"]})})
+        chosen = (a_copy(0, 1, "Relic", [effect["id"]]),)
+        groups = explain.reasons(problem, chosen,
+                                 evaluate(problem, (), ctx, goal=goal),
+                                 evaluate(problem, chosen, ctx, goal=goal),
+                                 ctx, goal)
+        assert not any("always counts" in line.text
+                       for group in groups for line in group.lines), effect["name"]
+    assert asked
+
+
+def test_a_favourite_of_another_nightfarer_says_so_in_a_real_answer(
+        game_data, wylder, armament):
+    """QA-321, fourth cause: a mark for Raider binds nothing on Wylder (user
+    decision 07.11.2026), but a relic in the build can still carry it."""
+    foreign = next(effect for effect in game_data["effects"].values()
+                   if effecttext.owner(effect) == "Raider")
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    owned = advisor.make_inventory(game_data, wylder, count=1, handles=[100],
+                                   rolls=[[foreign["id"]]])
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED]),
+        favourites_of_others=frozenset({foreign["id"]}))
+    frozen = run.frozen_inventory(owned, problem)
+
+    result = run.run(advisor.request_for(problem, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    line, = [line for group in result.suggestions[0].reasons
+             for line in group.lines if line.effect_id == foreign["id"]]
+    assert line.silence == types.SILENT_ANOTHER_NIGHTFARER
+    name, = effect_names(game_data, [foreign["id"]])
+    assert line.text == (f"{name}: you favourited it, but it only works for "
+                         f"Raider, so it moves no number.")
+
+
+def test_a_held_relic_with_a_favourite_of_another_nightfarer_says_so(
+        game_data, wylder, armament):
+    """Director, reading B: `Why` lists no held slot (AD-014.6), so the sentence
+    of the line above goes beside the held-slots line, with the relic it is on."""
+    foreign = next(effect for effect in game_data["effects"].values()
+                   if effecttext.owner(effect) == "Raider")
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    owned = advisor.make_inventory(game_data, wylder, count=1, handles=[100])
+    held = types.HeldRelic(relic_id=1, name="Held relic",
+                           effect_ids=(foreign["id"],), colour=advisor.RED)
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED], held={0: held}),
+        favourites_of_others=frozenset({foreign["id"]}))
+    frozen = run.frozen_inventory(owned, problem)
+
+    result = run.run(advisor.request_for(problem, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    name, = effect_names(game_data, [foreign["id"]])
+    assert (f"Held relic, held in Slot 1 — {name}: you favourited it, but it "
+            f"only works for Raider, so it moves no number.") in result.unknowns
+
+
 def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):
     """AK-276 binds the marking control to the effect id, so every line of
     every filling -- figure, silent, curse -- has to say which it is."""
@@ -2412,3 +2524,212 @@ def test_one_figure_an_effect_moves_on_many_fields_is_one_line(
     assert lines_of(groups) == (
         f"{name}: All damage taken +45.0% — this figure does not count it.",)
     assert all(line.is_curse for group in groups for line in group.lines)
+
+
+# -- AD-057.4, AK-441, AK-457: why a free slot stays empty -------------------
+
+def an_empty_slot(game_data, wylder, pool, colour=advisor.RED, required=()):
+    problem = types.SlotProblem(
+        slots=(types.Slot(index=0, colour=colour, deep=False),),
+        required=frozenset(required))
+    found, = explain.empty_slots(problem, (pool,), (),
+                                 advisor.context(game_data, wylder))
+    return found
+
+
+def named(game_data, effect_id):
+    return " ".join(game_data["effects"][str(effect_id)]["name"].split())
+
+
+def test_a_slot_with_spent_copies_of_a_favourite_names_the_favourite(
+        game_data, wylder):
+    """`EMPTY_REQUIREMENT`: the pool had copies, another slot spent them."""
+    wanted = advisor.raising_effects(game_data, wylder, 1)[0][0]
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE, candidates=(
+        a_copy(0, 1, "Carrier", [wanted]),))
+
+    found = an_empty_slot(game_data, wylder, pool, required=[wanted])
+
+    assert found.reason == types.EMPTY_REQUIREMENT
+    assert found.effect_ids == (wanted,)
+    assert found.line == (
+        f"The relics that could go here are needed elsewhere to carry "
+        f"“{named(game_data, wanted)}”, which you favourited.")
+
+
+def test_a_slot_with_spent_copies_and_no_favourite_has_nothing_left(game_data,
+                                                                    wylder):
+    """`EMPTY_NOTHING` with a pool: no favourite was the reason."""
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE,
+                          candidates=(a_copy(0, 1, "Spent"),))
+
+    assert an_empty_slot(game_data, wylder, pool).reason == types.EMPTY_NOTHING
+
+
+def test_a_pool_a_favourite_relic_emptied_names_the_relic(game_data, wylder):
+    """`EMPTY_PIN`, ahead of the marks."""
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE, pin_taken=("Urn",),
+                          avoided_by=(1,), rejected_out=1)
+
+    found = an_empty_slot(game_data, wylder, pool)
+
+    assert found.reason == types.EMPTY_PIN
+    assert found.relic_name == "Urn"
+    assert found.line == ("The relics that could go here are used by your "
+                          "favourite “Urn”.")
+
+
+def test_a_pool_both_marks_emptied_says_both(game_data, wylder):
+    """`EMPTY_AVOIDED_AND_REJECTED`."""
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE, avoided_by=(1,),
+                          rejected_out=2)
+
+    found = an_empty_slot(game_data, wylder, pool)
+
+    assert found.reason == types.EMPTY_AVOIDED_AND_REJECTED
+    assert found.line == ("Every relic left for this slot is rejected or "
+                          "carries an effect you avoided.")
+
+
+def test_a_pool_avoid_emptied_names_two_effects_and_counts_the_rest(game_data,
+                                                                    wylder):
+    """`EMPTY_AVOIDED`: at most two names, then `and {n} more` (AK-457)."""
+    ids = [roll[0] for roll in advisor.raising_effects(game_data, wylder, 3)]
+    first, second = (named(game_data, eid) for eid in ids[:2])
+
+    two = an_empty_slot(game_data, wylder, types.SlotPool(
+        slot_index=0, rank_by=DAMAGE, avoided_by=tuple(ids[:2])))
+    three = an_empty_slot(game_data, wylder, types.SlotPool(
+        slot_index=0, rank_by=DAMAGE, avoided_by=tuple(ids)))
+
+    assert two.reason == types.EMPTY_AVOIDED
+    assert two.effect_ids == tuple(ids[:2])
+    assert two.line == ("Every relic left for this slot carries an effect "
+                        f"you avoided: “{first}”, “{second}”.")
+    assert three.line == ("Every relic left for this slot carries an effect "
+                          f"you avoided: “{first}”, “{second}” and 1 more.")
+
+
+def test_a_pool_reject_emptied_says_so(game_data, wylder):
+    """`EMPTY_REJECTED`."""
+    found = an_empty_slot(game_data, wylder, types.SlotPool(
+        slot_index=0, rank_by=DAMAGE, rejected_out=1))
+
+    assert found.reason == types.EMPTY_REJECTED
+    assert found.line == "Every relic left for this slot is one you rejected."
+
+
+def test_a_slot_whose_only_free_copy_went_elsewhere_still_says_rejected(
+        game_data, wylder):
+    """54 rejected, one left and spent by another slot: not "you own none"."""
+    found = an_empty_slot(game_data, wylder, types.SlotPool(
+        slot_index=0, rank_by=DAMAGE, candidates=(a_copy(0, 1),),
+        rejected_out=54))
+
+    assert found.reason == types.EMPTY_REJECTED
+
+
+def test_a_second_copy_of_a_favourite_is_not_named_twice():
+    left = types.PinLeftOut("Scene", (1, (), ()), types.PIN_OTHER_PIN,
+                            other="Scene")
+
+    question = advisor.problem([advisor.RED])
+    assert explain._pin_because(left, question, None) == (
+        "another favourited copy takes the only slot it could use")
+    assert explain._pin_because(dataclasses.replace(left, other="Stone"),
+                                question, None) == (
+        "“Stone” is favourited too and takes the only slot it could use")
+
+
+def test_an_empty_pool_with_no_mark_counts_the_colour_of_the_slot(game_data,
+                                                                  wylder):
+    """`EMPTY_NOTHING`: a white slot draws every colour, so it says any."""
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE)
+
+    coloured = an_empty_slot(game_data, wylder, pool)
+    white = an_empty_slot(game_data, wylder, pool, colour=model.WHITE_SLOT)
+
+    assert coloured.reason == white.reason == types.EMPTY_NOTHING
+    assert coloured.line == ("You own no unused relic of this colour for "
+                             "this slot.")
+    assert white.line == "You own no unused relic of any colour for this slot."
+
+
+def test_a_filled_slot_has_no_empty_slot_entry(game_data, wylder):
+    copy = a_copy(0, 1, "Chosen")
+    problem = advisor.problem([advisor.RED])
+    pool = types.SlotPool(slot_index=0, rank_by=DAMAGE, candidates=(copy,))
+
+    assert explain.empty_slots(problem, (pool,), (copy,),
+                               advisor.context(game_data, wylder)) == ()
+
+
+def test_a_stat_swap_keeps_its_lines_in_one_order_across_processes():
+    """`swap_deltas` walked a set of names, whose order follows PYTHONHASHSEED:
+    the Why lines of one effect stood in another order on every start."""
+    driver = (
+        "import sys; sys.path.insert(0, sys.argv[1]); "
+        "from nrplanner import model; "
+        "print(*model.swap_deltas({model.SWAP_FIELD: {"
+        "'1': {'Arcane': 1, 'Mind': 1, 'Vigor': -1, 'Strength': -1}, "
+        "'12': {'Arcane': 9, 'Mind': 9, 'Vigor': -9, 'Strength': -9}}}, 12))")
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    for seed in ("1", "2"):
+        done = subprocess.run(
+            [sys.executable, "-c", driver, str(repo)], capture_output=True,
+            text=True, env=dict(os.environ, PYTHONHASHSEED=seed), check=True)
+        assert done.stdout.split() == ["Vigor", "Mind", "Strength", "Arcane"]
+
+
+NIGHT_INVADER = 7060200
+
+
+def _at_stacks(game_data, wylder, armament, count, **marks):
+    """One relic carrying the stack effect, counted `count` times."""
+    problem = dataclasses.replace(advisor.problem([advisor.RED]), **marks)
+    chosen = (a_copy(0, 1, "A relic", [NIGHT_INVADER]),)
+    ctx = advisor.context(game_data, wylder, reference=armament,
+                          declared=((NIGHT_INVADER, count),))
+    built = evaluate(problem, chosen, ctx)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx), built,
+                             ctx, goals.GOALS[DAMAGE])
+    return built, groups
+
+
+def test_two_stacks_move_the_figure_by_exactly_two_stacks(game_data, wylder,
+                                                          armament):
+    """The listed number is one tally; two are that number twice over, and the
+    ranking figure follows. The line says what the build was ranked on."""
+    rate = game_data["effects"][str(NIGHT_INVADER)]["modifiers"][
+        "physicsAttackRate"]
+    goal = goals.GOALS[DAMAGE]
+    results = {count: _at_stacks(game_data, wylder, armament, count)
+               for count in (0, 1, 2)}
+    rates = {count: built.rates.get("physicsAttackRate", 1.0)
+             for count, (built, _) in results.items()}
+    assert rates == pytest.approx({0: 1.0, 1: rate, 2: rate ** 2})
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    scores = {count: goal.score(built, ctx).value
+              for count, (built, _) in results.items()}
+    assert scores[0] < scores[1] < scores[2]
+
+    for count, percent in ((1, (rate - 1) * 100), (2, (rate ** 2 - 1) * 100)):
+        built, groups = results[count]
+        line, = with_a_figure(groups)
+        assert f"+{percent:.1f}%" in line
+        assert explain.not_counted(built) == ()
+
+
+def test_zero_stacks_are_said_as_not_counted_even_when_favourited(
+        game_data, wylder, armament):
+    """Not "it always counts", and no figure; the avoided sentence stays."""
+    name = effect_names(game_data, [NIGHT_INVADER]).pop()
+    zero = f"{name}: you set its stacks to 0, so it is not counted."
+    for marks in ({}, {"required": frozenset({NIGHT_INVADER})}):
+        built, groups = _at_stacks(game_data, wylder, armament, 0, **marks)
+        assert lines_of(groups) == (zero,)
+        assert with_a_figure(groups) == ()
+        assert explain.not_counted(built) == (name,)
+    _, groups = _at_stacks(game_data, wylder, armament, 0,
+                           excluded=frozenset({NIGHT_INVADER}))
+    assert "you avoided it" in lines_of(groups)[0]

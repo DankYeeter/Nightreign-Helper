@@ -312,6 +312,38 @@ def test_the_canonical_order_is_a_direction_the_registry_answers_to(game_data,
 
 # -- what is refused --------------------------------------------------------
 
+def test_the_pickers_pool_leaves_the_avoided_copy_out_and_the_hold_alone(
+        game_data, wylder):
+    """AD-057.1-.2: the picker's pool has no figure for the avoided copy, so
+    its card says `—`. A held relic with the effect stays held, and the effect
+    stays out of the figure the open slot is measured against."""
+    rolls = advisor.raising_effects(game_data, wylder, 5)
+    avoided = rolls[0][0]
+    owned = advisor.make_inventory(game_data, wylder, count=4,
+                                   rolls=[rolls[0], rolls[1], list(rolls[0]),
+                                          rolls[3], rolls[4]])
+    held, spare, carrier, plain = owned.relics[:4]
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    question = advisor.problem([advisor.RED, advisor.RED],
+                               held={0: advisor.held_relic(held)})
+    avoiding = dataclasses.replace(question, excluded=frozenset({avoided}))
+    frozen = run.frozen_inventory(owned, avoiding)
+
+    pool = run.slot_pool(advisor.request_for(avoiding, ctx, frozen), frozen,
+                         ctx, goals.GOALS)
+
+    assert set(advisor.handles(pool)) == {spare.handle, plain.handle}
+    without_the_hold = run.slot_pool(
+        advisor.request_for(advisor.problem([advisor.RED, advisor.RED],
+                                            held={0: None}), ctx, frozen),
+        frozen, ctx, goals.GOALS)
+    assert ([(line.goal_id, line.value) for line in pool.baseline]
+            == [(line.goal_id, line.value)
+                for line in without_the_hold.baseline])
+
+
 @pytest.mark.parametrize("free, description", [
     (0, "every slot held, so nothing says which one is open"),
     (2, "two slots free, so the question names two open slots"),

@@ -492,20 +492,28 @@ class RelicSlot(QFrame):
 
     def show_the_suggestion(self, goal_label: str, group,
                             choice, *, may_explain: bool = True,
-                            held_favourite_line: str = "") -> None:
+                            held_favourite_line: str = "",
+                            pinned: bool = False, names=None,
+                            favourited: frozenset[int] = frozenset()) -> None:
         """Draw what the advisor would put here, while the answer lives.
 
         `may_explain` is the window's own reading of the bar's `Why` gate
         (AK-274), passed straight through: it names the same fact for every
         slot at once, and this card has no state of its own to add to it.
         `held_favourite_line` is the window's own choice of which one card
-        shows it (AK-314.3); this card only draws or withholds it.
+        shows it (AK-314.3); this card only draws or withholds it. `pinned` is
+        the answer's own: the run laid this relic because it is starred.
         """
         self.suggestion.show_the_suggestion(
             goal_label, group, already_equipped=self.already_equipped(choice),
             may_be_used=not self.is_held(), may_explain=may_explain,
             curse_tooltip=self._suggested_curse_tooltip(choice),
-            held_favourite_line=held_favourite_line)
+            held_favourite_line=held_favourite_line, pinned=pinned,
+            names=names, favourited=favourited)
+
+    def show_no_suggestion(self, reason: str) -> None:
+        """The answer leaves this slot empty, and this is why (AK-441)."""
+        self.suggestion.show_no_suggestion(reason)
 
     def put_the_suggestion_away(self) -> None:
         """No answer names this slot any more."""

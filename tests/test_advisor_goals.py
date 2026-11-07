@@ -1501,11 +1501,14 @@ def an_inventory_telling_two_armaments_apart(game_data, hero):
 
 
 def ranking_with(planner, armament, inventory, question, rank_by, *,
-                 rolls: tuple[int, ...] = (),
+                 rolls: tuple[int, ...] = (), tile: int = 0,
                  as_the_bar_asked_before_a16: bool = False,
                  as_the_bar_asked_before_a17: bool = False,
                  as_the_bar_asked_before_ad_032: bool = False):
     """What the pre-sort makes of one inventory while this armament is held.
+
+    It lies on `tile`; the selected tile is always the first, so any other
+    `tile` leaves the selected one empty.
 
     The context comes out of `advisorbar.asking_from`, because that is where
     the program decides what a run is asked about. A context assembled here
@@ -1525,8 +1528,8 @@ def ranking_with(planner, armament, inventory, question, rank_by, *,
     tell two runs apart.
     """
     slots = [weaponslots.WeaponSlot() for _ in range(weaponslots.SLOT_COUNT)]
-    slots[0] = weaponslots.WeaponSlot(weapon=armament,
-                                      effect_ids=list(rolls))
+    slots[tile] = weaponslots.WeaponSlot(weapon=armament,
+                                         effect_ids=list(rolls))
     planner.weapon_slots = slots
     planner.active_weapon = 0
 
@@ -1577,6 +1580,12 @@ def test_the_ranking_does_not_depend_on_the_armament_held(planner, game_data):
     no armament in the extraction carries (`explain._Armaments`). It is held
     all the same, because AK-191 asks for both directions and because an
     effect that did reach it would otherwise arrive unnoticed.
+
+    **The exception to A17 is the selected tile** (user decisions 28.10 and
+    01.11.2026): its type decides which "3+ X Equipped" and which weapon-type
+    buffs the baseline assumes met, so the two armaments lie on another tile
+    here and the selected one stays empty.
+    `test_one_armament_count_type.py` holds the selected tile.
     """
     if planner.owned is None:
         pytest.skip("`asking_from` answers nothing without a save to choose "
@@ -1592,8 +1601,10 @@ def test_the_ranking_does_not_depend_on_the_armament_held(planner, game_data):
         "for the ranking to depend on")
 
     for rank_by in sorted(goals.GOALS):
-        assert ranking_with(planner, first, inventory, question, rank_by) == \
-            ranking_with(planner, second, inventory, question, rank_by), (
+        assert ranking_with(planner, first, inventory, question, rank_by,
+                            tile=1) == \
+            ranking_with(planner, second, inventory, question, rank_by,
+                         tile=1), (
             f"ranked by {rank_by}, swapping the armament in the slot moved "
             f"the answer: the run is still asked about what the player "
             f"happens to be carrying (AK-191)")
@@ -1746,7 +1757,8 @@ def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
 
     One part of the armament is in the key since 28.10.2026: the "3+ X
     Equipped" conditions of the selected tile's type
-    (`assumed_armament_counts`) -- the two types here are two questions
+    (`assumed_armament_counts`), and since 01.11.2026 the weapon-type buffs
+    of that type (in `declared`) -- the two types here are two questions
     there, and in nothing else.
     """
     if planner.owned is None:
@@ -1761,10 +1773,20 @@ def test_the_cache_key_does_not_know_the_armament_or_its_rolls(planner,
     one = asking_with(planner, first, (non_stacking,))
     other = asking_with(planner, second, (stacking,))
 
+    effects = game_data["effects"]
+
+    def without_the_selected_type(request):
+        return dataclasses.replace(
+            request, assumed_armament_counts=(),
+            declared=tuple(item for item in request.declared
+                           if "triggerOnWepType"
+                           not in effects[str(item[0])]["modifiers"]))
+
     assert one.request.assumed_armament_counts != (
         other.request.assumed_armament_counts)
-    assert dataclasses.replace(one.request, assumed_armament_counts=()) == (
-        dataclasses.replace(other.request, assumed_armament_counts=())), (
+    assert one.request.declared != other.request.declared
+    assert without_the_selected_type(one.request) == (
+        without_the_selected_type(other.request)), (
         "the cache key still separates two runs that are asked the same "
         "question, so the second one pays for a search whose answer was "
         "already there (P-1)")
@@ -1998,10 +2020,11 @@ def test_the_eight_damage_kinds_are_the_ones_the_model_knows(game_data):
 CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
                       6851700)
 
-#: Every gated effect the sheet offers a switch for, less the one in
+#: Every gated effect the sheet offers a switch for, less those in
 #: `model.NO_SWITCH`: 413 that are not curses plus the seven above (same
-#: dataset, counted 2026-09-14). The baseline's whole vocabulary (AD-036.6).
-SWITCHABLE_CONDITIONS = 420
+#: dataset, counted 2026-09-14), less the 19 of `ON_THE_ENEMY_EFFECT_IDS` that
+#: had a switch (2026-11-07). The baseline's whole vocabulary (AD-036.6).
+SWITCHABLE_CONDITIONS = 401
 
 #: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 315
 #: copies) change their `min_damage_taken` figure between the baseline and
@@ -2014,6 +2037,27 @@ SWITCHABLE_CONDITIONS = 420
 COPIES_THE_BASELINE_MOVES = 22
 
 SURVIVAL = "min_damage_taken"
+
+
+def test_what_lands_on_the_enemy_is_not_counted_as_the_wearers(game_data):
+    """`All damage -13%`, counted against the relic, on an effect that lowers
+    the enemy's attack: 20,56 off a Raider's attack rating, before this."""
+    raider = next(hero for hero in game_data["heroes"]
+                  if hero["name"] == "Raider")
+    defaults = model.advisor_defaults()
+    assert 6500400 not in defaults
+    build = model.compute(raider, 15, [game_data["effects"]["6500400"]],
+                          game_data["curves"], declared=defaults)
+    assert "physicsAttackRate" not in build.rates
+
+
+def test_every_effect_on_the_enemy_list_counts_nowhere_and_says_so(game_data):
+    """Frost has no timer in its modifiers, so it counted without any switch:
+    `All damage taken +15%`, 146 off the survival figure."""
+    for effect_id in model.ON_THE_ENEMY_EFFECT_IDS:
+        effect = game_data["effects"][str(effect_id)]
+        assert model.is_conditional(effect, None), effect["name"]
+        assert effecttext.describe(effect).startswith("On the enemy: ")
 
 
 def test_advisor_defaults_name_every_switchable_condition_at_one(game_data):
@@ -2069,18 +2113,30 @@ def test_the_baseline_leaves_no_switchable_condition_uncounted(
     counts = [effect for effect in planner.data["effects"].values()
               if effecttext.counts_armaments(effect)
               and effect["id"] in model.advisor_defaults()]
+    weapon_type = [effect for effect in planner.data["effects"].values()
+                   if "triggerOnWepType" in effect["modifiers"]
+                   and effect["id"] in model.advisor_defaults()]
 
     before_a16 = not_counted_under(planner, dataclasses.replace(
         ctx, declared=()))
     assert before_a16, ("a save whose copies carry no condition proves "
                         "nothing about the baseline")
-    # The window assumes the selected tile's armament type only
-    # (28.10.2026), so the other types' count conditions are all that waits;
-    # with every type assumed, one per one-relic build, nothing does.
+    # The window assumes the selected tile's armament type only (28.10 and
+    # 01.11.2026), and an enemy ailment only where the build inflicts it
+    # (01.11.2026, `tests/test_ailment_conditions.py`), so the other types'
+    # count conditions, weapon-type buffs and the ailments nothing inflicts
+    # are all that waits; with every type and ailment assumed, one type per
+    # one-relic build, nothing does.
+    awaiting = [planner.data["effects"][str(effect_id)]
+                for effect_id in ctx.awaiting_ailment]
     assert set(not_counted_under(planner, ctx)) <= {
-        effecttext.name(effect) for effect in counts}
-    every_type = dataclasses.replace(ctx, assumed_armament_counts=tuple(
-        sorted(effect["id"] for effect in counts)))
+        effecttext.name(effect) for effect in counts + weapon_type + awaiting}
+    every_type = dataclasses.replace(
+        ctx, assumed_armament_counts=tuple(
+            sorted(effect["id"] for effect in counts)),
+        declared=tuple(sorted({**dict(ctx.declared), **dict.fromkeys(
+            (effect["id"] for effect in weapon_type + awaiting),
+            1)}.items())))
     assert not_counted_under(planner, every_type) == []
 
 

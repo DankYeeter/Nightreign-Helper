@@ -264,6 +264,40 @@ def test_every_nightfarer_and_chalice_is_answered_in_full_in_deep_of_night(
     _sweep(game_data, equipment, deep=True)
 
 
+def test_a_favourite_no_chalice_can_carry_blocks_no_chalice(game_data,
+                                                            equipment):
+    """A28, AD-058.1: "the suggestion never blocks", over all of them. One
+    favourite more per Nightfarer than the three ordinary slots can carry, so
+    every chalice answers with a part of them: each slot filled, and exactly
+    what the suggestion does not carry named as left out.
+    """
+    faults = []
+    asked = pairs(game_data)
+    for hero, vessel in asked:
+        owned, ctx = equipment[hero["id"]]
+        ordinary = [copy for copy in owned.relics if not copy.is_deep]
+        wanted = frozenset(copy.effect_ids[0] for copy in ordinary[:2]
+                           + ordinary[copies_per_colour(game_data)::
+                                      copies_per_colour(game_data)])
+        problem = types.SlotProblem(slots=layout_of(vessel, False).slots,
+                                    required=wanted)
+        frozen = run.frozen_inventory(owned, problem)
+        result = run.run(advisor.request_for(problem, ctx, frozen), frozen,
+                         ctx, goals.GOALS)
+        where = f"{hero['name']} / {vessel['name']}"
+        best = result.suggestions[0]
+        if len(best.choices) != len(problem.slots):
+            faults.append(f"{where}: {len(best.choices)} slots filled")
+        chosen = {copy.handle: copy for copy in owned.relics}
+        carried = {effect for choice in best.choices
+                   for effect in chosen[choice.handle].effect_ids}
+        if (not result.required_left_out
+                or set(result.required_left_out) != wanted - carried):
+            faults.append(f"{where}: left out {result.required_left_out}, "
+                          f"not carried {sorted(wanted - carried)}")
+    assert not faults, f"{len(faults)} of {len(asked)}:\n" + "\n".join(faults)
+
+
 def test_the_layout_this_file_builds_is_the_one_the_window_asks_about(
         shared_planner, game_data):
     """`layout_of` says what `advisorbar.asking_from` says (T-114).

@@ -75,6 +75,14 @@ A_LONG_FAILURE = ("the dataset carries no attribute curves for this "
                   "Nightfarer, so nothing could be worked out at all")
 
 
+def _next_on_screen(stack, bar):
+    """What stands under the row: the list of rejected relics takes no room
+    with nothing rejected (AK-430), so it is not what the row is measured to."""
+    return next(stack.itemAt(index).widget()
+                for index in range(stack.indexOf(bar) + 1, stack.count())
+                if not stack.itemAt(index).widget().isHidden())
+
+
 def measure(game_data: dict, tmp_path: pathlib.Path) -> dict:
     """The row's figures at the opening width, out of a child process."""
     snapshot = tmp_path / "snapshot.json"
@@ -174,7 +182,7 @@ def _the_warning(bar, controls) -> dict:
     rendered.settle(20)
     warning = bar.warning
     stack = bar.parentWidget().layout()
-    below = stack.itemAt(stack.indexOf(bar) + 1).widget()
+    below = _next_on_screen(stack, bar)
     figures = {
         "shown": not warning.isHidden(),
         "inside_the_row": bar.rect().contains(QRect(
@@ -213,7 +221,7 @@ def _laid_out(bar, controls) -> dict:
              if not widget.isHidden()]
     column = bar.parentWidget()
     stack = column.layout()
-    below = stack.itemAt(stack.indexOf(bar) + 1).widget()
+    below = _next_on_screen(stack, bar)
     return {
         "lines": bar.lines,
         "row_width": bar.width(),

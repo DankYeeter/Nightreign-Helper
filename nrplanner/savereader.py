@@ -36,8 +36,8 @@ SAVE_FILE_FILTERS = ("Nightreign save (NR*.sl2);;"
 
 
 #: How long the window waits for a running save read when it is closing. A
-#: `wait()` in the main thread is forbidden while the program is running
-#: (AD-006.4) and is the only correct thing here: the alternative is a
+#: `wait()` for a read in the main thread is forbidden while the program is
+#: running (AD-006.4) and is the only correct thing here: the alternative is a
 #: `QThread` deleted while its read is still going.
 #:
 #: Derived, not chosen. What this waits for is `inventory.scan`, measured at
@@ -190,7 +190,7 @@ class SaveReader(QObject):
     The same build as `AdvisorController` and deliberately not a second
     mechanism (AD-029, AD-028): a worker in a `QThread`, a generation counter
     that decides whether an answer still belongs to anybody, and a `shutdown`
-    that is the one place a `wait()` in the main thread is right.
+    that is the one place a `wait()` for a read in the main thread is right.
 
     Three differences, each because the two are asked different questions:
 
@@ -297,8 +297,12 @@ class SaveReader(QObject):
             thread.wait(timeout_ms)
 
     def _on_thread_finished(self) -> None:
-        """Clear the read away, so the next `Rescan` can start one."""
-        self._worker.deleteLater()
+        """Clear the read away, so the next `Rescan` can start one.
+
+        `wait()` first and no `deleteLater` on the worker, for the reason at
+        `AdvisorController._on_thread_finished`.
+        """
+        self._thread.wait()
         self._thread.deleteLater()
         self._worker = None
         self._thread = None
