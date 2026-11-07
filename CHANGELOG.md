@@ -11,6 +11,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
   rank them: favourite effects met, then favourite relics, then the figure.
 - After a suggestion, the other vessels are compared in the background; nothing
   waits for it, and a new question or closing the window stops it.
+- The vessel list shows each vessel's figure and marks the best one; Switch to it
+  opens it with its suggestion and brings held relics and rejections along.
 
 ### Changed
 - Optimize no longer suggests a relic that carries an effect or curse you

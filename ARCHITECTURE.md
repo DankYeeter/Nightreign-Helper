@@ -9724,14 +9724,16 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
    6 von 6. "Das andere Ziel" ist `goals.OTHER_GOAL`: Schaden und Abwehr gegenseitig; `max_attributes` hat keins in der Spec und schaut auf Schaden
    (Annahme des `developer`, eine Zeile). Der zweite Wert kommt aus der Antwort (`baseline` + `gain`), kein eigener Rechenweg. Gleichstand: alle vier
    Schluessel gleich (AK-464 (5)). `{difference}` nach AK-449 aus den beiden `value`.
-7. **Wechsel ohne zweiten Lauf:** Ist der Vergleich aktuell, fragt die Leiste nach dem Wechsel `ask_and_answer_if_known` und zeichnet bei
+7. **Wechsel ohne zweiten Lauf:** Ist der Vergleich aktuell, fragt die Leiste nach dem Wechsel `AdvisorController.known_answer` (nicht `ask_and_answer_if_known`: das fragt bei einem Fehlschlag, gegen AK-454) und zeichnet bei
    Treffer wie `_on_ready`. Ohne Holds und ohne Rejects stimmt der Schluessel von selbst. **`Switch to it` uebertraegt** Holds und Rejects ins Zielgefaess
    (`_holds`, `_rejects`, Relikte in die Slots ueber den `Apply`-Weg), sonst waere die Zahl der Zeile nicht die des Vorschlags; das ueberschreibt dort
    die gespeicherten Slots an diesen Stellen. **Ein gewoehnlicher Zeilenklick uebertraegt nichts**, Holds des Spielers je Gefaess bleiben
    (AD-017); hat er Holds oder Rejects, gibt es keinen Treffer und 4.1. Abweichung von AK-435(a)(c) nur in diesem Fall.
 8. **Veraltet (AK-434):** Die Leiste merkt sich beim Start `request` ohne `problem.slots`, `held`, `rejected`, `generation`, Fingerabdruck und
    vergleicht nach jedem `the_build_changed` (`asking_from` gemessen 0,6 ms Median, 1,13 ms Maximum), dazu ein Aufruf aus `_hold_changed` und aus jeder Reject-Aenderung.
-   Eine Zustandsnaht statt neun Aufrufstellen; Gefaess, `Use`, Handaenderung am Slot aendern die Signatur nicht.
+   Eine Zustandsnaht statt neun Aufrufstellen; Gefaess, `Use`, Handaenderung am Slot aendern die Signatur nicht. `two_handed` steht **nicht** in der Signatur: ein Gefaess bringt seine gespeicherte
+   Hand mit (`_restore_vessel_build`), das darf nach AK-434 nicht veralten; der Klick des Spielers auf den Schalter meldet sich selbst. `Switch to it` nimmt die Hand mit, sonst waere die Zeile kein Treffer. Ein Zeilenklick
+   in ein Gefaess mit anderer gespeicherter Hand ist ein Fehlschlag und 4.1. Vor dem Uebertragen prueft `Switch to it` den Treffer (`comparison_knows`): ohne Treffer wechselt es nur, ueberschreibt also nie Slots ohne `Undo apply`.
 9. **Hauptthread (A6 Zeile 3, 50 ms).** Je Frage `ask` Median 1,31 ms, Maximum 2,47 ms. Der Lauf selbst haelt die Grenze am Bestand **nicht**: Zeitgeber-Abstand Median
    10,4 ms; ueber 50 ms bei **einem** Lauf bereits 51,6 ms, bei 11 Laeufen 3 bis 4 Abstaende, Spitze 178,8 ms. Ursache: voller GC (Generation 2) ueber den Datensatz,
    95 260 verfolgte Objekte, bis 93,9 ms, mit gehaltenem GIL. **Tauschprobe im selben Prozess, je zweimal:** ohne Spitzen 178,8 und 61,8 ms; nach `gc.collect(); gc.freeze()`
