@@ -9,9 +9,10 @@ space this adds is five, for good. No `__schema` step either -- a store that
 never held a key reads back as empty, which is exactly what an older
 program state means by it.
 
-The fifth key is no marking: `stacks` says how many stacks Optimize counts for
-a stack effect (`model.accumulates`, user decision 2026-11-07), over whatever
-the stat sheet says, and it touches none of the sets below.
+The fifth key is no marking: `stacks` says how many stacks the advisor's
+questions, Optimize's and the relic picker's, count for a stack effect
+(`model.accumulates`, user decision 2026-11-07), over whatever the stat sheet
+says, and it touches none of the sets below.
 
 The three id sets are disjoint by construction (AK-276: an effect is never
 excluded and required at once, and `Allow` is a third state of the same
@@ -61,9 +62,10 @@ KEYS = {EXCLUDED: "advisor/excluded", REQUIRED: "advisor/required",
 FAMILY_SEPARATOR = "\n"
 
 #: Not a fact about the game, which sets no ceiling (`statsheet.SituationalRow`):
-#: `model.compute` expands one copy per stack, so eight digits would hang the
-#: run. Measured 2026-11-07: 14 ms per `compute` at 999, 0.06 ms at 2.
-MOST_STACKS = 999
+#: `model.compute` expands one copy per stack, so Optimize slows with the value
+#: (QA-336). Measured 2026-11-07 on the A6 case, Night Invader alone: 2.4 s at 4,
+#: 14.2 s at 99.
+MOST_STACKS = 99
 
 
 def stored(kind: str) -> frozenset[int]:
@@ -92,18 +94,28 @@ def stored_text(kind: str) -> frozenset[str]:
                      if part.strip())
 
 
+def stack_count(text: str) -> int | None:
+    """The count this text says, or `None` for anything but a whole number
+    from 0 to `MOST_STACKS` in plain digits (`int` would read other scripts,
+    and raise on five thousand of them, so the length comes first)."""
+    if text.isascii() and text.isdigit() and len(text) <= len(str(MOST_STACKS)):
+        return int(text)
+    return None
+
+
 def stored_stacks() -> dict[int, int]:
     """Effect id -> stacks, stored as `id=count,id=count`. A part that does not
     read as an id and a count in range is skipped, as in `stored`."""
     raw = favourites.settings().value(KEYS[STACKS], "", type=str)
     stacks = {}
     for part in str(raw).split(","):
-        effect_id, _, count = part.partition("=")
+        effect_id, _, text = part.partition("=")
+        count = stack_count(text)
         try:
-            effect_id, count = int(effect_id), int(count)
+            effect_id = int(effect_id)
         except ValueError:
             continue
-        if 0 <= count <= MOST_STACKS:
+        if count is not None:
             stacks[effect_id] = count
     return stacks
 
@@ -164,8 +176,8 @@ class EffectFilters(QObject):
         self._apply(self.excluded, self.required, self.allowed, families)
 
     def set_stacks(self, effect_id: int, count: int | None) -> None:
-        """How many stacks Optimize counts for this effect; `None` leaves it
-        to the stat sheet, 0 does not count it."""
+        """How many stacks the advisor's questions count for this effect;
+        `None` leaves it to the stat sheet, 0 does not count it."""
         stacks = {**self.stacks, effect_id: count}
         if count is None:
             del stacks[effect_id]

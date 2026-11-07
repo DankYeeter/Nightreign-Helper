@@ -249,7 +249,9 @@ def test_a_stacks_change_is_heard_once_and_only_when_it_moved_something(store):
     ("5=x", {}),
     ("5=-1", {}),
     ("5=1.5", {}),
-    (f"5={effectfilters.MOST_STACKS + 1}", {}),
+    ("5=99", {5: 99}),
+    ("5=100", {}),
+    ("5=999", {}),
     ("5=" + "9" * 5000, {}),
     ("5=2,,x,6=abc,7=0", {5: 2, 7: 0}),
 ])

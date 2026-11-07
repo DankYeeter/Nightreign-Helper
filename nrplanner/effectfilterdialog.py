@@ -27,8 +27,7 @@ import collections
 import dataclasses
 from collections.abc import Mapping
 
-from PySide6.QtCore import QRegularExpression, Qt
-from PySide6.QtGui import QRegularExpressionValidator
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QCheckBox, QDialog, QHeaderView, QLabel,
                                QLineEdit, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout)
@@ -57,15 +56,17 @@ TITLE = "Effect filters"
 #: Nightfarer take 26 px more, the tree keeps its 449 px. T-336 (offscreen,
 #: Fusion, 339 rows, 07.11.2026): the `Stacks` column asks 94 px more before the
 #: name column has the 104 px it had; the wider legend makes up for its new
-#: sentence, the tree keeps its 449 px at the same height.
-OPENING_SIZE = (702, 707)
+#: sentence, the tree keeps its 449 px at the same height. T-336b (offscreen,
+#: Fusion, 07.11.2026): the longer Stacks sentence takes 26 px more, the tree
+#: keeps its 449 px.
+OPENING_SIZE = (702, 733)
 
 (COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_STACKS, COL_NAME, COL_TYPE,
  COL_COPIES) = range(7)
 HEADINGS = ("Favourite", "Avoid", "Allow", "Stacks", "Name", "Type", "Copies")
 FLAG_COLUMNS = (COL_FAVOURITE, COL_AVOID, COL_ALLOW)
 
-#: Three digits and their margins; the stat sheet's count box is as wide.
+#: As wide as the stat sheet's count box; two digits and their margins fit.
 STACKS_FIELD_WIDTH = 42
 #: What a row without a value sorts by: under 0, which is a value.
 NO_STACKS = -1
@@ -88,9 +89,10 @@ MARKS_EXPLANATION = ("Favourite: every suggestion for this Nightfarer must "
                      "give a relic in the relic picker: that is per "
                      "Nightfarer, and Optimize puts a favourited relic in "
                      "when it fits. "
-                     "Stacks: how many stacks Optimize counts for an effect "
-                     "that stacks; 0 does not count it, empty uses the stat "
-                     "sheet's count.")
+                     "Stacks: how many stacks Optimize and the relic picker's "
+                     "figures count for an effect that stacks, not the stat "
+                     "sheet; 0 does not count it, empty uses the count ticked "
+                     "on the stat sheet, otherwise 1.")
 SEARCH_PLACEHOLDER = ("Filter by effect or curse — supports AND, OR, NOT and "
                       "\"quoted phrases\"")
 FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry this "
@@ -104,8 +106,11 @@ FAMILY_AVOID_TOOLTIP = ("No suggestion uses a relic that carries an effect "
 ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
                  "is avoided. It matters only once the family header is set "
                  "to Avoid.")
-STACKS_TOOLTIP = ("Only for Optimize: how many stacks it counts. 0 does not "
-                  "count this effect. Empty: the same as on the stat sheet.")
+STACKS_TOOLTIP = ("How many stacks Optimize and the relic picker's figures "
+                  "count, a whole number from 0 to 99; 0 leaves this effect "
+                  "out. Empty: the count ticked on the stat sheet, otherwise "
+                  "1. Anything else turns red and counts as empty. The stat "
+                  "sheet itself does not change.")
 
 #: AK-309, the three empty states in the tab's own tone.
 NO_SAVE_WAS_READ = ("No save was read, so there are no effects to filter "
@@ -164,6 +169,11 @@ def counter_line(shown: int, total: int, filters) -> str:
                [families_avoided(len(filters.avoided_families))]
                if filters.avoided_families else [])
     return CLAUSES.join([f"{shown} of {total} effects", *clauses])
+
+
+def _is_refused(text: str) -> bool:
+    """Typed, and neither empty nor a count."""
+    return bool(text) and effectfilters.stack_count(text) is None
 
 
 class _Item(QTreeWidgetItem):
@@ -328,19 +338,22 @@ class EffectFilterWindow(QDialog):
     def _add_stacks_field(self, row: Row, item: _Item) -> None:
         """Written on every keystroke, as a box on every click: a value typed
         and left by closing the window is a value kept (no `editingFinished`
-        on that way out). A whole number >= 0 is all the validator lets in."""
+        on that way out). No validator: one drops a refused key and takes the
+        next, which made 25 of `2.5`."""
         field = QLineEdit()
         field.setFixedWidth(STACKS_FIELD_WIDTH)
         field.setAlignment(Qt.AlignCenter)
-        field.setValidator(QRegularExpressionValidator(QRegularExpression(
-            f"[0-9]{{0,{len(str(effectfilters.MOST_STACKS))}}}"), field))
         field.setToolTip(STACKS_TOOLTIP)
         field.setAccessibleName(f"Stacks: {row.name}")
         field.textEdited.connect(
-            lambda text, i=row.effect_id: self._filters.set_stacks(
-                i, int(text) if text else None))
+            lambda text, i=row.effect_id, f=field: self._stacks_typed(i, f, text))
         self.tree.setItemWidget(item, COL_STACKS, field)
         self.stack_fields[row.effect_id] = field
+
+    def _stacks_typed(self, effect_id: int, field: QLineEdit, text: str) -> None:
+        """A text that is no count stays as typed, in red, and counts as empty."""
+        field.setStyleSheet(f"color: {BAD};" if _is_refused(text) else "")
+        self._filters.set_stacks(effect_id, effectfilters.stack_count(text))
 
     def shown_ids(self) -> list[int]:
         """The ids of the rows the search leaves visible, top to bottom --
@@ -387,8 +400,9 @@ class EffectFilterWindow(QDialog):
         for effect_id, field in self.stack_fields.items():
             count = filters.stacks.get(effect_id, NO_STACKS)
             shown = "" if count == NO_STACKS else str(count)
-            # Not when equal: `setText` would throw the cursor to the end.
-            if field.text() != shown:
+            # Not when equal: `setText` would throw the cursor to the end. Not
+            # over a refused text either: it is what the red is about.
+            if field.text() != shown and not _is_refused(field.text()):
                 field.setText(shown)
             self._marks[effect_id][-1].on[COL_STACKS] = count
         self._say_the_count()

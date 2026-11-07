@@ -9,13 +9,16 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ### Added
 - **Stacks in the effect filter.** An effect that stacks, such as "Attack power
   increased for each Night Invader defeated", now has a Stacks field under
-  Filters: Optimize counts it that many times, 0 leaves it out, empty uses the
-  stat sheet's count. The value is saved, applies to Optimize only, and **Why**
-  lists it.
+  Filters: Optimize and the figures in the relic picker count it that many
+  times (a whole number from 0 to 99), 0 leaves it out, empty uses the count
+  ticked on the stat sheet, otherwise one. The value is saved, changes nothing
+  on the stat sheet, and **Why** lists it.
 
 ### Fixed
 - **Why now shows the whole figure of an effect counted several times.** With a
   count above one, its line named the figure of a single stack.
+- **Sorting the effect filter by Type no longer fails** when a family heading is
+  in the list.
 
 ## [1.21.0] - 2026-11-07
 

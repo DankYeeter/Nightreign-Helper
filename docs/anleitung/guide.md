@@ -241,11 +241,12 @@ put it); checking one clears the other on the same row. Effects that belong
 to one family sit under a heading: **Avoid** on the heading avoids every
 member below it, and **Allow** on one member lets just that one back in. An
 effect that stacks, such as "Attack power increased for each Night Invader
-defeated", also has a **Stacks** field: type how many stacks Optimize should
-count, 0 to not count it at all, or leave it empty to use the stat sheet's
-count (one if the sheet says nothing). It applies to Optimize only, is saved,
-and changes nothing on the stat sheet; **Why** lists the values you set. A
-search field above the list filters by name, with the same syntax as the
+defeated", also has a **Stacks** field: type how many stacks Optimize and the
+figures in the relic picker should count, a whole number from 0 to 99, 0 to not
+count it at all, or leave it empty to use the count ticked on the stat sheet
+(one if it is not ticked there). Anything else turns red and counts as empty.
+The value is saved and changes nothing on the stat sheet; **Why** lists the
+values you set. A search field above the list filters by name, with the same syntax as the
 relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
 the search field says so directly: "Favourite: every suggestion for this
 Nightfarer must carry this effect, if it can. Avoid: no suggestion uses a
@@ -254,8 +255,9 @@ member back in without allowing the rest of the family. These marks are saved
 for every Nightfarer; one that only works for another Nightfarer is ignored
 here. They are separate from the ★ you can give a relic in the
 relic picker: that is per Nightfarer, and Optimize puts a favourited relic
-in when it fits. Stacks: how many stacks Optimize counts for an effect that
-stacks; 0 does not count it, empty uses the stat sheet's count." A counter
+in when it fits. Stacks: how many stacks Optimize and the relic picker's figures
+count for an effect that stacks, not the stat sheet; 0 does not count it, empty
+uses the count ticked on the stat sheet, otherwise 1." A counter
 above the list reads "{shown} of {total} effects", with "{n} favourited"
 and "{n} avoided" added once either count is above zero. The list sorts
 alphabetically by name; any column header can be clicked to sort by it

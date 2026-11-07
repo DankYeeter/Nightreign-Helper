@@ -23,8 +23,9 @@ import pytest
 from PySide6.QtCore import QObject, QSettings, Qt, Signal
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 
-from nrplanner import advisorbar, effecttext, favourites
+from nrplanner import advisorbar, effecttext, favourites, relicpicker
 from nrplanner.advisor import goals, types
+from nrplanner.advisor import run as advisor_run
 from nrplanner.advisor.evaluate import evaluate
 from tests import advisor_cases as advisor
 from tests import rendered
@@ -2767,13 +2768,15 @@ def test_the_sentence_and_the_tooltips_carry_the_percent_and_the_base():
 
 
 NIGHT_INVADER = 7060200
+#: "Max HP increased for each great enemy defeated at a Great Church".
+HP_PER_GREAT_CHURCH_ENEMY = 6060300
 
 
 def _stacks_in_the_question(planner):
     return dict(advisorbar.asking_from(planner, "max_damage").request.declared)
 
 
-def test_the_stacks_value_goes_over_the_stat_sheet_for_optimize_only(planner):
+def test_the_stacks_value_goes_over_the_stat_sheet_and_leaves_it_alone(planner):
     """User decision 07.11.2026: empty is what it was (declared, else 1), a
     value goes over it, in the context and in the key alike, and the stat
     sheet's own declaration stays as it stood."""
@@ -2805,6 +2808,49 @@ def test_a_changed_stacks_value_is_another_key(planner):
     finally:
         filters.set_stacks(NIGHT_INVADER, None)
     assert len(set(requests)) == len(requests)
+
+
+class _AnsweredAtOnce:
+    """A picker track that computes the real pool in the same call."""
+
+    def ask_and_answer_if_known(self, request, inventory, ctx):
+        request = dataclasses.replace(
+            request,
+            inventory_fingerprint=advisor_run.inventory_fingerprint(inventory))
+        return advisor_run.slot_pool(request, inventory, ctx, goals.GOALS)
+
+
+def _picker_gain(planner, effect_id: int, goal_id: str) -> float:
+    """What the picker of the first slot offering a relic with this effect
+    shows for that relic: the real `SlotAdvice`, the real pool."""
+    for slot in planner.active_slots():
+        ranking = relicpicker.SlotAdvice(
+            slot, planner.advisor_bar, _AnsweredAtOnce()).ask(None).ranking
+        for candidate in ranking.pool.candidates:
+            if effect_id in candidate.effect_ids:
+                return types.marginal_for(candidate, goal_id)
+    raise AssertionError(f"the frozen save offers no relic with {effect_id}")
+
+
+@pytest.mark.parametrize("effect_id, goal_id", [
+    (NIGHT_INVADER, "max_damage"),
+    (HP_PER_GREAT_CHURCH_ENEMY, "min_damage_taken"),
+])
+def test_the_relic_picker_counts_the_stacks_value_too(
+        planner, effect_id, goal_id):
+    """QA-335, user decision 07.11.2026: the picker's question is built on
+    `asking_from` and carries the value, in every column it moves, not only
+    Damage. Red with the value taken out of `asking_from`."""
+    planner.deep_check.setChecked(True)
+    filters = planner.effect_filters
+    try:
+        filters.set_stacks(effect_id, 0)
+        none = _picker_gain(planner, effect_id, goal_id)
+        filters.set_stacks(effect_id, 4)
+        four = _picker_gain(planner, effect_id, goal_id)
+    finally:
+        filters.set_stacks(effect_id, None)
+    assert four != none
 
 
 def test_a_stacks_change_reaches_the_row_as_a_marking(planner, monkeypatch):
