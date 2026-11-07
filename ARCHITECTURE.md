@@ -9731,7 +9731,7 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
    Treffer wie `_on_ready`. Ohne Holds und ohne Rejects stimmt der Schluessel von selbst. **`Switch to it` uebertraegt** Holds und Rejects ins Zielgefaess
    (`_holds`, `_rejects`, Relikte in die Slots ueber den `Apply`-Weg), sonst waere die Zahl der Zeile nicht die des Vorschlags; das ueberschreibt dort
    die gespeicherten Slots an diesen Stellen. **Ein gewoehnlicher Zeilenklick uebertraegt nichts**, Holds des Spielers je Gefaess bleiben
-   (AD-017); hat er Holds oder Rejects, gibt es keinen Treffer und 4.1. Abweichung von AK-435(a)(c) nur in diesem Fall.
+   (AD-017); hat er Holds oder Rejects, gibt es keinen Treffer und 4.1; geprueft an der Frage der Zeile, auch gegen einen frueheren Lauf im Cache (QA-329). Abweichung von AK-435(a)(c) nur in diesem Fall.
 8. **Veraltet (AK-434):** Die Leiste merkt sich beim Start `request` ohne `problem.slots`, `held`, `rejected`, `generation`, Fingerabdruck und
    vergleicht nach jedem `the_build_changed` (`asking_from` gemessen 0,6 ms Median, 1,13 ms Maximum), dazu ein Aufruf aus `_hold_changed` und aus jeder Reject-Aenderung.
    Eine Zustandsnaht statt neun Aufrufstellen; Gefaess, `Use`, Handaenderung am Slot aendern die Signatur nicht. `two_handed` steht **nicht** in der Signatur: ein Gefaess bringt seine gespeicherte

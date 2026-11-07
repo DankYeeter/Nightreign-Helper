@@ -1619,15 +1619,21 @@ class AdvisorBar(QWidget):
 
         Draws it, starts no run and compares nothing anew (AD-062.3, .7). With
         holds or rejections here the question differs and it is simply a miss
-        (AK-454).
+        (AK-454). An answer from an earlier run is a miss too, whatever the
+        cache holds: the row beside it says another figure (QA-329).
         """
         comparing = self.comparing
         if comparing is None or comparing.state not in (Compared.RUNNING,
                                                         Compared.DONE):
             return False
         asking = self._asking(self.goal_id())
-        known = None if asking is None else self._controller.known_answer(
-            asking.request, asking.inventory)
+        question = (None if asking is None
+                    else comparing.questions.get(asking.vessel_id))
+        known = (None if question is None
+                 or advisor_run.cache_key(question)
+                 != advisor_run.cache_key(asking.request)
+                 else self._controller.known_answer(asking.request,
+                                                    asking.inventory))
         if known is None:
             return False
         self._asked = asking

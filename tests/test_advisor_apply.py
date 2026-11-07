@@ -1251,3 +1251,20 @@ def test_a_reset_outdates_the_comparison_with_deep_off_too(planner, told):
     planner.reset_chalice()
 
     assert planner.advisor_bar.comparing.state is advisorbar.Compared.OUTDATED
+
+
+# --- QA-329: a row's click and an older answer --------------------------------
+
+def test_a_click_shows_no_answer_left_from_a_run_without_the_holds(planner, told):
+    """AK-454: the row was compared with the hold, so the answer without it may
+    not stand beside it, however it got into the cache."""
+    _compared(planner)
+    _card, copy = _hold_a_relic(planner)
+    _compared(planner)
+    target = _a_vessel_that_takes(planner, copy)
+
+    planner.chalice_list.setCurrentRow(_row_of(planner, target["id"]))
+
+    bar = planner.advisor_bar
+    assert bar.answer is None
+    assert bar.situation.state is advisorbar.State.NOTHING_YET
