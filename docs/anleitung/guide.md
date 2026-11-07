@@ -239,7 +239,12 @@ carry that effect, if it can; check **Avoid** and no suggestion uses a
 relic that carries it (a relic you place or hold yourself stays where you
 put it); checking one clears the other on the same row. Effects that belong
 to one family sit under a heading: **Avoid** on the heading avoids every
-member below it, and **Allow** on one member lets just that one back in. A
+member below it, and **Allow** on one member lets just that one back in. An
+effect that stacks, such as "Attack power increased for each Night Invader
+defeated", also has a **Stacks** field: type how many stacks Optimize should
+count, 0 to not count it at all, or leave it empty to use the stat sheet's
+count (one if the sheet says nothing). It applies to Optimize only, is saved,
+and changes nothing on the stat sheet; **Why** lists the values you set. A
 search field above the list filters by name, with the same syntax as the
 relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
 the search field says so directly: "Favourite: every suggestion for this
@@ -249,7 +254,8 @@ member back in without allowing the rest of the family. These marks are saved
 for every Nightfarer; one that only works for another Nightfarer is ignored
 here. They are separate from the ★ you can give a relic in the
 relic picker: that is per Nightfarer, and Optimize puts a favourited relic
-in when it fits." A counter
+in when it fits. Stacks: how many stacks Optimize counts for an effect that
+stacks; 0 does not count it, empty uses the stat sheet's count." A counter
 above the list reads "{shown} of {total} effects", with "{n} favourited"
 and "{n} avoided" added once either count is above zero. The list sorts
 alphabetically by name; any column header can be clicked to sort by it
@@ -295,7 +301,8 @@ Whatever is left out this way is said so: the status line reads `1 effect was
 left out: it only applies under a condition.` (`{n} effects were left out:
 they only apply under a condition.`), and **Why** lists them under "These
 effects only apply under a condition, so this ranking did not count them:". A
-condition you have switched on in the sheet counts as you set it there. To
+condition you have switched on in the sheet counts as you set it there, unless
+a **Stacks** value in Filters says otherwise. To
 keep an effect out of every suggestion, mark it **Avoid**.
 
 **Favourites** — mark a relic in the picker as wanted for one or more

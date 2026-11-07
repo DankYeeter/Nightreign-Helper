@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QValidator
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QTreeWidget, QApplication, QLabel
 
@@ -321,7 +322,9 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
         "for every Nightfarer; one that only works for another "
         "Nightfarer is ignored here. They are separate from the ★ you can give a "
         "relic in the relic picker: that is per Nightfarer, and Optimize puts "
-        "a favourited relic in when it fits.")
+        "a favourited relic in when it fits. Stacks: how many stacks Optimize "
+        "counts for an effect that stacks; 0 does not count it, empty uses the "
+        "stat sheet's count.")
     assert dlg.FAVOURITE_TOOLTIP == (
         "Every suggestion for this Nightfarer must carry this effect, if it "
         "can.")
@@ -338,9 +341,131 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
 
 def test_the_name_takes_the_room_and_copies_only_its_content(window):
     """QA-334: both stood at 162 px of an opened window, names cut at 20 letters."""
-    window.resize(608, 707)
+    window.resize(*dlg.OPENING_SIZE)
     window.show()
     QApplication.processEvents()
     header = window.tree.header()
     assert header.sectionSize(dlg.COL_NAME) > header.sectionSize(dlg.COL_COPIES)
     window.hide()
+
+
+STACKING = 15
+STACKING_MEMBER = 16
+STACK_EFFECTS = {**EFFECTS,
+                 "15": {"name": "Attack up for each kill",
+                        "modifiers": {"saveCategory": 9}},
+                 "16": {"name": "Fire Damage Negation for each kill",
+                        "modifiers": {"saveCategory": 9}}}
+STACK_FAMILIES = {**FAMILIES, 15: "Attack up for each kill", 16: FAMILY}
+
+
+@pytest.fixture
+def stack_window(qapp, filters):
+    rows = dlg.rows_from(
+        _owned(_relic(10, 15), _relic(13, 16), _relic(11)),
+        STACK_EFFECTS, STACK_FAMILIES)
+    dialog = dlg.EffectFilterWindow(filters, rows)
+    yield dialog
+    dialog.close()
+    dialog.deleteLater()
+    for effect_id in set(filters.stacks):
+        filters.set_stacks(effect_id, None)
+
+
+def test_only_a_stack_effect_has_a_stacks_field(stack_window):
+    """A headless single and a family member, not a heading, not a plain row."""
+    window = stack_window
+    assert dlg.HEADINGS[dlg.COL_STACKS] == "Stacks"
+    assert set(window.stack_fields) == {STACKING, STACKING_MEMBER}
+    assert window.tree.itemWidget(_head(window), dlg.COL_STACKS) is None
+    field = window.stack_fields[STACKING]
+    assert field.toolTip() == dlg.STACKS_TOOLTIP
+    assert field.accessibleName() == "Stacks: Attack up for each kill"
+    assert window.tree.itemWidget(window._marks[STACKING][-1],
+                                  dlg.COL_STACKS) is field
+
+
+def test_typing_a_stacks_value_writes_through_and_clearing_empties_it(
+        stack_window, filters):
+    field = stack_window.stack_fields[STACKING]
+    QTest.keyClicks(field, "2")
+    assert filters.stacks == {STACKING: 2}
+    assert effectfilters.stored_stacks() == {STACKING: 2}
+    QTest.keyClick(field, Qt.Key_Backspace)
+    assert filters.stacks == {} and field.text() == ""
+    QTest.keyClicks(field, "0")
+    assert filters.stacks == {STACKING: 0} and field.text() == "0"
+
+
+@pytest.mark.parametrize("typed, kept", [("-1", "1"), ("x", ""), ("1.5", "15"),
+                                         ("1234", "123")])
+def test_a_stacks_field_takes_a_whole_number_of_at_most_three_digits(
+        stack_window, filters, typed, kept):
+    field = stack_window.stack_fields[STACKING]
+    QTest.keyClicks(field, typed)
+    assert field.text() == kept
+    assert filters.stacks == ({STACKING: int(kept)} if kept else {})
+
+
+def test_a_stacks_field_refuses_a_digit_of_another_script(stack_window):
+    """Asked of the validator: `QTest.keyClicks` ends the process on anything
+    outside Latin-1."""
+    state = stack_window.stack_fields[STACKING].validator().validate("٣", 0)
+    assert state[0] == QValidator.State.Invalid
+
+
+def test_a_stacks_value_is_drawn_at_opening_and_when_it_changes(
+        qapp, filters, stack_window):
+    filters.set_stacks(STACKING, 4)
+    assert stack_window.stack_fields[STACKING].text() == "4"
+    filters.set_stacks(STACKING, None)
+    assert stack_window.stack_fields[STACKING].text() == ""
+    filters.set_stacks(STACKING_MEMBER, 0)
+    rows = dlg.rows_from(_owned(_relic(13, 16)), STACK_EFFECTS, STACK_FAMILIES)
+    opened = dlg.EffectFilterWindow(filters, rows)
+    assert opened.stack_fields[STACKING_MEMBER].text() == "0"
+    opened.deleteLater()
+
+
+def test_sorting_by_stacks_puts_empty_under_zero_and_keeps_the_family(
+        stack_window, filters):
+    window = stack_window
+    filters.set_stacks(STACKING, 0)
+    filters.set_stacks(STACKING_MEMBER, 3)
+    window.tree.sortItems(dlg.COL_STACKS, Qt.DescendingOrder)
+    top = _top_level(window)
+    assert top[0].data(dlg.COL_NAME, Qt.UserRole) == STACKING
+    assert window.tree.itemWidget(top[0], dlg.COL_STACKS) is (
+        window.stack_fields[STACKING])
+    head = _head(window)
+    assert head.childCount() == 2
+    assert head.child(0).data(dlg.COL_NAME, Qt.UserRole) == STACKING_MEMBER
+    window.tree.sortItems(dlg.COL_STACKS, Qt.AscendingOrder)
+    assert _top_level(window)[-1].data(dlg.COL_NAME, Qt.UserRole) == STACKING
+
+
+def test_the_search_hides_a_row_with_its_stacks_field_and_keeps_the_value(
+        stack_window, filters):
+    filters.set_stacks(STACKING, 2)
+    stack_window.search.setText("vigor")
+    assert STACKING not in stack_window.shown_ids()
+    stack_window.search.setText("")
+    assert STACKING in stack_window.shown_ids()
+    assert stack_window.stack_fields[STACKING].text() == "2"
+
+
+def test_tab_reaches_the_stacks_field_after_the_boxes_of_its_row(stack_window):
+    """On a member after Allow, on a single after Avoid."""
+    window = stack_window
+    window.show()
+    QApplication.processEvents()
+    avoid = window.boxes(STACKING)[1]
+    avoid.setFocus()
+    QApplication.processEvents()
+    QTest.keyClick(avoid, Qt.Key_Tab)
+    assert QApplication.focusWidget() is window.stack_fields[STACKING]
+    allow = window.allow_box(STACKING_MEMBER)
+    allow.setFocus()
+    QApplication.processEvents()
+    QTest.keyClick(allow, Qt.Key_Tab)
+    assert QApplication.focusWidget() is window.stack_fields[STACKING_MEMBER]

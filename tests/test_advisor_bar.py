@@ -2764,3 +2764,112 @@ def test_the_sentence_and_the_tooltips_carry_the_percent_and_the_base():
         "Without relics: Attack rating 50.")
     comparing.state = advisorbar.Compared.OUTDATED
     assert advisorbar.comparison_base(comparing) == ""
+
+
+NIGHT_INVADER = 7060200
+
+
+def _stacks_in_the_question(planner):
+    return dict(advisorbar.asking_from(planner, "max_damage").request.declared)
+
+
+def test_the_stacks_value_goes_over_the_stat_sheet_for_optimize_only(planner):
+    """User decision 07.11.2026: empty is what it was (declared, else 1), a
+    value goes over it, in the context and in the key alike, and the stat
+    sheet's own declaration stays as it stood."""
+    filters = planner.effect_filters
+    try:
+        assert _stacks_in_the_question(planner)[NIGHT_INVADER] == 1
+        planner.declared = {NIGHT_INVADER: 5}
+        assert _stacks_in_the_question(planner)[NIGHT_INVADER] == 5
+        for count in (2, 0):
+            filters.set_stacks(NIGHT_INVADER, count)
+            asking = advisorbar.asking_from(planner, "max_damage")
+            assert dict(asking.request.declared)[NIGHT_INVADER] == count
+            assert asking.request.declared == asking.ctx.declared
+        assert planner.declared == {NIGHT_INVADER: 5}
+    finally:
+        filters.set_stacks(NIGHT_INVADER, None)
+    assert _stacks_in_the_question(planner)[NIGHT_INVADER] == 5
+
+
+def test_a_changed_stacks_value_is_another_key(planner):
+    """An old answer must not come back out of the cache for a new value."""
+    filters = planner.effect_filters
+    requests = []
+    try:
+        for count in (None, 2, 3, 0):
+            filters.set_stacks(NIGHT_INVADER, count)
+            requests.append(
+                advisorbar.asking_from(planner, "max_damage").request)
+    finally:
+        filters.set_stacks(NIGHT_INVADER, None)
+    assert len(set(requests)) == len(requests)
+
+
+def test_a_stacks_change_reaches_the_row_as_a_marking(planner, monkeypatch):
+    heard = []
+    monkeypatch.setattr(planner.advisor_bar, "the_build_changed",
+                        lambda **kwargs: heard.append(kwargs))
+    planner.effect_filters.set_stacks(NIGHT_INVADER, 2)
+    planner.effect_filters.set_stacks(NIGHT_INVADER, None)
+    assert heard == [{"marking_changed": True}] * 2
+
+
+def test_a_stacks_value_counts_as_declared_where_the_baseline_sorts_out(
+        planner, monkeypatch):
+    """The three places that ask "did the player say so": a value keeps a
+    condition the baseline would take away for the armament or the ailment,
+    and it does not stand among the assumed armament counts. None of the eight
+    stack effects carries such a gate today, so three that do are made one."""
+    from nrplanner import effecttext, model
+
+    effects = planner.data["effects"]
+    ids = {
+        "weapon type": next(i for i in sorted(model.advisor_defaults())
+                            if effects[str(i)]["modifiers"].get(
+                                "triggerOnWepType") is not None
+                            and i not in _stacks_in_the_question(planner)),
+        "ailment": next(i for i in sorted(model.advisor_defaults())
+                        if effecttext.ailment_awaited(effects[str(i)])
+                        and i not in _stacks_in_the_question(planner)),
+        "count": next(i for i in sorted(model.advisor_defaults())
+                      if effecttext.counts_armaments(effects[str(i)])),
+    }
+    for effect_id in ids.values():
+        monkeypatch.setitem(effects[str(effect_id)]["modifiers"],
+                            "saveCategory", 9)
+    filters = planner.effect_filters
+    try:
+        for effect_id in ids.values():
+            filters.set_stacks(effect_id, 2)
+        asking = advisorbar.asking_from(planner, "max_damage")
+    finally:
+        for effect_id in ids.values():
+            filters.set_stacks(effect_id, None)
+    declared = dict(asking.request.declared)
+    assert {declared[effect_id] for effect_id in ids.values()} == {2}
+    assert not set(ids.values()) & set(asking.ctx.assumed_armament_counts)
+    assert not set(ids.values()) & set(asking.ctx.awaiting_ailment)
+
+
+def test_the_store_cannot_make_another_condition_count_several_times(planner):
+    """A hand in the registry: an id that is no stack effect, and one the
+    dataset does not carry. Neither reaches the question."""
+    from nrplanner import model
+
+    other = next(effect_id for effect_id in sorted(model.advisor_defaults())
+                 if effect_id in _stacks_in_the_question(planner)
+                 and not model.accumulates(
+                     planner.data["effects"][str(effect_id)]))
+    lost = 999_999_999
+    filters = planner.effect_filters
+    filters.set_stacks(other, 5)
+    filters.set_stacks(lost, 5)
+    try:
+        declared = _stacks_in_the_question(planner)
+    finally:
+        filters.set_stacks(other, None)
+        filters.set_stacks(lost, None)
+    assert declared[other] == 1
+    assert lost not in declared

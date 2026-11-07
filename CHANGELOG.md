@@ -6,6 +6,17 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Added
+- **Stacks in the effect filter.** An effect that stacks, such as "Attack power
+  increased for each Night Invader defeated", now has a Stacks field under
+  Filters: Optimize counts it that many times, 0 leaves it out, empty uses the
+  stat sheet's count. The value is saved, applies to Optimize only, and **Why**
+  lists it.
+
+### Fixed
+- **Why now shows the whole figure of an effect counted several times.** With a
+  count above one, its line named the figure of a single stack.
+
 ## [1.21.0] - 2026-11-07
 
 ### Changed

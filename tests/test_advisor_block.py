@@ -1508,3 +1508,22 @@ def test_the_heading_gives_way_before_a_button_does(block):
     assert all(head.stretch(head.indexOf(button)) == 0
                for button in (block.use_button, block.why_button,
                               block.reject_button))
+
+
+def test_the_stacks_set_for_optimize_are_listed_with_their_value(qapp, filters):
+    """The answer says the value it used, 0 included, and hears a change."""
+    dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
+    assert not dialog.stacks_list.isVisibleTo(dialog)
+    try:
+        filters.set_stacks(1, 2)
+        filters.set_stacks(2, 0)
+        assert dialog.stacks_list.text() == (
+            "Stacks you set for Optimize:\nImproved Melee Attack Power: 2\n"
+            "Roar Reduces Damage Taken: 0")
+        assert dialog.stacks_list.textFormat() == Qt.PlainText
+        assert dialog.stacks_list.isVisibleTo(dialog)
+    finally:
+        filters.set_stacks(1, None)
+        filters.set_stacks(2, None)
+    assert not dialog.stacks_list.isVisibleTo(dialog)
+    dialog.deleteLater()

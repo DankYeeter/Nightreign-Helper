@@ -956,8 +956,16 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # A condition without `wepTypeTrigger` carries the field's baseline,
     # the dagger type (`field_baselines`, the extractor drops a value equal
     # to it).
-    baseline = {**model.advisor_defaults(), **planner.declared}
+    # The Stacks column of the filter window (user decision 07.11.2026) goes
+    # over the stat sheet's count, for this question only. The store is not
+    # trusted to hold stack effects alone: `model.compute` would count any
+    # other condition that many times.
     effects = planner.data["effects"]
+    said_by_player = planner.declared | {
+        effect_id: count
+        for effect_id, count in planner.effect_filters.stacks.items()
+        if model.accumulates(effects.get(str(effect_id)) or {})}
+    baseline = {**model.advisor_defaults(), **said_by_player}
     selected = planner.active_slot().weapon
     # A weapon-type buff ("Improved Dagger Attack Power") the player did not
     # declare holds only for the selected tile's type, by the same user
@@ -1006,7 +1014,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         (picked if pick_swap else inflicted).update(
             (used or {}).get("inflicts") or {})
     unmet = {effect_id for effect_id in baseline
-             if effect_id not in planner.declared
+             if effect_id not in said_by_player
              and effecttext.ailment_awaited(effects[str(effect_id)])
              not in inflicted | {None}}
     pick_ailment = {effect_id for effect_id in unmet
@@ -1015,11 +1023,11 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     awaiting = unmet - pick_ailment
     baseline = {effect_id: count for effect_id, count in baseline.items()
                 if effect_id not in unmet
-                and (effect_id in planner.declared
+                and (effect_id in said_by_player
                      or effects[str(effect_id)]["modifiers"].get(
                          "triggerOnWepType") not in unselected)}
     counts = {effect_id for effect_id in baseline
-              if effect_id not in planner.declared
+              if effect_id not in said_by_player
               and effecttext.counts_armaments(effects[str(effect_id)])}
     neutral_type = (planner.data.get("field_baselines") or {}).get(
         "wepTypeTrigger")

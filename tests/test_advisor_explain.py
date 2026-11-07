@@ -2679,3 +2679,57 @@ def test_a_stat_swap_keeps_its_lines_in_one_order_across_processes():
             [sys.executable, "-c", driver, str(repo)], capture_output=True,
             text=True, env=dict(os.environ, PYTHONHASHSEED=seed), check=True)
         assert done.stdout.split() == ["Vigor", "Mind", "Strength", "Arcane"]
+
+
+NIGHT_INVADER = 7060200
+
+
+def _at_stacks(game_data, wylder, armament, count, **marks):
+    """One relic carrying the stack effect, counted `count` times."""
+    problem = dataclasses.replace(advisor.problem([advisor.RED]), **marks)
+    chosen = (a_copy(0, 1, "A relic", [NIGHT_INVADER]),)
+    ctx = advisor.context(game_data, wylder, reference=armament,
+                          declared=((NIGHT_INVADER, count),))
+    built = evaluate(problem, chosen, ctx)
+    groups = explain.reasons(problem, chosen, evaluate(problem, (), ctx), built,
+                             ctx, goals.GOALS[DAMAGE])
+    return built, groups
+
+
+def test_two_stacks_move_the_figure_by_exactly_two_stacks(game_data, wylder,
+                                                          armament):
+    """The listed number is one tally; two are that number twice over, and the
+    ranking figure follows. The line says what the build was ranked on."""
+    rate = game_data["effects"][str(NIGHT_INVADER)]["modifiers"][
+        "physicsAttackRate"]
+    goal = goals.GOALS[DAMAGE]
+    results = {count: _at_stacks(game_data, wylder, armament, count)
+               for count in (0, 1, 2)}
+    rates = {count: built.rates.get("physicsAttackRate", 1.0)
+             for count, (built, _) in results.items()}
+    assert rates == pytest.approx({0: 1.0, 1: rate, 2: rate ** 2})
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    scores = {count: goal.score(built, ctx).value
+              for count, (built, _) in results.items()}
+    assert scores[0] < scores[1] < scores[2]
+
+    for count, percent in ((1, (rate - 1) * 100), (2, (rate ** 2 - 1) * 100)):
+        built, groups = results[count]
+        line, = with_a_figure(groups)
+        assert f"+{percent:.1f}%" in line
+        assert explain.not_counted(built) == ()
+
+
+def test_zero_stacks_are_said_as_not_counted_even_when_favourited(
+        game_data, wylder, armament):
+    """Not "it always counts", and no figure; the avoided sentence stays."""
+    name = effect_names(game_data, [NIGHT_INVADER]).pop()
+    zero = f"{name}: you set its stacks to 0, so it is not counted."
+    for marks in ({}, {"required": frozenset({NIGHT_INVADER})}):
+        built, groups = _at_stacks(game_data, wylder, armament, 0, **marks)
+        assert lines_of(groups) == (zero,)
+        assert with_a_figure(groups) == ()
+        assert explain.not_counted(built) == (name,)
+    _, groups = _at_stacks(game_data, wylder, armament, 0,
+                           excluded=frozenset({NIGHT_INVADER}))
+    assert "you avoided it" in lines_of(groups)[0]

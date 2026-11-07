@@ -162,9 +162,13 @@ def _attributed(chosen: Sequence[types.Candidate], base: model.Build,
     several of them, through `model.collapse_by_label` -- the model's own
     rule, and the reason one relic does not produce five lines saying that FP
     costs 8 % less.
+
+    A condition declared n times is n entries for one copy (`model.compute`);
+    its line says what all n moved, the figure the build was ranked on.
     """
     added = _added(base, built)
     claimed = [False] * len(added)
+    declared = dict(ctx.declared)
     out: list[_Contribution] = []
     for candidate in sorted(chosen, key=lambda copy: copy.slot_index):
         curses = set(candidate.curse_ids)
@@ -173,12 +177,19 @@ def _attributed(chosen: Sequence[types.Candidate], base: model.Build,
             if name is None:
                 continue
             moved: dict[str, float] = {}
+            taken: dict[str, int] = {}
             for position, (key, entry) in enumerate(added):
                 if (claimed[position] or entry.effect_id != effect_id
-                        or key in moved):
+                        or taken.get(key, 0) == declared.get(effect_id, 1)):
                     continue
                 claimed[position] = True
-                moved[key] = entry.own
+                taken[key] = taken.get(key, 0) + 1
+                if key not in moved:
+                    moved[key] = entry.own
+                elif _scales(key, built):
+                    moved[key] *= entry.own
+                else:
+                    moved[key] += entry.own
             for key, own in model.collapse_by_label(moved).items():
                 if (_moved_nothing(key, own, built)
                         or _real_field(key) in effecttext.CONDITIONS):
@@ -673,6 +684,12 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
             return said(f"{name}: you favourited it, but {unless}, so this "
                         f"one is not counted.",
                         types.SILENT_REQUIRED_OTHER_TYPE)
+    # Only the Stacks column declares 0 (the stat sheet leaves such an entry
+    # out); "you favourited it, so it always counts" would be false of it.
+    if (effect_id not in problem.excluded
+            and dict(ctx.declared).get(effect_id) == 0):
+        return said(f"{name}: you set its stacks to 0, so it is not counted.",
+                    types.SILENT_UNDER_A_CONDITION)
     marked = _marked_line(candidate, effect_id, name, problem, is_curse=False)
     if marked is not None:
         return marked

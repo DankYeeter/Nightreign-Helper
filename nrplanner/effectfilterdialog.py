@@ -27,12 +27,13 @@ import collections
 import dataclasses
 from collections.abc import Mapping
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRegularExpression, Qt
+from PySide6.QtGui import QRegularExpressionValidator
 from PySide6.QtWidgets import (QCheckBox, QDialog, QHeaderView, QLabel,
                                QLineEdit, QTreeWidget, QTreeWidgetItem,
                                QVBoxLayout)
 
-from . import effectfilters, effecttext, search
+from . import effectfilters, effecttext, model, search
 from .advisorbar import CLAUSES, families_avoided
 from .theme import ACCENT, BAD, MUTED
 
@@ -53,12 +54,21 @@ TITLE = "Effect filters"
 #: clause was gone. AK-445 (offscreen, Fusion, 07.11.2026): the legend takes
 #: 39 px more with the star's sentence, the tree keeps its 449 px. User
 #: decision 07.11.2026 (offscreen, Fusion): the sentences on marks of another
-#: Nightfarer take 26 px more, the tree keeps its 449 px.
-OPENING_SIZE = (608, 707)
+#: Nightfarer take 26 px more, the tree keeps its 449 px. T-336 (offscreen,
+#: Fusion, 339 rows, 07.11.2026): the `Stacks` column asks 94 px more before the
+#: name column has the 104 px it had; the wider legend makes up for its new
+#: sentence, the tree keeps its 449 px at the same height.
+OPENING_SIZE = (702, 707)
 
-COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_NAME, COL_TYPE, COL_COPIES = range(6)
-HEADINGS = ("Favourite", "Avoid", "Allow", "Name", "Type", "Copies")
+(COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_STACKS, COL_NAME, COL_TYPE,
+ COL_COPIES) = range(7)
+HEADINGS = ("Favourite", "Avoid", "Allow", "Stacks", "Name", "Type", "Copies")
 FLAG_COLUMNS = (COL_FAVOURITE, COL_AVOID, COL_ALLOW)
+
+#: Three digits and their margins; the stat sheet's count box is as wide.
+STACKS_FIELD_WIDTH = 42
+#: What a row without a value sorts by: under 0, which is a value.
+NO_STACKS = -1
 
 #: AK-304: `Copies` here is not the `Copies` of the Effects & chances tab.
 COPIES_DEFINITION = ("Copies counts relics you own that carry this effect or "
@@ -77,7 +87,10 @@ MARKS_EXPLANATION = ("Favourite: every suggestion for this Nightfarer must "
                      "They are separate from the ★ you can "
                      "give a relic in the relic picker: that is per "
                      "Nightfarer, and Optimize puts a favourited relic in "
-                     "when it fits.")
+                     "when it fits. "
+                     "Stacks: how many stacks Optimize counts for an effect "
+                     "that stacks; 0 does not count it, empty uses the stat "
+                     "sheet's count.")
 SEARCH_PLACEHOLDER = ("Filter by effect or curse — supports AND, OR, NOT and "
                       "\"quoted phrases\"")
 FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry this "
@@ -91,6 +104,8 @@ FAMILY_AVOID_TOOLTIP = ("No suggestion uses a relic that carries an effect "
 ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
                  "is avoided. It matters only once the family header is set "
                  "to Avoid.")
+STACKS_TOOLTIP = ("Only for Optimize: how many stacks it counts. 0 does not "
+                  "count this effect. Empty: the same as on the stat sheet.")
 
 #: AK-309, the three empty states in the tab's own tone.
 NO_SAVE_WAS_READ = ("No save was read, so there are no effects to filter "
@@ -111,6 +126,8 @@ class Row:
     is_curse: bool
     copies: int
     family: str
+    #: A stack effect (`model.accumulates`): the one kind with a Stacks field.
+    stacks: bool = False
 
 
 def rows_from(owned, effects: dict, families: Mapping[int, str]) -> list[Row]:
@@ -131,7 +148,8 @@ def rows_from(owned, effects: dict, families: Mapping[int, str]) -> list[Row]:
         rows.append(Row(effect_id=effect_id, name=name,
                         is_curse=bool(effect and effect.get("is_curse")),
                         copies=count,
-                        family=families.get(effect_id, name)))
+                        family=families.get(effect_id, name),
+                        stacks=bool(effect and model.accumulates(effect))))
     return rows
 
 
@@ -150,7 +168,8 @@ def counter_line(shown: int, total: int, filters) -> str:
 
 class _Item(QTreeWidgetItem):
     """A row that sorts by its boxes on the flag columns (the box on top is
-    the control; `on` is what a click on the column head sorts by), without
+    the control; `on` is what a click on the column head sorts by, the value
+    of the field under `Stacks`), without
     regard to case on the name (AK-308), and by the cell's own value --
     the number under `Copies`, the text under `Type` -- elsewhere. (Not
     `super().__lt__`: PySide routes that back into this override.)"""
@@ -158,10 +177,11 @@ class _Item(QTreeWidgetItem):
     def __init__(self, parent) -> None:
         super().__init__(parent)
         self.on = {column: False for column in FLAG_COLUMNS}
+        self.on[COL_STACKS] = NO_STACKS
 
     def __lt__(self, other) -> bool:
         column = self.treeWidget().sortColumn()
-        if column in FLAG_COLUMNS:
+        if column in self.on:
             return self.on[column] < other.on[column]
         if column == COL_NAME:
             return self.text(column).casefold() < other.text(column).casefold()
@@ -187,6 +207,8 @@ class EffectFilterWindow(QDialog):
         self._marks: dict[int, tuple] = {}
         #: family key -> (Avoid box, heading item)
         self._family_marks: dict[str, tuple] = {}
+        #: effect id -> its Stacks field, stack effects only
+        self.stack_fields: dict[int, QLineEdit] = {}
         self._box_css = ("QCheckBox::indicator:checked {{ background-color: "
                          "{c}; border: 1px solid {c}; border-radius: 2px; }}")
         self._colours = {COL_FAVOURITE: ACCENT, COL_AVOID: BAD}
@@ -299,7 +321,26 @@ class EffectFilterWindow(QDialog):
             boxes.append(box)
         if not with_allow:
             boxes.append(None)
+        if row.stacks:
+            self._add_stacks_field(row, item)
         self._marks[row.effect_id] = (row, *boxes, item)
+
+    def _add_stacks_field(self, row: Row, item: _Item) -> None:
+        """Written on every keystroke, as a box on every click: a value typed
+        and left by closing the window is a value kept (no `editingFinished`
+        on that way out). A whole number >= 0 is all the validator lets in."""
+        field = QLineEdit()
+        field.setFixedWidth(STACKS_FIELD_WIDTH)
+        field.setAlignment(Qt.AlignCenter)
+        field.setValidator(QRegularExpressionValidator(QRegularExpression(
+            f"[0-9]{{0,{len(str(effectfilters.MOST_STACKS))}}}"), field))
+        field.setToolTip(STACKS_TOOLTIP)
+        field.setAccessibleName(f"Stacks: {row.name}")
+        field.textEdited.connect(
+            lambda text, i=row.effect_id: self._filters.set_stacks(
+                i, int(text) if text else None))
+        self.tree.setItemWidget(item, COL_STACKS, field)
+        self.stack_fields[row.effect_id] = field
 
     def shown_ids(self) -> list[int]:
         """The ids of the rows the search leaves visible, top to bottom --
@@ -343,6 +384,13 @@ class EffectFilterWindow(QDialog):
         for key, (avoid, head) in self._family_marks.items():
             avoid.setChecked(key in filters.avoided_families)
             head.on[COL_AVOID] = avoid.isChecked()
+        for effect_id, field in self.stack_fields.items():
+            count = filters.stacks.get(effect_id, NO_STACKS)
+            shown = "" if count == NO_STACKS else str(count)
+            # Not when equal: `setText` would throw the cursor to the end.
+            if field.text() != shown:
+                field.setText(shown)
+            self._marks[effect_id][-1].on[COL_STACKS] = count
         self._say_the_count()
 
     def _refresh(self) -> None:

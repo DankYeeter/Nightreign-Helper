@@ -214,3 +214,46 @@ def test_a_damaged_family_value_reads_as_whatever_names_it_still_holds(
         store, damaged, names):
     store.setValue(effectfilters.KEYS[effectfilters.AVOIDED_FAMILIES], damaged)
     assert effectfilters.stored_text(effectfilters.AVOIDED_FAMILIES) == names
+
+
+def test_stacks_stand_under_the_fifth_key_and_are_there_at_the_next_start(store):
+    """Ids in the value, never in the key; 0 is a value, `None` none at all."""
+    filters = effectfilters.EffectFilters()
+    filters.set_stacks(7060200, 2)
+    filters.set_stacks(6060300, 0)
+    assert store.value("advisor/stacks", "", type=str) == "6060300=0,7060200=2"
+    assert effectfilters.EffectFilters().stacks == {6060300: 0, 7060200: 2}
+
+    filters.set_stacks(6060300, None)
+    assert effectfilters.EffectFilters().stacks == {7060200: 2}
+
+
+def test_a_stacks_change_is_heard_once_and_only_when_it_moved_something(store):
+    filters = effectfilters.EffectFilters()
+    heard = []
+    filters.changed.connect(lambda: heard.append(True))
+    filters.set_stacks(5, 2)
+    filters.set_stacks(5, 2)
+    filters.set_stacks(6, None)
+    assert len(heard) == 1
+    filters.set_stacks(5, None)
+    assert len(heard) == 2 and filters.stacks == {}
+
+
+@pytest.mark.parametrize("damaged, stacks", [
+    ("", {}),
+    ("abc", {}),
+    ("5", {}),
+    ("5=", {}),
+    ("=2", {}),
+    ("5=x", {}),
+    ("5=-1", {}),
+    ("5=1.5", {}),
+    (f"5={effectfilters.MOST_STACKS + 1}", {}),
+    ("5=" + "9" * 5000, {}),
+    ("5=2,,x,6=abc,7=0", {5: 2, 7: 0}),
+])
+def test_a_damaged_stacks_value_reads_as_empty_and_never_as_an_error(
+        store, damaged, stacks):
+    store.setValue(effectfilters.KEYS[effectfilters.STACKS], damaged)
+    assert effectfilters.stored_stacks() == stacks
