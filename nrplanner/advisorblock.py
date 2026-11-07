@@ -102,7 +102,7 @@ MARK_LEGEND = ("▲ marks an effect you favourited. A struck-through effect does
 #: wording AK-300).
 EXCLUDED_HEADING = "Effects you've avoided:"
 REQUIRED_HEADING = "Effects you've favourited:"
-STACKS_HEADING = "Stacks you set for Optimize:"
+STACKS_HEADING = "Stacks you set in the effect filter:"
 
 #: The colour `RelicSlot._sync_mode` gives a working rolled effect. A literal
 #: there and a literal here on purpose: naming it in one place while the other
@@ -822,7 +822,7 @@ class WhyDialog(QDialog):
             names = sorted(self._name_of(effect_id) for effect_id in ids)
             label.setText("\n".join((heading, *names)))
             label.setVisible(bool(ids))
-        stacks = self._filters.stacks
+        stacks = self._filters.counted_stacks(self._effects)
         self.stacks_list.setText("\n".join((STACKS_HEADING, *sorted(
             f"{self._name_of(effect_id)}: {count}"
             for effect_id, count in stacks.items()))))

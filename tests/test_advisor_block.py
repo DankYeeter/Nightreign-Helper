@@ -111,7 +111,11 @@ def block(qapp):
 #: mark, in the shape `Planner.effects` has.
 EFFECTS = {"1": {"name": "Improved Melee Attack Power"},
            "2": {"name": "Roar Reduces Damage Taken"},
-           "3": {"name": "Ultimate Art Charging Impaired"}}
+           "3": {"name": "Ultimate Art Charging Impaired"},
+           "4": {"name": "Attack up for each kill",
+                 "modifiers": {"saveCategory": 9}},
+           "5": {"name": "Max HP up for each kill",
+                 "modifiers": {"saveCategory": 9}}}
 
 
 @pytest.fixture
@@ -1510,20 +1514,37 @@ def test_the_heading_gives_way_before_a_button_does(block):
                               block.reject_button))
 
 
-def test_the_stacks_set_for_optimize_are_listed_with_their_value(qapp, filters):
+def test_the_stacks_set_are_listed_with_their_value(qapp, filters):
     """The answer says the value it used, 0 included, and hears a change."""
     dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
     assert not dialog.stacks_list.isVisibleTo(dialog)
     try:
-        filters.set_stacks(1, 2)
-        filters.set_stacks(2, 0)
+        filters.set_stacks(4, 2)
+        filters.set_stacks(5, 0)
         assert dialog.stacks_list.text() == (
-            "Stacks you set for Optimize:\nImproved Melee Attack Power: 2\n"
-            "Roar Reduces Damage Taken: 0")
+            "Stacks you set in the effect filter:\nAttack up for each kill: 2\n"
+            "Max HP up for each kill: 0")
         assert dialog.stacks_list.textFormat() == Qt.PlainText
         assert dialog.stacks_list.isVisibleTo(dialog)
     finally:
-        filters.set_stacks(1, None)
-        filters.set_stacks(2, None)
+        filters.set_stacks(4, None)
+        filters.set_stacks(5, None)
     assert not dialog.stacks_list.isVisibleTo(dialog)
+    dialog.deleteLater()
+
+
+def test_why_lists_no_stored_stacks_the_question_does_not_use(qapp, filters):
+    """QA-337, a hand in the registry: an id that is no stack effect and one
+    the dataset lost. `asking_from` leaves both out, so Why does too."""
+    dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
+    try:
+        filters.set_stacks(3, 5)
+        filters.set_stacks(99999999, 3)
+        assert not dialog.stacks_list.isVisibleTo(dialog)
+        filters.set_stacks(4, 2)
+        assert dialog.stacks_list.text() == (
+            "Stacks you set in the effect filter:\nAttack up for each kill: 2")
+    finally:
+        for effect_id in (3, 99999999, 4):
+            filters.set_stacks(effect_id, None)
     dialog.deleteLater()

@@ -957,14 +957,11 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     # the dagger type (`field_baselines`, the extractor drops a value equal
     # to it).
     # The Stacks column of the filter window (user decision 07.11.2026) goes
-    # over the stat sheet's count, for this question only. The store is not
-    # trusted to hold stack effects alone: `model.compute` would count any
-    # other condition that many times.
+    # over the stat sheet's count, in this question and so in Optimize and the
+    # relic picker alike (user decision on QA-335); the stat sheet keeps its own.
     effects = planner.data["effects"]
-    said_by_player = planner.declared | {
-        effect_id: count
-        for effect_id, count in planner.effect_filters.stacks.items()
-        if model.accumulates(effects.get(str(effect_id)) or {})}
+    said_by_player = (planner.declared
+                      | planner.effect_filters.counted_stacks(effects))
     baseline = {**model.advisor_defaults(), **said_by_player}
     selected = planner.active_slot().weapon
     # A weapon-type buff ("Improved Dagger Attack Power") the player did not

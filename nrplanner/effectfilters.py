@@ -43,7 +43,7 @@ from collections.abc import Iterable, Mapping
 
 from PySide6.QtCore import QObject, Signal
 
-from . import favourites
+from . import favourites, model
 
 EXCLUDED = "excluded"
 REQUIRED = "required"
@@ -177,6 +177,13 @@ class EffectFilters(QObject):
             f"{i}={stacks[i]}" for i in sorted(stacks)))
         settings.sync()
         self.changed.emit()
+
+    def counted_stacks(self, effects: Mapping[str, dict]) -> dict[int, int]:
+        """The values a question uses. The store is not trusted to hold stack
+        effects alone: `model.compute` would count any other condition that
+        many times, and an id the dataset lost is nothing to count."""
+        return {effect_id: count for effect_id, count in self.stacks.items()
+                if model.accumulates(effects.get(str(effect_id)) or {})}
 
     def _apply(self, excluded, required, allowed, avoided_families) -> None:
         after = (excluded, required, allowed, avoided_families)
