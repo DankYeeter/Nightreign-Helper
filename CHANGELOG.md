@@ -6,6 +6,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Changed
+- **Shorter explanations on Effects & chances, Weapons & spells and Deep of
+  Night.** The paragraphs over the tables are now short bullet legends.
+  Deep of Night is more compact, with one short legend under each table.
+
 ## [1.21.0] - 2026-11-07
 
 ### Changed

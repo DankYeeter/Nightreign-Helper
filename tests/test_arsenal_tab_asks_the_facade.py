@@ -454,8 +454,19 @@ def test_the_summary_names_the_level_the_build_was_computed_at(planner,
 #: `Spell power`, so the sentence says `spell power` too. Written out here
 #: rather than imported from the tab, or the case would agree with whatever
 #: the tab happens to say.
-CATALYST_SENTENCE = ("Staves and seals show the spell power the game "
-                     "displays for them instead of an attack rating.")
+#:
+#: Since 2026-11-07 the sentences stand as entries of a bullet legend under
+#: the count line (`tab.legend`) and are shortened to legend length; they are
+#: read off the legend as a reader sees it, term and meaning together.
+CATALYST_SENTENCE = ("Staves and seals: the spell power the game displays, "
+                     "instead of an attack rating.")
+
+
+def legend_text(tab) -> str:
+    """The legend under the count line, as plain text a reader sees."""
+    from tests import tabtext
+
+    return " ".join(tabtext.labels(tab.legend))
 
 
 #: The three sentences that say what a figure on a tile is measured against,
@@ -467,16 +478,14 @@ CATALYST_SENTENCE = ("Staves and seals show the spell power the game "
 #: changes the definition of the headline figure of the whole tab, and left
 #: 622 of 622 green.
 ATTACK_RATING_SENTENCE = (
-    "Attack rating is base damage, plus what your stats add to it, plus the "
-    "+% attack effects your equipped relics grant.")
+    "Attack rating: base damage, plus what your stats add, plus the +% "
+    "attack effects of your equipped relics.")
 SCALING_SENTENCE = (
-    "Scaling is the game's own per-stat figure behind the letter grade it "
-    "shows in menus. Compare these figures with each other; the files do not "
-    "say which letter a figure earns.")
+    "Scaling: the game's per-stat figure behind its menu letter grade. "
+    "Compare figures; the files do not say which letter a figure earns.")
 BUILDUP_SENTENCE = (
-    "Buildup figures come straight from the game's weapon data. The files do "
-    "not say what they are counted against, so use them to compare "
-    "armaments, not as a number of hits.")
+    "Buildup: straight from the weapon data. Compare armaments with it; it "
+    "is not a number of hits.")
 
 
 def test_the_summary_defines_every_figure_a_tile_can_carry(planner,
@@ -492,7 +501,7 @@ def test_the_summary_defines_every_figure_a_tile_can_carry(planner,
     QA-137's mutation M7 edits, and nothing in the suite read it.
     """
     prepare(planner, game_data, hero, cases.empty_slots())
-    summary = planner.weapons_tab.summary.text()
+    summary = legend_text(planner.weapons_tab)
 
     for sentence in (ATTACK_RATING_SENTENCE, SCALING_SENTENCE,
                      BUILDUP_SENTENCE):
@@ -557,7 +566,7 @@ def test_the_tab_opens_with_the_question_it_answers(planner, game_data, hero):
     assert lines[0] == arsenaltab.HEADING
     assert lines[1] == arsenaltab.QUESTION
     assert tabtext.everything(tab).count(
-        "still shows what it costs you, not its damage") == 1, (
+        "tiles show what a spell costs, not its damage") == 1, (
         "the spell sentence stands twice on this tab")
 
 
@@ -575,9 +584,9 @@ def test_the_summary_defines_both_figures_the_grid_can_show(planner,
     prepare(planner, game_data, hero, cases.empty_slots())
     tab = planner.weapons_tab
 
-    assert CATALYST_SENTENCE in tab.summary.text(), (
-        f"the summary does not define the figure a catalyst card shows: "
-        f"{tab.summary.text()!r}")
+    assert CATALYST_SENTENCE in legend_text(tab), (
+        f"the legend does not define the figure a catalyst card shows: "
+        f"{legend_text(tab)!r}")
 
     catalyst = cases.weapon_by_id(
         game_data, cases.first_of_family(game_data, "Glintstone Staff"))
@@ -593,9 +602,9 @@ def test_the_summary_defines_both_figures_the_grid_can_show(planner,
             f"{tile_name(tile)!r} is not a catalyst, so this grid is not the "
             f"catalyst-only case QA-121 is about")
 
-    assert CATALYST_SENTENCE in tab.summary.text(), (
-        f"with only catalysts on screen the summary still explains only the "
-        f"attack rating: {tab.summary.text()!r}")
+    assert CATALYST_SENTENCE in legend_text(tab), (
+        f"with only catalysts on screen the legend still explains only the "
+        f"attack rating: {legend_text(tab)!r}")
 
 
 #: The two rows of a tile that name the same stats. `Scaling` lists what the
