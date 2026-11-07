@@ -1,5 +1,11 @@
 # Stand
 
+2026-11-07 23:45, **1.21.0 beim Nutzer installiert** (`dist\NightreignHelper.exe` aus `bb7f2cc`,
+59 320 923 B, SHA-256 `add8ecd9…`, Update-Probe ueber v1.20.1 bestanden, erster Start rund 75 s
+Neuaufbau ohne Fortschrittsanzeige). Neu: Zaehleffekte zaehlen nur einen Traeger, Stack-Grenzen je
+Effekt (T-339, EMEVD-Lesart, keine Spielprobe), Ziel Balanced, echte Slot-Bilder und Spielsymbole
+(T-340, v20/v5). Offen: QA-343, QA-344 (P4, zurueckgestellt), SEC-055 (Haertung); kein Tag.
+
 2026-11-07, **T-336 fertig: Spalte Stacks im Effekt-Filter von Optimize, 0 bis 10
 (`10e2c07`, Treiber `a56af52`), Nachtest T-336g im Fenster bestanden; Testabzug 1.21.0 aus `298a0c9` gebaut (T-336j,
 59 300 781 B, SHA-256 `c5aa2e89…`), Nutzertest steht aus; kein Tag, kein Release, UI_SPEC AK-469 bis AK-473.** T-336h (`7886ba4`): QA-339 behoben, Zeilen gleich
