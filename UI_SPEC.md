@@ -9847,6 +9847,10 @@ Nutzerauftrag, ohne Vorgabe des `ui-ux-designer`; Masse sind Entscheidungen des 
 - **Fehlendes Symbol:** kein Platzhalter, die Zeile steht wie vorher. Reine Textzeilen (AK-29)
   bleiben `PlainText`, das Bild steht in einem eigenen Label daneben.
 - **`Relic tier`** traegt je Zelle ein Bild: das beste Relikt der Stufe; eine Zelle fasst nur eines.
-- **`Colours` (Effects):** Reihe der Edelsteine vor dem Text; die Spalte darf dafuer 56 px breiter werden.
+- **`Colours` (Effects):** Reihe der Edelsteine vor dem Text; die Spalte wird dafuer 56 px und den Abstand
+  zum Text breiter (gemessen +62 px, 133 auf 195 bei 125 %). Die Breite gibt `Effect` ab, bis zu seiner Untergrenze und nie unter `What it does` (QA-342, T-340d).
+- **Gefaessliste (QA-341, T-340d):** eine Zeile ist so breit wie die Liste, nie breiter; zu langer Name
+  oder zweite Zeile endet mit `…`, ist die zweite Zeile gekuerzt, steht sie ganz im Tooltip unter dem
+  Namen. Keine waagrechte Bildlaufleiste.
 - **Akzeptanz:** bei 100, 125 und 150 % kein Label mehr abgeschnitten als ohne Symbolsatz (`PrintWindow`,
   alle sieben Tabs und Picker, Windows 11, Basisskalierung 125 %).

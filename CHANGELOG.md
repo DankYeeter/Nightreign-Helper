@@ -43,6 +43,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - The armament tiles under Weapon damage now show the armament's symbol above
   its name. Tiles grow a little taller; empty tiles stay as they were.
 
+### Fixed
+- In a narrow window the vessel list no longer scrolls sideways: a row too long
+  for it ends in "…", and its tooltip carries the whole line.
+- The gems in the Effects tab's `Colours` column no longer take room from
+  `What it does`; the effect name column gives it up instead.
+
 ## [1.21.0] - 2026-11-07
 
 ### Changed
