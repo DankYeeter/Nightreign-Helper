@@ -105,7 +105,12 @@ six slots.
 direction — **Maximise damage**, **Minimise damage taken** or **Maximise
 offensive attributes** — then **Optimize** works out, for every slot that is
 not held, the best relic your save has for it and shows the suggestion inside
-each slot card: nothing is put in a slot until you say so. **Maximise damage**
+each slot card: nothing is put in a slot until you say so. A relic that carries
+an effect or curse you marked **Avoid**, or that you pressed **Reject** on, is
+never suggested; a relic you starred is put in when it fits (see **Filters**,
+**Favourites** and *Taking an effect or a relic out of a suggestion* below).
+The same run also compares your vessels (see *Comparing vessels* below).
+**Maximise damage**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count
 effects with the condition *when Two-Handing* only while it is on **2H**.
@@ -178,6 +183,20 @@ that changes nothing, and a yellow line starting with "⚠" under the Advisor
 row says so in full whenever nothing you own raises the chosen kind of damage;
 it disappears when something does.
 
+A slot that Optimize leaves without a suggestion shows a dashed card headed
+**NO SUGGESTION** with one line saying why — there is no silent empty slot.
+The reasons, in the card's own words: "Every relic left for this slot carries
+an effect you avoided: “{a}”, “{b}”." (more than two names end in "and {n}
+more"); "Every relic left for this slot is one you rejected."; "Every relic
+left for this slot is rejected or carries an effect you avoided."; "The
+relics that could go here are needed elsewhere to carry “{effect}”, which you
+favourited."; "The relics that could go here are used by your favourite
+“{relic}”."; and "You own no unused relic of this colour for this slot." (for
+a white slot, "…of any colour…"). The status line over the cards says the same
+in short — for example `2 slots empty: everything left is rejected` — or `2
+slots empty for different reasons — see the slot cards`. A slot you held while
+empty keeps saying so instead.
+
 Opening a relic picker while **Hit with** or **Damage type** is chosen
 carries the choice with it: the value line on each card, its `BEST FOR …`
 tag, and the note above the grid when nothing there helps are all named
@@ -189,7 +208,9 @@ choice stands until you change it in the Advisor row — closing and
 reopening the program does not reset it either.
 
 **Apply all** puts every suggestion in its slot at once; a single slot can also be filled from
-its own card. **Undo apply** puts the previous slots back. **Why**, in the
+its own card with **Use**. A slot without a suggestion is left as it is, and a
+relic you already have there stays. **Undo apply** puts the previous slots
+back. **Why**, in the
 Advisor row, opens the full account of what the suggestion counted and what it
 left out; **Why this relic**, on a slot card, opens the same dialog already
 scrolled so that card's slot is at the top. **Clear** puts a suggestion away
@@ -214,31 +235,81 @@ build; they are forgotten the next time you open the program.
 and curse a relic of yours carries — one row per effect, not grouped by
 relic, curses included. Each row has two check boxes, **Favourite** and
 **Avoid**: check **Favourite** and every suggestion must carry that effect
-through at least one relic you own; check **Avoid** and the effect counts
-in no suggestion or ranking; checking one clears the other on the same row.
-A search field above the list filters by name, with the same syntax as the
+through at least one relic you own; check **Avoid** and no suggestion uses a
+relic that carries it (a relic you place or hold yourself stays where you
+put it); checking one clears the other on the same row. Effects that belong
+to one family sit under a heading: **Avoid** on the heading avoids every
+member below it, and **Allow** on one member lets just that one back in. A
+search field above the list filters by name, with the same syntax as the
 relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
-the search field says so directly: "Favourite: every suggestion must include
-this effect. Avoid: it never counts. These marks steer Optimize only — they
-are not the star on a relic." A counter
+the search field says so directly: "Favourite: every suggestion must carry
+this effect. Avoid: no suggestion uses a relic that carries it — on a family
+header, every member below, unless one is set to Allow. Allow lets that one
+member back in without allowing the rest of the family. These marks apply to
+every Nightfarer. They are separate from the ★ you can give a relic in the
+relic picker: that is per Nightfarer, and Optimize puts a favourited relic
+in when it fits." A counter
 above the list reads "{shown} of {total} effects", with "{n} favourited"
 and "{n} avoided" added once either count is above zero. The list sorts
 alphabetically by name; any column header can be clicked to sort by it
-instead. Marks are remembered across restarts. A favourited effect no relic
-of yours carries, or one no combination of your relics can bring together
-with the others, is said so by name rather than dropped quietly. The
-**Why** dialog shows the same marks, but only to read — a `▲` marks a
+instead. Marks are remembered across restarts.
+
+An effect you favourited does not block the suggestion. Optimize meets as many
+of your favourite effects as the vessel can carry together and names the rest:
+the status line ends with `{n} favourite effects could not be met.` (`1
+favourite effect could not be met.` for one), and **Why** gives each one a
+sentence — for example "No copy you own carries “{effect}”, which you
+favourited — no suggestion can meet that."; "Your copies can carry
+“{effect}”, which you favourited, but not together with the favourites this
+suggestion already meets."; or, where every copy you own also carries an
+effect you avoided, "You own 1 copy carrying “{effect}”, which you
+favourited, but it also carries an effect you avoided: “{name}”. Remove the
+avoid under Filters to use it." (the last sentence is the way back: Filters,
+search the effect, uncheck **Avoid**).
+
+The **Why** dialog shows the same marks, but only to read — a `▲` marks a
 favourited effect, a struck-through one does nothing for you (an avoided
 effect, or one that works only for another Nightfarer), and changing a
-mark happens in the Filters window, not there. Conditional effects — a
-handful of curses and buffs that only apply below a health threshold, on a
-dodge, after drinking a Flask — are counted as met unless you say otherwise
-on the sheet (see "About the switches" below).
+mark happens in the Filters window, not there. On a relic you chose or held
+yourself that carries an avoided effect, **Why** says: "{name}: you avoided
+it. This relic is in the build because you chose it, and the effect is left
+out of the figure." So the Advisor's figure for that relic can differ from the
+game's own stat sheet.
+
+**Conditional effects** — a handful of curses and buffs that only apply
+below a health threshold, on a dodge, after drinking a Flask — are counted by
+the Advisor as if the condition held. (The stat sheet is different: there
+they stay out of the totals until you switch them on; see "About the
+switches" below.) Three kinds count only where your build can meet them: the
+"3+ … Equipped" effects (above); weapon-type buffs such as Improved Dagger
+Attack Power, which count only for the weapon type of the selected tile; and
+effects that wait for a poisoned, scarlet-rotted or frostbitten enemy, which
+count only where the selected weapon, its rolled effects, the art or spell
+chosen in `CASTING`, or a relic in the suggestion inflicts that ailment.
+Whatever is left out this way is said so: the status line reads `1 effect was
+left out: it only applies under a condition.` (`{n} effects were left out:
+they only apply under a condition.`), and **Why** lists them under "These
+effects only apply under a condition, so this ranking did not count them:". A
+condition you have switched on in the sheet counts as you set it there. To
+keep an effect out of every suggestion, mark it **Avoid**.
 
 **Favourites** — mark a relic in the picker as wanted for one or more
-Nightfarers, and it leads the grid the next time you open a slot for that
-Nightfarer. It changes nothing about the build; it just saves hunting for a good
-roll in a grid of two hundred.
+Nightfarers (right-click it). It leads the grid the next time you open a slot
+for that Nightfarer, and **Optimize** puts it into the build whenever it fits;
+in the suggestion it carries the line "★ Your favourite — included because it
+fits." If it cannot — it carries an effect you avoided, no free slot of its
+colour is left, or it would keep a favourite effect from being met — the
+suggestion is not blocked: the status line says how many were left out
+(`1 favourited relic did not fit.`, `{n} favourited relics did not fit.`) and
+**Why** names each one under "Favourited relics left out:" as `{relic}
+({effects}) — {reason}`. The reasons: it carries “{effect}”, which you
+avoided · you rejected it for this build · you own no copy that is free ·
+this vessel has no slot that fits its colour (or: it is a Deep of Night relic
+and Deep of Night is off) · every slot it could go in is held · “{other}” is
+favourited too and takes the only slot it could use · placing it would leave
+“{effect}” (Favourite) unmet. Avoid and Reject win over the star; the star
+stays set. This is the relic's star; the Favourite box in **Filters** is a
+different mark, on an effect, and is stricter (above).
 
 A favourite follows the **roll**, not the copy. Two relics with the same effects
 and curses are interchangeable in a build, so they count as the same favourite —
@@ -247,6 +318,30 @@ Curses are part of that identity: the same relic with and without a curse is not
 the same thing. The picker also collapses duplicate rolls down to one tile for
 the same reason.
 
+**Taking an effect or a relic out of a suggestion.** Two buttons on the
+suggestion cards do it without leaving the card.
+
+- **✕** at the end of every effect and curse line puts that effect on
+  **Avoid** for good — the same as checking Avoid in **Filters**, and it
+  replaces a Favourite on that effect — and Optimize runs again at once. The
+  status line then ends `“{name}” avoided.` If you press **Cancel** while it
+  works out, the line reads `Stopped. “{name}” stays avoided.` The tooltip
+  says "Avoid “{name}” — no suggestion will use a relic that carries it. Undo
+  in Filters." Taking it back is Filters, search for the effect, uncheck
+  **Avoid**. The ✕ buttons of the cards form one Tab stop; the arrow keys move
+  between them.
+- **Reject**, beside **Why this relic**, means "not this relic": "Do not
+  suggest this relic, or any copy with the same effects, for this build."
+  Optimize runs again at once and the status line ends `“{relic name}”
+  rejected.` (on a starred relic the tooltip adds "Your favourite stays
+  marked."). "This build" is this Nightfarer and this vessel; the rejection is
+  not saved with the build and is forgotten when the program closes, but it
+  comes back if you open the vessel again in the same session. By hand you can
+  still put that relic in a slot. Under the Advisor row, a line `▸ {n} relic
+  rejected for this build` (`relics` for several) opens a list of them, each
+  with **Suggest again**, which takes the rejection back and, if a suggestion
+  is showing, runs Optimize again. Whether the list is open is not remembered.
+
 **Deep of Night** — the checkbox under the vessel list adds the three extra
 slots that Deep of Night runs give you.
 
@@ -254,6 +349,50 @@ Every chalice a Nightfarer owns is drawn in the list with its slots and
 whatever is in them, so the list answers "which one had the poison build?"
 without opening each in turn. A gold dot marks the chalice you have equipped
 in game.
+
+**Comparing vessels.** After **Optimize**, the vessel list also says which of
+the Nightfarer's vessels — their own and the Shared Grails — would do best for
+the same goal, with the same filters, holds and rejections. Optimize shows the
+suggestion for the vessel you have open first; the others are worked out in
+the background, and until they are done each row's second line reads `…` and
+the line between the **Vessel** heading and the list reads `Comparing your
+vessels for {goal}… {done} of {total}`. Nothing switches by itself: the open
+vessel, its cards and its suggestion stay as they were.
+
+- Every row gets a second line with that vessel's figure — the number only,
+  for example `117` — and the best one reads `BEST  117`. The rows never
+  change order.
+- **BEST is not always the highest number.** The ranking looks first at how
+  many of your favourite effects the vessel meets, then at how many of your
+  starred relics it takes in, then at the figure for the chosen goal, and last
+  at the figure for the other direction (damage or damage taken). A row that
+  misses favourites adds `· 1 favourite missing` (`2 favourites missing`); its
+  tooltip names them after `Misses:`.
+- The line above the list says what was found: `This is the best of {total}
+  vessels for {goal}: {figure}.`; `Best of {total} for {goal}: {name}
+  ({figure}, {difference} more than this one).`; where the best vessel has the
+  same figure, `… same as this one, but it meets more of your favourites)` or
+  `… same as this one, but better for {other})`; where it has a smaller figure
+  because it meets more favourites, `… {difference} less than this one, but it
+  meets more of your favourites)`; and for a tie `{k} vessels tie for best at
+  {figure}: {name}, {name}` (`All {total} vessels tie at {figure}.` if all do).
+- A vessel that has no room for the relics you hold shows `Your held relics do
+  not fit`, no figure, and is never BEST.
+- **Switch to it**, under that line, appears when another vessel is the best.
+  It opens that vessel and shows its suggestion at once, without a second
+  Optimize: two clicks, **Optimize** then **Switch to it**. A plain click on a
+  row opens that vessel as you left it and carries nothing over; with held
+  relics or rejections the bar then reads `Nothing suggested yet.`
+  **Switch to it** brings your held relics and rejections along and replaces
+  the slots saved in that vessel; **Undo apply** puts them back. Hover the
+  button for the sentence that applies.
+- The comparison goes stale — `Out of date — use Optimize again to compare.`,
+  the figures stay but without BEST — when you change the goal or its boxes,
+  the level, the Nightfarer, the Deep of Night box, an Avoid, Favourite or
+  Allow mark, a star, a rejection, a hold, or re-read the save. Opening
+  another vessel, **Use** and **Apply all** and editing a slot by hand do not
+  make it stale. If it fails it says `Could not compare the vessels —
+  {reason}.`
 
 The first time you open a Nightfarer, all of their chalices are read out of
 the save and the equipped one is shown. After that the app reopens on whatever
