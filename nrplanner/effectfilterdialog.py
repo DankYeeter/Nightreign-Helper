@@ -51,8 +51,10 @@ TITLE = "Effect filters"
 #: gets, AK-316.5) after giving it `setWordWrap` -- still 608 x 642, where
 #: the unwrapped label had forced 814 x 642 and stayed there once the
 #: clause was gone. AK-445 (offscreen, Fusion, 07.11.2026): the legend takes
-#: 39 px more with the star's sentence, the tree keeps its 449 px.
-OPENING_SIZE = (608, 681)
+#: 39 px more with the star's sentence, the tree keeps its 449 px. User
+#: decision 07.11.2026 (offscreen, Fusion): the sentences on marks of another
+#: Nightfarer take 26 px more, the tree keeps its 449 px.
+OPENING_SIZE = (608, 707)
 
 COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_NAME, COL_TYPE, COL_COPIES = range(6)
 HEADINGS = ("Favourite", "Avoid", "Allow", "Name", "Type", "Copies")
@@ -64,19 +66,22 @@ COPIES_DEFINITION = ("Copies counts relics you own that carry this effect or "
                      "Effects & chances tab).")
 
 #: AK-445: what the three marks do here, and how they differ from the star.
-MARKS_EXPLANATION = ("Favourite: every suggestion must carry this effect. "
+MARKS_EXPLANATION = ("Favourite: every suggestion for this Nightfarer must "
+                     "carry this effect, if it can. "
                      "Avoid: no suggestion uses a relic that carries it — on "
                      "a family header, every member below, unless one is set "
                      "to Allow. Allow lets that one member back in without "
                      "allowing the rest of the family. These marks apply to "
-                     "every Nightfarer. They are separate from the ★ you can "
+                     "every Nightfarer; an effect that only works for another "
+                     "Nightfarer is ignored here. "
+                     "They are separate from the ★ you can "
                      "give a relic in the relic picker: that is per "
                      "Nightfarer, and Optimize puts a favourited relic in "
                      "when it fits.")
 SEARCH_PLACEHOLDER = ("Filter by effect or curse — supports AND, OR, NOT and "
                       "\"quoted phrases\"")
-FAVOURITE_TOOLTIP = ("Every suggestion must carry this effect through at "
-                     "least one owned copy.")
+FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry this "
+                     "effect, if it can.")
 AVOID_TOOLTIP = "No suggestion uses a relic that carries this effect."
 #: AK-317.2-4.
 FAMILY_AVOID_TOOLTIP = ("No suggestion uses a relic that carries an effect "

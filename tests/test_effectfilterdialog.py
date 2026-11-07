@@ -313,13 +313,18 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
     """AK-445: the window carries the exact wording, and the label cannot
     take keyboard focus (it must not join the tab order)."""
     assert dlg.MARKS_EXPLANATION == (
-        "Favourite: every suggestion must carry this effect. Avoid: no "
+        "Favourite: every suggestion for this Nightfarer must carry this "
+        "effect, if it can. Avoid: no "
         "suggestion uses a relic that carries it — on a family header, every "
         "member below, unless one is set to Allow. Allow lets that one member "
         "back in without allowing the rest of the family. These marks apply "
-        "to every Nightfarer. They are separate from the ★ you can give a "
+        "to every Nightfarer; an effect that only works for another "
+        "Nightfarer is ignored here. They are separate from the ★ you can give a "
         "relic in the relic picker: that is per Nightfarer, and Optimize puts "
         "a favourited relic in when it fits.")
+    assert dlg.FAVOURITE_TOOLTIP == (
+        "Every suggestion for this Nightfarer must carry this effect, if it "
+        "can.")
     assert dlg.AVOID_TOOLTIP == (
         "No suggestion uses a relic that carries this effect.")
     assert dlg.FAMILY_AVOID_TOOLTIP == (

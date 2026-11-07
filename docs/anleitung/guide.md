@@ -234,19 +234,20 @@ build; they are forgotten the next time you open the program.
 **Filters**, next to the Advisor row, opens a window listing every effect
 and curse a relic of yours carries — one row per effect, not grouped by
 relic, curses included. Each row has two check boxes, **Favourite** and
-**Avoid**: check **Favourite** and every suggestion must carry that effect
-through at least one relic you own; check **Avoid** and no suggestion uses a
+**Avoid**: check **Favourite** and every suggestion for this Nightfarer must
+carry that effect, if it can; check **Avoid** and no suggestion uses a
 relic that carries it (a relic you place or hold yourself stays where you
 put it); checking one clears the other on the same row. Effects that belong
 to one family sit under a heading: **Avoid** on the heading avoids every
 member below it, and **Allow** on one member lets just that one back in. A
 search field above the list filters by name, with the same syntax as the
 relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
-the search field says so directly: "Favourite: every suggestion must carry
-this effect. Avoid: no suggestion uses a relic that carries it — on a family
-header, every member below, unless one is set to Allow. Allow lets that one
+the search field says so directly: "Favourite: every suggestion for this
+Nightfarer must carry this effect, if it can. Avoid: no suggestion uses a
+relic that carries it — on a family header, every member below, unless one is set to Allow. Allow lets that one
 member back in without allowing the rest of the family. These marks apply to
-every Nightfarer. They are separate from the ★ you can give a relic in the
+every Nightfarer; an effect that only works for another Nightfarer is ignored
+here. They are separate from the ★ you can give a relic in the
 relic picker: that is per Nightfarer, and Optimize puts a favourited relic
 in when it fits." A counter
 above the list reads "{shown} of {total} effects", with "{n} favourited"
