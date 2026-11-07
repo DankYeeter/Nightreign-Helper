@@ -1,8 +1,8 @@
 # Stand
 
 2026-11-07, **T-336 fertig: Spalte Stacks im Effekt-Filter von Optimize, 0 bis 10
-(`10e2c07`, Treiber `a56af52`), Nachtest T-336g im Fenster bestanden; kein neues Artefakt,
-kein Release, UI_SPEC AK-469 bis AK-473.** T-336h (`7886ba4`): QA-339 behoben, Zeilen gleich
+(`10e2c07`, Treiber `a56af52`), Nachtest T-336g im Fenster bestanden; Testabzug 1.21.0 aus `298a0c9` gebaut (T-336j,
+59 300 781 B, SHA-256 `c5aa2e89…`), Nutzertest steht aus; kein Tag, kein Release, UI_SPEC AK-469 bis AK-473.** T-336h (`7886ba4`): QA-339 behoben, Zeilen gleich
 hoch, ×-Zahl der Statistik-Seite bis 99 (erreicht Optimize bei leerem Filter weiter, bewusst so
 gelassen: bis zum Vorschlag 2,85 bis 3,55 s); Nachtest T-336i bestanden. Offen: A6 am
 Zielgeraet nicht gemessen (hier leer bis 2,27 s, Stacks 10 bis 3,67 s, auf dem Zielgeraet
