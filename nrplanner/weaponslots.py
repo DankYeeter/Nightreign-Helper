@@ -196,7 +196,6 @@ class WeaponTile(cardgrid.HoverCard):
         # a word wider than 64 px (T-338, 125 %).
         self.icon = QLabel()
         self.icon.setFixedSize(TILE_ICON_SIZE, TILE_ICON_SIZE)
-        self.icon.setStyleSheet("border: none;")
         layout.addWidget(self.icon)
 
         self.title = QLabel()
