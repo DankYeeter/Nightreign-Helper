@@ -33,6 +33,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
   Reject turns down a relic for this build, and the list under the advisor bar
   gives it back.
 
+### Fixed
+- The program could crash at the moment a background search or a save read
+  ended. The more vessels were compared, the more often that moment came.
+- Undo apply on a vessel that was empty no longer leaves the applied build
+  stored for that vessel.
+
 ## [1.20.1] - 2026-11-01
 
 ### Changed

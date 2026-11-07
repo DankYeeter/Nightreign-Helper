@@ -10,7 +10,7 @@ threads and is checked without one.
 splash screen that has nothing else to do, and wrong here: the main window
 must stay answerable, so this starts the run, connects `ready`, and returns
 (`UI_SPEC` §5.4, AD-006 point 2). No `processEvents`, no modal dialog, no
-`wait()` in the main thread except when the window is closing.
+`wait()` for a run in the main thread except when the window is closing.
 
 **Two things stop a run, and they are not the same thing.** The interruption
 flag stops the *worker*, cooperatively, at the places `run.run` looks: inside
@@ -94,9 +94,9 @@ PICKER_DEBOUNCE_MS = 0
 PICKER_CACHE_SIZE = 64
 
 #: How long the window waits for a running search when it is closing. A
-#: `wait()` in the main thread is forbidden while the program is running
-#: (AD-006 point 4) and is the only correct thing here: the alternative is a
-#: `QThread` destroyed while its run is still going. The figure is the
+#: `wait()` for a run in the main thread is forbidden while the program is
+#: running (AD-006 point 4) and is the only correct thing here: the alternative
+#: is a `QThread` destroyed while its run is still going. The figure is the
 #: coarsest reaction time of the search plus room -- one slot level of the
 #: worst real case is about 200 ms (`scripts/measure_advisor_search.py`).
 SHUTDOWN_WAIT_MS = 2000
@@ -414,9 +414,9 @@ class AdvisorController(QObject):
     def shutdown(self, timeout_ms: int = SHUTDOWN_WAIT_MS) -> None:
         """Stop the run and wait for it. Only when the window is closing.
 
-        The one place a `wait()` in the main thread is right: the alternative
-        is a `QThread` deleted while its run is still going, which ends the
-        process rather than the run.
+        The one place a `wait()` for a run in the main thread is right: the
+        alternative is a `QThread` deleted while its run is still going, which
+        ends the process rather than the run.
 
         **The generation goes up first, exactly as in `cancel`** (Nachtrag
         X-1). A worker that sent its answer between its last check and the
@@ -490,8 +490,18 @@ class AdvisorController(QObject):
         during a run would otherwise start the moment the old run ended, and
         the whole point of the debounce is that a player who is still
         changing their mind is not answered yet (AD-006 point 5).
+
+        **`wait()` first, and no `deleteLater` on the worker.** `finished` is
+        said while the thread is still ending, and that ending delivers the
+        deletions it finds. A worker deleted there calls `disconnectNotify` on
+        its sender, the `QThread`, whose wrapper the main thread may be
+        deleting at that moment, and the process dies (0xC0000005, 0xC0000374).
+        A `deleteLater` that comes too late is never delivered and keeps the
+        snapshot for good. So the worker goes here, with the thread over, when
+        the last reference to it does. There is no run left to wait for, only
+        the end of a thread.
         """
-        self._worker.deleteLater()
+        self._thread.wait()
         self._thread.deleteLater()
         self._worker = None
         self._thread = None

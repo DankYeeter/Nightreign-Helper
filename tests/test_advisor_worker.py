@@ -31,7 +31,7 @@ import threading
 import time
 
 import pytest
-from PySide6.QtCore import QEventLoop, QTimer
+from PySide6.QtCore import QEventLoop, Qt, QTimer
 
 from nrplanner import errortext
 from nrplanner.advisor import goals, run, types, worker
@@ -461,6 +461,29 @@ def test_a_data_rebuild_stops_the_run_and_forgets_every_answer(qapp,
     assert watched.calls > computed, (
         "the answer from before the rebuild was handed back")
     assert seen.started == 2
+
+
+def test_the_worker_goes_in_the_main_thread_once_its_thread_has_ended(
+        qapp, controller, question):
+    """`finished` is said while the thread is still ending. A worker deleted
+    in that ending ran into the main thread deleting the `QThread`: `~QObject`
+    calls `disconnectNotify` on its sender, PySide looks up a Python override
+    on a wrapper already gone, and the process died (0xC0000005, 0xC0000374)."""
+    inventory, _problem, ctx, request = question
+    watched = Watched(hold=True)
+    advisor_controller = controller(goals=watched.registry)
+    advisor_controller.ask(request, inventory, ctx)
+    assert spin(qapp, lambda: watched.calls > 0)
+    thread = advisor_controller._thread
+    gone: list[tuple[int, bool]] = []
+    advisor_controller._worker.destroyed.connect(
+        lambda *_: gone.append((threading.get_ident(), thread.isFinished())),
+        Qt.ConnectionType.DirectConnection)
+
+    watched.release()
+    assert spin(qapp, lambda: advisor_controller._thread is None)
+
+    assert gone == [(threading.get_ident(), True)]
 
 
 # -- a run that could not be finished ----------------------------------------

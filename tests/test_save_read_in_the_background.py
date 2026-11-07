@@ -710,6 +710,26 @@ def test_a_read_that_fails_is_reported_rather_than_lost(game_data, qapp):
         wait_until_idle(reader)
 
 
+def test_the_read_worker_goes_in_the_main_thread_once_its_thread_has_ended(
+        game_data, qapp, a_scan):
+    """The same ending as `AdvisorController`'s, and the same race (see
+    `test_the_worker_goes_in_the_main_thread_once_its_thread_has_ended`)."""
+    read = StatedRead(a_scan, hold=True)
+    reader = savereader.SaveReader(read=read)
+    reader.start(game_data)
+    read.began.wait(READ_FUSE_S)
+    thread = reader._thread
+    gone = []
+    reader._worker.destroyed.connect(
+        lambda *_: gone.append((threading.get_ident(), thread.isFinished())),
+        Qt.ConnectionType.DirectConnection)
+
+    read.release()
+    wait_until_idle(reader)
+
+    assert gone == [(threading.get_ident(), True)]
+
+
 def wait_until_idle(reader, timeout_ms: int = 60000) -> None:
     """Let the reader's thread end. A fuse, not a claim about a duration."""
     import time

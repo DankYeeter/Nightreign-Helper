@@ -1266,10 +1266,10 @@ class Planner(QMainWindow):
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt naming
         """Stop every thread of this window and wait for it before it goes.
 
-        The one place a `wait()` in the main thread is right (AD-006 point 4):
-        a `QThread` that outlives the window it belongs to is destroyed while
-        its run is still going, and that ends the process rather than the
-        run.
+        The one place a `wait()` for a run in the main thread is right (AD-006
+        point 4): a `QThread` that outlives the window it belongs to is
+        destroyed while its run is still going, and that ends the process
+        rather than the run.
 
         Three threads and not two now: the two advisor tracks and the reading
         of the save. All three raise their generation before they wait, so an
