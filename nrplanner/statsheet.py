@@ -353,7 +353,7 @@ class StatSheet(QScrollArea):
             tile = weaponslots.WeaponTile(
                 index, planner._edit_weapon_slot,
                 planner._clear_weapon_slot,
-                planner._activate_weapon_slot,
+                planner._activate_weapon_slot, planner.icons,
             )
             self.weapon_tiles.append(tile)
             grid.addWidget(tile, index // weaponslots.SLOT_COLUMNS,

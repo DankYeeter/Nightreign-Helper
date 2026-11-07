@@ -9786,3 +9786,19 @@ spezifiziert: ob ein dichteres Feld lesbar bleibt, entscheidet der App Designer.
 **Nicht Teil dieser Vorgabe:** eine Grenze fuer die ×-Zahl der Statistik-Seite (seit T-336h: 99,
 `statsheet.MOST_COUNT`, Entscheidung des Directors); ein Pfeil- oder
 Drehfeld; ein Hinweistext im Fehlerfall ausser der roten Schrift.
+
+#### Nachtrag T-338 (developer), 2026-11-07 — Waffen-Icon in der Kachel, AK-474 (nur nachgetragen)
+
+*Naechste freie AK: AK-475.*
+
+**AK-474 Symbol der Waffe in der Kachel `Weapon damage`.** Eine belegte `WeaponTile` zeigt das
+Symbol der Waffe (`icons.item_icon(weapon["icon"])`, 28 x 28 logisch wie in der Waehleliste des
+Dialogs), linksbuendig in einer eigenen Zeile ueber dem Namen. Eine leere Kachel und eine Waffe ohne
+Symbol im Pack (`Unarmed`) halten keine Zeile frei: reiner Text wie zuvor.
+- **Warum eine eigene Zeile:** die Textbox misst bei 125 % 88 bis 97 px logisch; neben dem Namen
+  kaeme sie auf 54 bis 63 px, und 291 von 1788 Namen haben ein Wort ueber 64 px (Windows 11, Fenster
+  1959 x 860 logisch). Name und Zeile darunter behalten ihre Breite.
+- **Preis:** eine Zeile mit belegter Kachel wird 30 px logisch hoeher, das Blatt `Base stats` bis
+  `Resistances` mit zwei belegten Zeilen 60 px (1441 auf 1501 bei 125 %); das Blatt rollt ohnehin.
+- Akzeptanz: bei 100, 125 und 150 % keiner der 1788 Waffennamen abgeschnitten (Wortbreite und
+  `heightForWidth` je Kachel gegen die Textbox, in allen sechs Kacheln, vorher wie nachher 0).

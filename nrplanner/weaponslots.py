@@ -52,6 +52,8 @@ SLOT_COUNT = 6
 SLOT_COLUMNS = 3
 # The gold ring of a tile or chip; the plain border is one pixel of it.
 RING_WIDTH = 2
+# The size the armament list in the dialog below draws the same symbol at.
+TILE_ICON_SIZE = 28
 # A weapon draws from up to three pools, so it can carry three rolled effects,
 # exactly as a relic does.
 MAX_WEAPON_EFFECTS = 3
@@ -171,9 +173,10 @@ class WeaponTile(cardgrid.HoverCard):
     active (AK-413), the focus ringed in gold like the active tile.
     """
 
-    def __init__(self, index: int, on_edit, on_clear, on_activate):
+    def __init__(self, index: int, on_edit, on_clear, on_activate, icons=None):
         super().__init__()
         self.index = index
+        self.icons = icons
         self.on_edit = on_edit
         self.on_clear = on_clear
         self.on_activate = on_activate
@@ -187,6 +190,14 @@ class WeaponTile(cardgrid.HoverCard):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 6, 8, 6)
         layout.setSpacing(2)
+
+        # On a row of its own: a tile has about 90 px for text, and beside the
+        # name the symbol would take 34 of them, while 291 armament names hold
+        # a word wider than 64 px (T-338, 125 %).
+        self.icon = QLabel()
+        self.icon.setFixedSize(TILE_ICON_SIZE, TILE_ICON_SIZE)
+        self.icon.setStyleSheet("border: none;")
+        layout.addWidget(self.icon)
 
         self.title = QLabel()
         self.title.setWordWrap(True)
@@ -253,6 +264,17 @@ class WeaponTile(cardgrid.HoverCard):
             f" margin: {RING_WIDTH - width}px; border-radius: 6px; }}"
         )
 
+    def _show_icon(self, weapon: dict | None) -> None:
+        """The armament's symbol; without one (an empty tile, `Unarmed`, no
+        icon pack) the row is gone and the tile is text alone."""
+        symbol = (self.icons.item_icon(weapon.get("icon"))
+                  if self.icons and weapon else None)
+        if symbol is not None:
+            self.icon.setPixmap(symbol.pixmap(
+                QSize(TILE_ICON_SIZE, TILE_ICON_SIZE),
+                self.devicePixelRatioF()))
+        self.icon.setVisible(symbol is not None)
+
     def show_slot(self, slot: WeaponSlot, rating, active: bool = False,
                   effects: dict | None = None,
                   two_handing: bool = False) -> None:
@@ -274,6 +296,7 @@ class WeaponTile(cardgrid.HoverCard):
         """
         self.active = active
         self._apply_appearance()
+        self._show_icon(slot.weapon)
         if not slot.filled:
             self.title.setText(f"<span style='color:{MUTED}'>Slot "
                                f"{self.index + 1} — empty</span>")
