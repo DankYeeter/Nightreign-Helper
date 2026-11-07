@@ -6,6 +6,14 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Changed
+- **The World Events tab is redesigned.** Each event shows its game symbol,
+  number tiles (Nightlords, enemy HP, base runes, drops), a bar per Nightlord
+  and a Day 1 / Day 2 bar, and Win and Lose side by side with their effect
+  symbols, figures and durations. New on the tab: every banner an event can
+  end on, enemy HP, and the full drop list with symbols and shares. Hordes of
+  the Night now shows its Ultimate Art charge buff (+30 % for 40 s).
+
 ## [1.21.0] - 2026-11-07
 
 ### Changed

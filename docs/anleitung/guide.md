@@ -755,13 +755,24 @@ the game's data.
 
 ![World events](../screenshots/world_events.png)
 
-The events that can interrupt an expedition, one card each: which Nightlords
-it can appear under and how often, what happens, what you win, what you lose.
+The events that can interrupt an expedition, one page each, with the game's
+own symbols:
+
+- **Header**: the event's symbol, the banner the game shows when it starts,
+  and which days it can fire on.
+- **Number tiles**: Nightlords it appears under, enemy HP, base runes, number
+  of possible drops.
+- **Where it appears**: one bar per Nightlord, plus a Day 1 / Day 2 bar.
+- **In-game banners**: every message the event can end on.
+- **Win** (green) and **Lose** (red), side by side: the buff or debuff with
+  its figures and duration, the rune ladder, and every drop with its symbol
+  and share of the drop table (*Show N more* opens the rest).
 
 The percentages beside each Nightlord say how much of that boss's map pool
 carries the event — the closest thing to "how likely am I to see this" the
-game's data supports. The demon's card lists everything the demon can do, in
-the game's own words.
+game's data supports. Hover a legend or the rune ladder for the full
+explanation. The demon's card lists everything the demon can do, in the
+game's own words.
 
 The card text draws on both the game's own data and community write-ups;
 both read alike, with nothing on screen marking one apart from the other. The
