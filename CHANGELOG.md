@@ -6,7 +6,21 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Added
+- **The game's own symbols, everywhere it has one.** Effects and curses show
+  their status symbol on relic cards, in the picker, in suggestions, in `Why`,
+  in the filter window, on the Effects tab, in the armament dialog and on the
+  stat sheet. Relic, Nightfarer, vessel, damage type, status, weapon art, spell,
+  Nightlord, loot, world-event buff and penalty, Sovereign Sigil, relic tier and
+  slot colour show theirs beside the name. A name without a symbol reads as it
+  did.
+
 ### Changed
+- **Vessel slots now show the game's own slot art**, normal and Deep, in the
+  vessel list, the slot strip, the slot cards and the picker, in place of a
+  light this program drew. White slots show no gem: the game has none.
+- The icon pack and the data cache are rebuilt once on first start.
+
 - **A stack effect now counts on one relic only.** "Attack power increased for
   each Night Invader defeated" and the seven other effects that stack per event
   count their stacks once, however many relics carry them. Optimize no longer

@@ -9835,3 +9835,18 @@ Symbol im Pack (`Unarmed`) halten keine Zeile frei: reiner Text wie zuvor.
   `Resistances` mit zwei belegten Zeilen 60 px (1441 auf 1501 bei 125 %); das Blatt rollt ohnehin.
 - Akzeptanz: bei 100, 125 und 150 % keiner der 1788 Waffennamen abgeschnitten (Wortbreite und
   `heightForWidth` je Kachel gegen die Textbox, in allen sechs Kacheln, vorher wie nachher 0).
+
+### Nachtrag T-340 (developer, 07.11.2026) — Spielsymbole
+
+Nutzerauftrag, ohne Vorgabe des `ui-ux-designer`; Masse sind Entscheidungen des `developer`.
+- **Groessen (logisch):** 14 px neben einer Textzeile (`iconpack.INLINE_ICON`), 16 in der
+  Nightlord-Tabelle, 18 am Reliktnamen im Block und in `Why`, 20 an Nightfarer, Vergleichsgefaess,
+  Relikt-Knopf und Slot-Chip im Kopf von Karte und Picker (vorher farbiger Punkt, 14/16 px).
+- **Slot:** Zelle `MENU_In_bg_22`, darueber das Licht der Farbe und Art, mit Relikt auf halber
+  Deckkraft; Edelstein nur bei belegtem Slot, Weiss ohne. Fehlt das Bild, bleibt die Farbe als Umriss.
+- **Fehlendes Symbol:** kein Platzhalter, die Zeile steht wie vorher. Reine Textzeilen (AK-29)
+  bleiben `PlainText`, das Bild steht in einem eigenen Label daneben.
+- **`Relic tier`** traegt je Zelle ein Bild: das beste Relikt der Stufe; eine Zelle fasst nur eines.
+- **`Colours` (Effects):** Reihe der Edelsteine vor dem Text; die Spalte darf dafuer 56 px breiter werden.
+- **Akzeptanz:** bei 100, 125 und 150 % kein Label mehr abgeschnitten als ohne Symbolsatz (`PrintWindow`,
+  alle sieben Tabs und Picker, Windows 11, Basisskalierung 125 %).

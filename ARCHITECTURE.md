@@ -10985,6 +10985,20 @@ Umsetzungsschritte **V1 bis V5** (V5 ist U8 unter neuem Namen; der `U`-Kreis
 wird nicht fortgesetzt) und die Regressionsfaelle **R1 bis R18**.
 ---
 
+## Spielsymbole (T-340, 07.11.2026)
+
+`EXTRACT_VERSION` 20 traegt `icon` an `effects[]` (`AttachEffectParam.statusIconId`), Event-`buffs[]`
+und `states[]` (`SpEffectParam.iconId`), `drops` (`iconId` von Waffe, Talisman, Goods,
+`PermanentBuffParam`) und `deep_of_night.sigil_icon` (`EquipParamAntique` Zeile 11). `ICON_VERSION` 5
+fuehrt die Manifestgruppe `status` (alle 165 `MENU_StatusIcon_*`, 32 px, weil Rich Text ein `<img>`
+ungeglaettet zeichnet) und das Slotlicht. Zugriff nur ueber `iconpack`: `inline`/`inline_type` fuer Rich
+Text, `sharp`/`symbol_label`/`beside` fuer `PlainText`-Zeilen; `iconpack.TYPE_SPRITES` ist die eine Tabelle
+der Schadensarten und Status. Ein fehlendes Symbol ist `""` beziehungsweise `None`, nie eine Ausnahme.
+
+Ohne Beleg in den Spieldaten, also ohne Symbol: Attribute, HP/FP/Stamina, Waffenfamilien, Zauberschulen,
+Unterbosse, Ankuendigung der World Events, Red variants, Hit-with. `MenuPropertySpecParam` und
+`MenuPropertyLayoutParam` nennen zu den 44 `MENU_PropertyIcon` nur Abschnittstitel und Status.
+
 ## Erledigtes und Randnotizen
 
 *Zwei Abschnitte, die zu keinem Themenbereich gehoeren und die niemand mehr
