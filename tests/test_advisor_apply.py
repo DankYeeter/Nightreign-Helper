@@ -1041,7 +1041,7 @@ def test_a_switch_moves_the_holds_and_rejections_and_undo_takes_all_of_it_back(
         run.vessel_slots(target, True)]
     assert bar.has_been_applied()
     assert bar.status.accessibleName() == (
-        "Applied. Undo puts your slots back as they were.")
+        "Your held relic moved here. Undo puts your slots back as they were.")
     index, = planner.held_slot_indices()
     assert planner.active_slots()[index].current_relic().handle == copy.handle
     assert planner.rejected_rolls() == frozenset({roll})
@@ -1324,3 +1324,106 @@ def test_a_switch_to_the_vessel_that_was_asked_leaves_its_holds_where_they_are(
     assert keys_of(planner) == keys_before
     assert relics.stored_keys(planner, asked["id"]) == stored_before
     assert bar.answer is not None and not bar.has_been_applied()
+
+
+def _answers_with_a_choice(planner, told, monkeypatch, target, held=None):
+    """Every answer names one empty slot of `target` and a copy for it, neither
+    of them taken by the `(index, copy)` that is `held`."""
+    held_index, held_copy = held or (None, None)
+    here = planner.chalice_list.currentRow()
+    planner.chalice_list.setCurrentRow(_row_of(planner, target["id"]))
+    index, copy = next(
+        (index, copy) for index, card in enumerate(planner.active_slots())
+        if card.current_relic() is None and index != held_index
+        for copy in card._holdable()
+        if copy.handle is not None and copy is not held_copy)
+    planner.chalice_list.setCurrentRow(here)
+
+    def with_a_choice(request, *rest):
+        answer = told(request, *rest)
+        return dataclasses.replace(answer, suggestions=(dataclasses.replace(
+            answer.suggestions[0], choices=(types.SlotChoice(
+                slot_index=index, handle=copy.handle,
+                relic_id=copy.relic_id, name=copy.name),)),))
+
+    bar = planner.advisor_bar
+    monkeypatch.setattr(bar._controller, "_answer", with_a_choice)
+    monkeypatch.setattr(bar.comparison._controller, "_answer", with_a_choice)
+    return index, copy
+
+
+def test_a_switch_with_rejections_alone_applies_nothing(planner, told,
+                                                        monkeypatch):
+    """QA-331: nothing was applied, so the bar says so and `Apply all` stays;
+    the rejections go along, and undoing an apply takes them back too."""
+    origin = planner.current_vessel()
+    target = planner.hero_vessels[-1]
+    _a_stored_build_in_one_hand(planner, target["id"])
+    keys_there = relics.stored_keys(planner, target["id"])
+    _answers_with_a_choice(planner, told, monkeypatch, target)
+    roll = (7, (1,), ())
+    planner._rejects[planner._reject_key()] = {roll: "Rejected"}
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    assert planner.switch_button.toolTip().startswith(
+        "Opens this vessel with its suggestion and brings your rejections")
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert planner.current_vessel()["id"] == target["id"]
+    assert not bar.has_been_applied()
+    assert bar.situation.state in advisorbar.ANSWERED_STATES
+    assert visible_actions(bar) == ["Apply all", "Why", "Clear"]
+    assert planner.rejected_rolls() == frozenset({roll})
+    assert relics.stored_keys(planner, target["id"]) == keys_there
+    assert not _stored_hand(planner, target["id"]), "nothing written: no Undo"
+
+    bar.apply_button.click()
+    assert bar.has_been_applied()
+    assert relics.stored_keys(planner, target["id"]) != keys_there
+
+    bar.apply_button.click()
+    assert relics.stored_keys(planner, target["id"]) == keys_there
+    assert planner.rejected_rolls() == frozenset()
+    assert not _stored_hand(planner, target["id"])
+    planner.chalice_list.setCurrentRow(_row_of(planner, origin["id"]))
+    assert planner.rejected_rolls() == frozenset({roll})
+
+
+def test_a_switch_with_a_hold_says_what_moved_and_offers_the_rest(
+        planner, told, monkeypatch):
+    """QA-331, director: only moved holds count as applied, and `Apply all`
+    stays for the other slots, beside `Undo apply` and still three actions."""
+    card, copy = _hold_a_relic(planner)
+    target = _a_vessel_that_takes(planner, copy)
+    told.value_of[run.vessel_slots(target, True)] = 999.0
+    keys_there = relics.stored_keys(planner, target["id"])
+    moved_to = run.held_moved_to([advisorbar.held_slot(0, card)],
+                                 run.vessel_slots(target, True))[0][0][1].index
+    index, offered = _answers_with_a_choice(planner, told, monkeypatch, target,
+                                            (moved_to, copy))
+    _compared(planner)
+    assert planner.switch_button.toolTip() == (
+        "Moves your held relics to this vessel, into the slots they fit; the "
+        "other slots stay as saved. Undo apply puts them back.")
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert bar.has_been_applied()
+    assert bar.status.accessibleName() == (
+        "Your held relic moved here. Undo puts your slots back as they were.")
+    assert visible_actions(bar) == ["Apply all", "Undo apply", "Why"]
+    assert planner.active_slots()[index].current_relic() is None
+
+    bar.apply_rest_button.click()
+
+    assert planner.active_slots()[index].current_relic().handle == offered.handle
+    assert planner.active_slots()[moved_to].current_relic().handle == copy.handle
+    assert bar.status.accessibleName() == (
+        "Applied. Undo puts your slots back as they were.")
+    assert visible_actions(bar) == ["Undo apply", "Why", "Clear"]
+
+    bar.apply_button.click()
+    assert relics.stored_keys(planner, target["id"]) == keys_there

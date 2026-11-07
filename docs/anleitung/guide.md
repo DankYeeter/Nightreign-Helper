@@ -388,9 +388,10 @@ vessel, its cards and its suggestion stay as they were.
   Optimize: two clicks, **Optimize** then **Switch to it**. A plain click on a
   row opens that vessel as you left it and carries nothing over; with held
   relics or rejections the bar then reads `Nothing suggested yet.`
-  **Switch to it** brings your held relics and rejections along and replaces
-  the slots saved in that vessel; **Undo apply** puts them back. Hover the
-  button for the sentence that applies.
+  **Switch to it** brings your held relics and rejections along. Held relics
+  go into the slots they fit and **Undo apply** puts them back; **Apply all**
+  stays for the other slots. Rejections alone save nothing until you apply.
+  Hover the button for the sentence that applies.
 - The comparison goes stale — `Out of date — use Optimize again to compare.`,
   the figures stay but without BEST — when you change the goal or its boxes,
   the level, the Nightfarer, the Deep of Night box, an Avoid, Favourite or

@@ -243,6 +243,9 @@ class Situation:
     #: 4.8 only (AK-406): a save was read and holds no relics, so "No save
     #: was read" would be false and `Rescan save` alone the wrong advice.
     save_is_empty: bool = False
+    #: 4.13 after `Switch to it` (QA-331): how many held relics moved. Then
+    #: that is all that was applied, and `Apply all` stays for the other slots.
+    holds_moved: int = 0
 
 
 def _lower_case_first(label: str) -> str:
@@ -431,7 +434,12 @@ def status_line(situation: Situation) -> str:
     if state is State.FAILED:
         return f"Could not work that out — {situation.reason}."
     if state is State.APPLIED:
-        return "Applied. Undo puts your slots back as they were."
+        undo = "Undo puts your slots back as they were."
+        if situation.holds_moved == 1:
+            return f"Your held relic moved here. {undo}"
+        if situation.holds_moved:
+            return f"Your {situation.holds_moved} held relics moved here. {undo}"
+        return f"Applied. {undo}"
     raise KeyError(f"no status line is written for {state!r}")
 
 
@@ -1451,6 +1459,13 @@ class AdvisorBar(QWidget):
         # one action seen from two sides -- two buttons would have to disagree
         # about which of them is live, and the table gives the row one state
         # for it (4.13).
+        #: QA-331: the one state with both sides up, after `Switch to it` moved
+        #: holds. `Clear` gives way to it, so the row keeps three (AK-07).
+        self.apply_rest_button = QPushButton(APPLY_CAPTIONS[False])
+        self.apply_rest_button.setVisible(False)
+        self.apply_rest_button.clicked.connect(self.apply_all_requested)
+        doing.addWidget(self.apply_rest_button)
+
         self.apply_button = QPushButton("Apply all")
         self.apply_button.clicked.connect(self._apply_or_undo)
         doing.addWidget(self.apply_button)
@@ -1748,6 +1763,14 @@ class AdvisorBar(QWidget):
         if self._situation.state is not State.APPLIED:
             self._applied_over = self._situation
         self._show(Situation(State.APPLIED))
+
+    def the_holds_moved_here(self, count: int) -> None:
+        """`Switch to it` put held relics in the slots (AK-454): 4.13, and
+        `Undo apply` is about them; the rest of the answer is not applied."""
+        if self._answer is None:
+            return
+        self._applied_over = self._situation
+        self._show(Situation(State.APPLIED, holds_moved=count))
 
     def the_suggestion_was_undone(self) -> None:
         """The window has put the slots back: the row goes back with them."""
@@ -2115,7 +2138,9 @@ class AdvisorBar(QWidget):
         self.apply_button.setVisible(acting and (applied
                                                  or self._can_be_applied()))
         self.why_button.setVisible(acting)
-        self.clear_button.setVisible(acting)
+        the_rest = bool(situation.holds_moved) and self._can_be_applied()
+        self.apply_rest_button.setVisible(the_rest)
+        self.clear_button.setVisible(acting and not the_rest)
 
     def _can_be_applied(self) -> bool:
         """Does the answer on screen name a relic for any slot at all?"""

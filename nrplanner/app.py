@@ -1745,12 +1745,20 @@ class Planner(QMainWindow):
         self.compare_status.setToolTip(line)
         self.compare_status.setVisible(bool(line))
         self.switch_button.setVisible(self._switch_target is not None)
-        self.switch_button.setToolTip(
-            "Moves your held relics and rejections to this vessel and replaces "
-            "the slots saved there. Undo apply puts them back."
-            if comparing is not None and comparing.carries
-            and self._switch_target != comparing.asked_vessel else
-            "Opens this vessel with its suggestion.")
+        self.switch_button.setToolTip(self._what_the_switch_does(comparing))
+
+    def _what_the_switch_does(self, comparing) -> str:
+        """The tooltip of `Switch to it` (AK-454, QA-331)."""
+        if (comparing is None or not comparing.carries
+                or self._switch_target in (None, comparing.asked_vessel)):
+            return "Opens this vessel with its suggestion."
+        if not comparing.held_relics:
+            return ("Opens this vessel with its suggestion and brings your "
+                    "rejections along. Nothing is saved until you apply it.")
+        rejected = comparing.questions[self._switch_target].problem.rejected
+        what = "held relics and rejections" if rejected else "held relics"
+        return (f"Moves your {what} to this vessel, into the slots they fit; "
+                f"the other slots stay as saved. Undo apply puts them back.")
 
     def _vessel_row_chosen(self, *_) -> None:
         """AK-435: a click opens the vessel, with its answer if it is known."""
@@ -1776,8 +1784,9 @@ class Planner(QMainWindow):
         and the hand of the question (QA-324). The asked vessel itself is
         already in that state: nothing moves, it only opens (QA-330).
 
-        Nothing is written without `Undo apply`: without holds or rejections
-        the target's stored hand stays until the player applies something.
+        Nothing is written without `Undo apply`: without moved holds the
+        target's stored slots and hand stay until the player applies something,
+        and only moved holds count as applied (QA-331).
         """
         bar = self.advisor_bar
         comparing = bar.comparing
@@ -1809,10 +1818,11 @@ class Planner(QMainWindow):
         if not bar.show_the_answer_if_known():
             bar.the_build_changed()
         elif carries:
-            self._slots_before_applying = before
             self._before_switching = (*kept, hand_there)
-            bar.the_suggestion_was_applied()
-            self.show_the_suggestion(bar.answer)
+            if moved:
+                self._slots_before_applying = before
+                bar.the_holds_moved_here(len(moved))
+                self.show_the_suggestion(bar.answer)
         elif hand_there != hand:
             self._before_switching = ({}, {}, hand_there)
 
@@ -1846,8 +1856,9 @@ class Planner(QMainWindow):
         if rejects_from != rejects_to:
             self._rejects.pop(rejects_from, None)
         before = [slot.saved_key() for slot in self._all_slots()]
-        self._put_these_keys_in_the_slots(
-            [kept_keys.get(index, key) for index, key in enumerate(before)])
+        if moved:
+            self._put_these_keys_in_the_slots(
+                [kept_keys.get(index, key) for index, key in enumerate(before)])
         self._show_the_rejects()
         return before, kept
 
