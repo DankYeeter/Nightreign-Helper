@@ -2020,10 +2020,11 @@ def test_the_eight_damage_kinds_are_the_ones_the_model_knows(game_data):
 CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
                       6851700)
 
-#: Every gated effect the sheet offers a switch for, less the one in
+#: Every gated effect the sheet offers a switch for, less those in
 #: `model.NO_SWITCH`: 413 that are not curses plus the seven above (same
-#: dataset, counted 2026-09-14). The baseline's whole vocabulary (AD-036.6).
-SWITCHABLE_CONDITIONS = 420
+#: dataset, counted 2026-09-14), less the 19 of `ON_THE_ENEMY_EFFECT_IDS` that
+#: had a switch (2026-11-07). The baseline's whole vocabulary (AD-036.6).
+SWITCHABLE_CONDITIONS = 401
 
 #: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 315
 #: copies) change their `min_damage_taken` figure between the baseline and
@@ -2036,6 +2037,27 @@ SWITCHABLE_CONDITIONS = 420
 COPIES_THE_BASELINE_MOVES = 22
 
 SURVIVAL = "min_damage_taken"
+
+
+def test_what_lands_on_the_enemy_is_not_counted_as_the_wearers(game_data):
+    """`All damage -13%`, counted against the relic, on an effect that lowers
+    the enemy's attack: 20,56 off a Raider's attack rating, before this."""
+    raider = next(hero for hero in game_data["heroes"]
+                  if hero["name"] == "Raider")
+    defaults = model.advisor_defaults()
+    assert 6500400 not in defaults
+    build = model.compute(raider, 15, [game_data["effects"]["6500400"]],
+                          game_data["curves"], declared=defaults)
+    assert "physicsAttackRate" not in build.rates
+
+
+def test_every_effect_on_the_enemy_list_counts_nowhere_and_says_so(game_data):
+    """Frost has no timer in its modifiers, so it counted without any switch:
+    `All damage taken +15%`, 146 off the survival figure."""
+    for effect_id in model.ON_THE_ENEMY_EFFECT_IDS:
+        effect = game_data["effects"][str(effect_id)]
+        assert model.is_conditional(effect, None), effect["name"]
+        assert effecttext.describe(effect).startswith("On the enemy: ")
 
 
 def test_advisor_defaults_name_every_switchable_condition_at_one(game_data):

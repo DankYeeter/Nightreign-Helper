@@ -9760,7 +9760,7 @@ wiederholter `Optimize` ist Treffer. Dauerhaft: rund 13 s Hintergrundlast je Opt
 **Umkehrbarkeit:** leicht (Start aus `_on_ready` entfernen), mittel fuer `HeldRelic.colour` im Schluessel.
 
 **Befund zu "bedingte Effekte not counted" (Designer-Frage 4), keine Entscheidung.** `candidates.py:132` und Klausel 4.9b **stimmen**, und GOAL A18 Satz 1 ist nachgezogen, nicht
-widerlegt: `model.advisor_defaults()` zaehlt 420 Bedingungen als erfuellt, `asking_from` laesst davon nach den Nutzerentscheiden vom 28.10. und 01.11.2026
+widerlegt: `model.advisor_defaults()` zaehlte 420 Bedingungen als erfuellt (seit `ON_THE_ENEMY_EFFECT_IDS`, 07.11.2026: 401), `asking_from` laesst davon nach den Nutzerentscheiden vom 28.10. und 01.11.2026
 (Waffentyp der gewaehlten Kachel, Status-Quelle, Waffenzahl) bei Wylder mit leerer Kachel 311 stehen. Die uebrigen zaehlen nicht, und genau die nennt der Satz: gemessen 6, 6 und 2 Kopien in den ersten drei
 Pools von Wylder's Urn; `result.not_counted` in drei besten Vorschlaegen 0. **Unvollstaendig ist `guide.md:235`** ("counted as met unless you say otherwise"); Ergaenzung beim `technical-writer` (AK-448).
 

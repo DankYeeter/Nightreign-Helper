@@ -435,6 +435,8 @@ def describe(effect: dict) -> str:
     if conditions:
         text = f"{text} ({', '.join(conditions)})" if text else \
             f"conditional ({', '.join(conditions)})"
+    if effect.get("id") in model.ON_THE_ENEMY_EFFECT_IDS:
+        return f"On the enemy: {text}"
     return text
 
 

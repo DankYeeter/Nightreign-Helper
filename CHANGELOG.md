@@ -38,6 +38,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   ended. The more vessels were compared, the more often that moment came.
 - Undo apply on a vessel that was empty no longer leaves the applied build
   stored for that vessel.
+- Effects that land on the enemy no longer count as your own. "[Raider] Hit With
+  Character Skill to Reduce Enemy Attack Power" lowered your attack rating, and
+  frost and similar build-up effects raised the damage you take; they now say
+  "On the enemy" and move no figure.
 - Reset Chalice stays on the chalice you reset. It used to open the first
   chalice with its slots empty, and the next relic placed there replaced the
   build stored for that chalice.
