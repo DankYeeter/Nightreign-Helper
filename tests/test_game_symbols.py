@@ -157,3 +157,17 @@ def test_the_effects_table_keeps_its_text_and_sorts_on_it(pack, game_data):
     pack.manifest["ui"]["MENU_MenuIcon_40480.png"] = "red.png"
     tab._gem_strips.clear()
     assert tab._gem_strip((0, 4)) is not None
+
+
+def test_the_gems_in_colours_cost_what_it_does_nothing(qapp):
+    """QA-342: the four gems widen `Colours`; `Effect` gives up that room, the
+    sentences in `What it does` keep theirs. Widths measured at 125 % on
+    Windows (T-340c): `What it does` 477 px at `9cd99ca`, before the gems,
+    458 after them; `Colours` 195 px, the window 1931 px of table."""
+    from nrplanner import effectstab
+
+    table = effectstab.EffectTable(11)
+    table._natural = [0, 53, 48, 64, 195, 82, 91, 93, 159, 125, 0]
+    widths = table.column_widths(1931)
+    assert widths[10] >= 477
+    assert widths[0] > widths[10] and sum(widths.values()) == 1931

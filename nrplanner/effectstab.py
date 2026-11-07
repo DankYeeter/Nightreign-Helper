@@ -428,10 +428,12 @@ class EffectTable(QTableWidget):
     def _description_column(self) -> int:
         return self.columnCount() - 1
 
+    #: What the four gems in front of a `Colours` cell take.
+    GEM_ROOM = 4 * iconpack.INLINE_ICON
+
     def _cap(self, column: int) -> int:
         # The four gems must not cost the colour names their room.
-        return self.OTHER_CAP + (4 * iconpack.INLINE_ICON
-                                 if column == COL_COLOURS else 0)
+        return self.OTHER_CAP + (self.GEM_ROOM if column == COL_COLOURS else 0)
 
     def _others(self) -> range:
         return range(1, self._description_column)
@@ -656,6 +658,10 @@ class EffectTable(QTableWidget):
         widths = self._levelled(wanted, available - floors)
         spare = max(available - sum(widths.values()), 2)
         widths[0] = max(spare * self.NAME_FLOOR // floors, 1)
+        # QA-342: `Effect` pays for the gems, down to its floor and never
+        # under `What it does`, whose sentences are the ones that get cut.
+        widths[0] -= max(0, min(self.GEM_ROOM, widths[0] - self.NAME_FLOOR,
+                                (2 * widths[0] - spare - 1) // 2))
         widths[self._description_column] = max(spare - widths[0], 1)
         return widths
 
