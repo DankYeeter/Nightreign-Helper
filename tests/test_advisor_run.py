@@ -447,6 +447,31 @@ def test_a_required_effect_a_held_relic_carries_is_said_to_be_there(
         f"{holding.name} held in Slot 1.")
 
 
+def test_an_avoided_effect_on_a_held_relic_is_said_in_the_answer(game_data,
+                                                                 wylder):
+    """QA-325, AK-458: no other place can ever say it. A suggestion carries no
+    avoided effect (AD-057), and `Why` lists no held slot (AD-014.6)."""
+    rolls = advisor.raising_effects(game_data, wylder, 3)
+    owned = advisor.make_inventory(game_data, wylder, count=3, rolls=rolls)
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    holding = owned.relics[0]
+    avoided = rolls[0][0]
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED],
+                        held={0: advisor.held_relic(holding)}),
+        excluded=frozenset({avoided}))
+    frozen = run.frozen_inventory(owned, problem)
+    result = run.run(advisor.request_for(problem, ctx, frozen), frozen,
+                     ctx, goals.GOALS)
+
+    name = " ".join(game_data["effects"][str(avoided)]["name"].split())
+    assert (f"{holding.name}, held in Slot 1 — {name}: you avoided it. This "
+            f"relic is in the build because you chose it, and the effect is "
+            f"left out of the figure.") in result.unknowns
+
+
 def test_two_favourites_met_by_a_hold_summarise_on_the_card(game_data,
                                                              wylder):
     """AK-314.2: two favourited effects each on a held relic still list two

@@ -524,7 +524,8 @@ def run(request: types.AdvisorRequest, inventory,
     # both halves happen to give is read once (AD-025.2).
     unknowns = tuple(dict.fromkeys(ranked.unknowns
                                    + explain.unknowns(problem)
-                                   + held_favourites))
+                                   + held_favourites
+                                   + explain.avoided_on_a_hold(problem, ctx)))
     # A7 for A19: a favourite the suggestion does not carry is said by name.
     # Under AK-365 the whole suggestion fell, and that has its own sentence.
     left_out = () if no_carrier_for else _required_left_out(problem,

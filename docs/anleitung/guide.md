@@ -270,11 +270,11 @@ search the effect, uncheck **Avoid**).
 The **Why** dialog shows the same marks, but only to read — a `▲` marks a
 favourited effect, a struck-through one does nothing for you (an avoided
 effect, or one that works only for another Nightfarer), and changing a
-mark happens in the Filters window, not there. On a relic you chose or held
-yourself that carries an avoided effect, **Why** says: "{name}: you avoided
-it. This relic is in the build because you chose it, and the effect is left
-out of the figure." So the Advisor's figure for that relic can differ from the
-game's own stat sheet.
+mark happens in the Filters window, not there. On a relic you hold that
+carries an avoided effect, the notes of **Why** say: "{relic}, held in Slot
+{n} — {name}: you avoided it. This relic is in the build because you chose it,
+and the effect is left out of the figure." So the Advisor's figure for that
+relic can differ from the game's own stat sheet.
 
 **Conditional effects** — a handful of curses and buffs that only apply
 below a health threshold, on a dodge, after drinking a Flask — are counted by

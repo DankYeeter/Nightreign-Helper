@@ -551,6 +551,12 @@ def _waits_on_its_condition(effect_id: int, built: model.Build) -> bool:
                for entry in built.situational)
 
 
+def _avoided_sentence(name: str) -> str:
+    """AK-458, verbatim."""
+    return (f"{name}: you avoided it. This relic is in the build because you "
+            f"chose it, and the effect is left out of the figure.")
+
+
 def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
                  problem: types.SlotProblem, *, is_curse: bool
                  ) -> types.ReasonLine | None:
@@ -565,8 +571,7 @@ def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
     copy with an avoided effect (AD-057), so this copy is the player's own.
     """
     if effect_id in problem.excluded:
-        text = (f"{name}: you avoided it. This relic is in the build because "
-                f"you chose it, and the effect is left out of the figure.")
+        text = _avoided_sentence(name)
         silence = types.SILENT_EXCLUDED
     elif effect_id in problem.required:
         text = f"{name}: you favourited it, so it always counts."
@@ -1468,6 +1473,21 @@ def required_met_by_a_hold(problem: types.SlotProblem,
         name = _effect_name(ctx, effect_id) or f"effect {effect_id}"
         lines.append(f"{name}, which you favourited, is carried by {where}.")
     return tuple(lines)
+
+
+def avoided_on_a_hold(problem: types.SlotProblem,
+                      ctx: types.GoalContext) -> tuple[str, ...]:
+    """AK-458 where it can really happen (QA-325): a suggestion never offers a
+    copy with an avoided effect (AD-057) and `Why` lists no held slot
+    (AD-014.6), so the sentence goes beside the held-slots line, with the relic
+    it is about."""
+    return tuple(
+        f"{entry.relic.name}, held in Slot {entry.index + 1} — "
+        + _avoided_sentence(_effect_name(ctx, effect_id)
+                            or f"effect {effect_id}")
+        for entry in problem.held if entry.relic is not None
+        for effect_id in (*entry.relic.effect_ids, *entry.relic.curse_ids)
+        if effect_id in problem.excluded)
 
 
 def held_favourites_card_line(lines: tuple[str, ...]) -> str:
