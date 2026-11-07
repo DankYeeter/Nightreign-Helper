@@ -811,7 +811,8 @@ def satisfied_by_weapon(field_name: str, value, wep_type) -> bool:
 
 #: Where each stack effect stops, as the game's event scripts count it (the
 #: EMEVD reading of T-337, 2026-11-07; no probe in the game). `None` is the one
-#: effect those scripts show no ceiling for (`stack_limit`).
+#: effect those scripts show no ceiling for (`stack_limit`). The keys are the
+#: eight effects `accumulates` names, for the search, which has ids and no records.
 #: `tests/test_stack_effects_count_once.py` holds the keys against the dataset.
 STACK_LIMITS = {
     7060200: 4,                                # Night Invaders
@@ -820,10 +821,6 @@ STACK_LIMITS = {
     6060500: 10, 6060600: 10,                  # Ruin, Great Encampment
     6500500: None,                             # [Revenant] Max FP
 }
-
-#: The eight effects `accumulates` names, for the search, which has the relic's
-#: ids and not the records.
-STACK_EFFECT_IDS = frozenset(STACK_LIMITS)
 
 
 def stack_limit(effect_id: int, unproven: int) -> int:

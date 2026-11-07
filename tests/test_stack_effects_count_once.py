@@ -48,7 +48,7 @@ def test_every_stack_effect_counts_on_one_carrier(game_data, raider):
     the totals as they were, and the warning names it."""
     stacking_ones = [effect for effect in game_data["effects"].values()
                      if model.accumulates(effect)]
-    assert {effect["id"] for effect in stacking_ones} == model.STACK_EFFECT_IDS
+    assert {effect["id"] for effect in stacking_ones} == set(model.STACK_LIMITS)
     curves = game_data.get("curves", {})
     for effect in stacking_ones:
         declared = {effect["id"]: 2}

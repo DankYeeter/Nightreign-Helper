@@ -149,7 +149,7 @@ def _stack_effects(copy) -> frozenset[int]:
     """What on this copy `model.compute` counts on one carrier only."""
     return frozenset(effect_id for effect_id in (*copy.effect_ids,
                                                  *copy.curse_ids)
-                     if effect_id in model.STACK_EFFECT_IDS)
+                     if effect_id in model.STACK_LIMITS)
 
 
 def _carries(copy, effect_id: int) -> bool:
