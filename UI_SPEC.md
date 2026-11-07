@@ -9715,6 +9715,9 @@ Wortlaute sind aus dem Code uebernommen und massgeblich. Naechste freie AK: AK-4
   Zeilen eines Stack-Effekts (`model.accumulates`; im Spielstand der QA-Messung 7 von 343 Zeilen).
   Alle anderen Zeilen, Familienkopfzeilen und Fluchzeilen haben in der Spalte nichts, kein
   deaktiviertes Feld.
+- Zeilenhoehe (T-336h): eine Zeile mit Feld ist so hoch wie eine ohne, das Feld nimmt das Hoehere
+  aus Kontrollkaestchen und Textzeile. Gemessen im Windows-Fenster: 16 Einheiten bei 100, 125 und
+  150 %; `10` und roter Text bleiben lesbar (`PrintWindow`).
 - Zugaenglicher Name des Feldes: `Stacks: {Effektname}`.
 - Akzeptanz: eine Zeile mit `model.accumulates(effect)` hat ein Feld, jede andere keins; die
   Kopfzeile heisst `Stacks`; die Reihenfolge der Spaltenkoepfe ist wortgleich die obige.
@@ -9773,7 +9776,7 @@ Rangfolge fuer den Zaehlwert eines Stack-Effekts: Filterwert, sonst die ×-Zahl 
   seit `114d0a1` `These marks are saved for every Nightfarer; one that only works for another
   Nightfarer is ignored here.` Der Code-Wortlaut gilt; AK-445 wird hiermit so gelesen.
 
-**Befund, ohne Vorgabe (Zeilenhoehe).** Zeilen mit Stacks-Feld sind 1,5-mal so hoch wie die
+**Befund, ohne Vorgabe (Zeilenhoehe), behoben T-336h, siehe AK-469.** Zeilen mit Stacks-Feld waren 1,5-mal so hoch wie die
 uebrigen (QA, physisch 16/24 px bei 100 %, 20/30 bei 125 %, 24/36 bei 150 %). Das ist ein
 Konsistenzbruch in der Liste, kein Bruch der Bedienbarkeit (**Wichtig**; Messwerte aus dem
 QA-Bericht, hier nicht nachgemessen). Richtung: Feldhoehe an die Zeilenhoehe angleichen (Rand

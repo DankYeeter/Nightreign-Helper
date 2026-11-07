@@ -58,7 +58,9 @@ TITLE = "Effect filters"
 #: name column has the 104 px it had; the wider legend makes up for its new
 #: sentence, the tree keeps its 449 px at the same height. T-336b (offscreen,
 #: Fusion, 07.11.2026): the longer Stacks sentence takes 26 px more, the tree
-#: keeps its 449 px.
+#: keeps its 449 px. T-336h (07.11.2026): a row with a Stacks field no longer
+#: stands taller than the others, which moves neither the size nor the tree's
+#: 449 px (offscreen) and 542 px (live, Windows, at 100, 125 and 150 %).
 OPENING_SIZE = (702, 733)
 
 (COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_STACKS, COL_NAME, COL_TYPE,
@@ -342,6 +344,11 @@ class EffectFilterWindow(QDialog):
         next, which made 25 of `2.5`."""
         field = QLineEdit()
         field.setFixedWidth(STACKS_FIELD_WIDTH)
+        # What a row without a field takes, the taller of its box and a line of
+        # text: the field's own size hint made its row 1.5 times as high (AK-469).
+        box = self.tree.itemWidget(item, COL_FAVOURITE)
+        field.setFixedHeight(max(box.sizeHint().height(),
+                                 field.fontMetrics().height()))
         field.setAlignment(Qt.AlignCenter)
         field.setToolTip(STACKS_TOOLTIP)
         field.setAccessibleName(f"Stacks: {row.name}")

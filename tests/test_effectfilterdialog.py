@@ -499,6 +499,25 @@ def test_the_search_hides_a_row_with_its_stacks_field_and_keeps_the_value(
     assert stack_window.stack_fields[STACKING].text() == "2"
 
 
+def test_a_row_with_a_stacks_field_is_as_high_as_one_without(stack_window):
+    """AK-469: the field's own size hint made its row 1.5 times as high. A red
+    text changes the field's style, and must not bring that back."""
+    window = stack_window
+    window.show()
+    QApplication.processEvents()
+
+    def row_heights() -> dict[int, int]:
+        return {effect_id: window.tree.visualItemRect(
+                    window._marks[effect_id][-1]).height()
+                for effect_id in (11, STACKING, STACKING_MEMBER)}
+
+    assert len(set(row_heights().values())) == 1, row_heights()
+    QTest.keyClicks(window.stack_fields[STACKING], "11")
+    QApplication.processEvents()
+    assert len(set(row_heights().values())) == 1, row_heights()
+    assert row_heights()[11] > 0
+
+
 def test_tab_reaches_the_stacks_field_after_the_boxes_of_its_row(stack_window):
     """On a member after Allow, on a single after Avoid."""
     window = stack_window
