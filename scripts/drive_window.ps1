@@ -184,7 +184,7 @@ function Rows($f) {
 }
 function RowText($row) { ($row.Cells | ForEach-Object { $x=[int]$_.Current.BoundingRectangle.X; "${x}:'$($_.Current.Name)'" }) -join " " }
 function CellState($e) { try { return [string]($e.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState) } catch { return "-" } }
-function CountLine($f) { (Texts $f "of 340") -join "" }
+function CountLine($f) { (Texts $f "^\d+ of \d+ effects") -join "" }
 function FindRow($f, $nameRegex) { foreach ($r in (Rows $f)) { foreach ($c in $r.Cells) { if ($c.Current.Name -match $nameRegex) { return $r } } }; return $null }
 function ClickCell($f, $nameRegex, $col) {
     # col: 0 Favourite, 1 Avoid, 2 Allow
