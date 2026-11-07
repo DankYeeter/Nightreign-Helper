@@ -43,8 +43,7 @@ from .eventstab import WorldEventsTab
 from .relicslots import (RelicSlot, _custom_effects,
                          _relic_count, slot_chip)
 from .statsheet import HAND_CAPTIONS, StatSheet, _heading
-from .theme import (ACCENT, BORDER, MUTED, NAME_POINT_SIZE, PANEL,
-                    SLOT_COLOURS)
+from .theme import ACCENT, BORDER, MUTED, NAME_POINT_SIZE, PANEL
 
 # The four shared Grails sit under their own heroType rather than any
 # Nightfarer's, because every Nightfarer can use them.
@@ -142,7 +141,7 @@ class VesselStrip(QWidget):
         self._row.addStretch(1)
         self.tiles: list[QLabel] = []
 
-    def show_slots(self, colours: list[int], items: list) -> None:
+    def show_slots(self, slots: list, items: list) -> None:
         """One tile per slot the vessel has: its colour, and its relic."""
         while self._row.count() > 1:
             item = self._row.takeAt(0)
@@ -150,42 +149,14 @@ class VesselStrip(QWidget):
                 item.widget().deleteLater()
         self.tiles = []
 
-        for index, colour in enumerate(colours):
-            tint = SLOT_COLOURS.get(colour, MUTED)
-            backing = slot_chip(self.icons, colour,
-                                items[index] if index < len(items) else None,
-                                self.TILE)
+        for index, slot in enumerate(slots):
+            owned = items[index] if index < len(items) else None
             tile = QLabel()
             tile.setFixedSize(self.TILE, self.TILE)
-            tile.setAlignment(Qt.AlignCenter)
-            owned = items[index] if index < len(items) else None
-            if backing is not None:
-                tile.setPixmap(backing)
-                tile.setStyleSheet("border: none; background: transparent;")
-                tile.setToolTip(getattr(owned, "name", "") or "empty slot")
-                self._row.insertWidget(index, tile)
-                self.tiles.append(tile)
-                continue
-            # A filled slot is drawn in its colour; an empty one keeps the
-            # colour as an outline only, so "this chalice has a red slot" and
-            # "there is a red relic in it" never look the same.
-            if owned is not None:
-                tile.setStyleSheet(
-                    f"background: rgba(255,255,255,18);"
-                    f" border: 2px solid {tint}; border-radius: 5px;")
-                icon = None
-                if self.icons is not None:
-                    icon = self.icons.item(getattr(owned, "icon", None))
-                if icon is not None:
-                    tile.setPixmap(icon.scaled(
-                        self.ICON, self.ICON, Qt.KeepAspectRatio,
-                        Qt.SmoothTransformation))
-                tile.setToolTip(getattr(owned, "name", ""))
-            else:
-                tile.setStyleSheet(
-                    f"background: transparent;"
-                    f" border: 1px dashed {tint}; border-radius: 5px;")
-                tile.setToolTip("empty slot")
+            tile.setPixmap(slot_chip(self.icons, slot.colour, owned,
+                                     self.TILE, slot.deep))
+            tile.setStyleSheet("border: none; background: transparent;")
+            tile.setToolTip(getattr(owned, "name", "") or "empty slot")
             self._row.insertWidget(index, tile)
             self.tiles.append(tile)
 
@@ -1619,6 +1590,7 @@ class Planner(QMainWindow):
         """
         cell = self.chalice_list.iconSize().height()
         colours = list(vessel.get("slots", []))
+        normal_slots = len(colours)
         if self.deep_check.isChecked():
             colours += list(vessel.get("deep_slots") or [])
         gap = 5
@@ -1636,7 +1608,7 @@ class Planner(QMainWindow):
             owned = items[i] if items and i < len(items) else None
             painter.drawPixmap(cell + gap + i * (self.ROW_SLOT + 2), top,
                                slot_chip(self.icons, colour, owned,
-                                         self.ROW_SLOT))
+                                         self.ROW_SLOT, i >= normal_slots))
         if worn:
             # Drawn rather than taken from the game: the menus mark the worn
             # chalice by moving it, not with a sprite this program could
@@ -2173,7 +2145,7 @@ class Planner(QMainWindow):
         if not hasattr(self, "vessel_strip"):
             return
         slots = self._visible_slots()
-        self.vessel_strip.show_slots([s.colour for s in slots],
+        self.vessel_strip.show_slots(slots,
                                      [s.current_relic() for s in slots])
         self.refresh_vessel_row()
 

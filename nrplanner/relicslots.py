@@ -13,7 +13,7 @@ import html
 
 from PySide6.QtCore import QPointF, QSignalBlocker, Qt, Signal
 from PySide6.QtGui import (
-    QColor, QLinearGradient, QPainter, QPixmap, QPolygonF, QRadialGradient,
+    QColor, QGuiApplication, QPainter, QPainterPath, QPixmap,
 )
 from PySide6.QtWidgets import (
     QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QToolButton,
@@ -23,21 +23,22 @@ from PySide6.QtWidgets import (
 from nrdata.binary import NotWhatItClaims
 
 from . import (
-    advisorblock, chalices, effecttext, errortext, favourites, inventory,
-    model,
+    advisorblock, chalices, effecttext, errortext, favourites, iconpack,
+    inventory, model,
 )
 from .theme import ACCENT, BORDER, CURSE, DEBUFF, MUTED, PANEL, SLOT_COLOURS
 
 
-# The slot-colour gems, by relic colour. White ships none -- the game has
-# only four -- so it is drawn as a pale diamond to match.
-SLOT_GEMS = {
-    0: "MENU_MenuIcon_40480.png",
-    1: "MENU_MenuIcon_40481.png",
-    2: "MENU_MenuIcon_40483.png",   # Yellow
-    3: "MENU_MenuIcon_40482.png",   # Green
-}
+# The game's slot sprites by colour (Red, Blue, Yellow, Green, White): the
+# switch at `nightreign.exe` RVA 0x785560, see iconbuild's UI_SPRITES.
+SLOT_CELL = "MENU_In_bg_22.png"
+SLOT_LIGHTS = {colour: f"MENU_MenuIcon_{40240 + colour}.png"
+               for colour in range(5)}
+DEEP_SLOT_LIGHTS = {colour: f"MENU_MenuIcon_{40254 + colour}.png"
+                    for colour in range(5)}
 
+#: The small chip in a card's and a picker's header.
+HEADER_CHIP = 20
 
 # Drawn chips, keyed by what actually changes their pixels. Without this the
 # vessel list redrew every slot of every vessel on each hero switch -- eleven
@@ -46,104 +47,62 @@ SLOT_GEMS = {
 _CHIP_CACHE: dict[tuple, QPixmap] = {}
 
 
-def slot_chip(icons, colour: int, owned=None, size: int = 26):
-    """One relic slot, drawn the way the game presents it.
+def slot_chip(icons, colour: int, owned=None, size: int = 26,
+              deep: bool = False):
+    """One relic slot, drawn the way the game presents it (T-338, row F).
 
-    A dark cell, a coloured glow rising from its floor, the relic sitting in
-    it, and the colour gem in the corner. The gem matters precisely because a
-    filled slot hides most of the glow -- which is why the game puts it there
-    -- so it is drawn only when something is in the slot.
-
-    The glow is drawn rather than extracted: the sprite atlas carries the
-    gems and the relic art but no slot light, so this is the one piece with
-    no authentic source, and it is generated to sit under the real ones.
+    The game's cell, its light for this colour and this kind of slot, the
+    relic sitting in it, and the colour gem in the corner. The gem matters
+    precisely because a filled slot hides most of the light -- which is why
+    the game puts it there -- so it is drawn only when something is in the
+    slot. Without the sprites the cell keeps its colour as an outline.
     """
-    key = (colour, size, getattr(owned, "icon", None) if owned else None)
+    key = (colour, size, deep,
+           getattr(owned, "icon", None) if owned else None)
     cached = _CHIP_CACHE.get(key)
     if cached is not None:
         return cached
 
-    chip = QPixmap(size, size)
+    ratio = QGuiApplication.primaryScreen().devicePixelRatio()
+    chip = QPixmap(round(size * ratio), round(size * ratio))
     chip.fill(Qt.transparent)
-    tint = QColor(SLOT_COLOURS.get(colour, MUTED))
+    chip.setDevicePixelRatio(ratio)
     painter = QPainter(chip)
     painter.setRenderHint(QPainter.Antialiasing, True)
+    outline = QPainterPath()
+    outline.addRoundedRect(0, 0, size, size, 4, 4)
+    painter.fillPath(outline, QColor("#15161a"))
+    painter.setClipPath(outline)
 
-    painter.setPen(Qt.NoPen)
-    painter.setBrush(QColor("#15161a"))
-    painter.drawRoundedRect(0, 0, size - 1, size - 1, 4, 4)
+    def draw_whole(sprite: str, opacity: float = 1.0) -> bool:
+        art = icons.ui(sprite) if icons is not None else None
+        if art is None:
+            return False
+        painter.setOpacity(opacity)
+        painter.drawPixmap(0, 0, iconpack.sharp(art, size))
+        painter.setOpacity(1.0)
+        return True
 
-    # The light standing in the cell. The game renders this per frame -- it
-    # is in no sprite anywhere in the menu atlas, which was searched
-    # exhaustively -- so it is drawn.
-    #
-    # It is drawn small and scaled up, which is the whole trick: at a quarter
-    # size the shapes are a few pixels across, and the smooth upscale turns
-    # their edges into a gradient. Drawing at full size gives either a hard
-    # triangle or visible rings, both of which read as a drawn shape rather
-    # than as light -- each was tried and looked it.
-    lit = 1.0 if owned is None else 0.5
-    small = max(8, size // 4)
-    layer = QPixmap(small, small)
-    layer.fill(Qt.transparent)
-    lp = QPainter(layer)
-    lp.setRenderHint(QPainter.Antialiasing, True)
-    lp.setPen(Qt.NoPen)
-
-    cone = QLinearGradient(0, small * 0.88, 0, small * 0.18)
-    base = QColor(tint).lighter(140); base.setAlpha(int(230 * lit))
-    tip = QColor(tint); tip.setAlpha(0)
-    cone.setColorAt(0.0, base)
-    cone.setColorAt(1.0, tip)
-    lp.setBrush(cone)
-    lp.drawPolygon(QPolygonF([
-        QPointF(small * 0.5, small * 0.12),
-        QPointF(small * 0.88, small * 0.88),
-        QPointF(small * 0.12, small * 0.88),
-    ]))
-
-    pool = QRadialGradient(small / 2, small * 0.82, small * 0.5)
-    hot = QColor(tint).lighter(170); hot.setAlpha(int(245 * lit))
-    pool.setColorAt(0.0, hot)
-    rim = QColor(tint); rim.setAlpha(0)
-    pool.setColorAt(1.0, rim)
-    lp.setBrush(pool)
-    lp.drawEllipse(QPointF(small / 2, small * 0.82),
-                   small * 0.46, small * 0.20)
-    lp.end()
-
-    painter.setClipRect(1, 1, size - 2, size - 2)
-    painter.drawPixmap(0, 0, layer.scaled(size, size, Qt.IgnoreAspectRatio,
-                                          Qt.SmoothTransformation))
+    draw_whole(SLOT_CELL)
+    light = (DEEP_SLOT_LIGHTS if deep else SLOT_LIGHTS).get(colour)
+    lit = draw_whole(light, 1.0 if owned is None else 0.5) if light else False
     painter.setClipping(False)
+    if not lit:
+        painter.setPen(QColor(SLOT_COLOURS.get(colour, MUTED)))
+        painter.drawPath(outline)
 
     if owned is not None and icons is not None:
         art = icons.item(getattr(owned, "icon", None))
         if art is not None:
-            inner = int(size * 0.78)
-            art = art.scaled(inner, inner, Qt.KeepAspectRatio,
-                             Qt.SmoothTransformation)
-            painter.drawPixmap((size - art.width()) // 2,
-                               (size - art.height()) // 2 - 1, art)
-        gem = icons.ui(SLOT_GEMS[colour]) if colour in SLOT_GEMS else None
-        pip = max(7, size // 3)
-        if gem is not None and not gem.isNull():
-            gem = gem.scaled(pip, pip, Qt.KeepAspectRatio,
-                             Qt.SmoothTransformation)
-            painter.drawPixmap(size - pip - 1, size - pip - 1, gem)
-        else:
-            # White has no gem of its own; a plain diamond stands in for it.
-            painter.save()
-            painter.translate(size - pip / 2 - 2, size - pip / 2 - 2)
-            painter.rotate(45)
-            painter.setBrush(tint)
-            painter.setPen(QColor("#00000060"))
-            painter.drawRect(-pip // 3, -pip // 3, 2 * pip // 3, 2 * pip // 3)
-            painter.restore()
-
-    painter.setBrush(Qt.NoBrush)
-    painter.setPen(QColor("#00000070"))
-    painter.drawRoundedRect(0, 0, size - 1, size - 1, 4, 4)
+            art = iconpack.sharp(art, int(size * 0.78))
+            drawn = art.deviceIndependentSize()
+            painter.drawPixmap(QPointF((size - drawn.width()) / 2,
+                                       (size - drawn.height()) / 2 - 1), art)
+        gem = icons.ui(iconpack.GEM_SPRITES.get(colour))
+        if gem is not None:
+            pip = max(7, size // 3)
+            painter.drawPixmap(size - pip - 1, size - pip - 1,
+                               iconpack.sharp(gem, pip))
     painter.end()
     _CHIP_CACHE[key] = chip
     return chip
@@ -288,7 +247,8 @@ class RelicSlot(QFrame):
         self.hold_button.toggled.connect(self._hold_toggled)
         header.addWidget(self.hold_button)
         self.chip = QLabel()
-        self.chip.setFixedSize(14, 14)
+        self.chip.setFixedSize(HEADER_CHIP, HEADER_CHIP)
+        self.chip.setStyleSheet("border: none; background: transparent;")
         header.addWidget(self.chip)
         layout.addLayout(header)
 
@@ -570,10 +530,8 @@ class RelicSlot(QFrame):
         self.owned = owned
         self.all_effects = list(all_effects)
         self.effect_by_id = {e["id"]: e for e in all_effects}
-        self.chip.setStyleSheet(
-            f"background: {SLOT_COLOURS.get(colour, MUTED)};"
-            f" border: 1px solid {BORDER}; border-radius: 7px;"
-        )
+        self.chip.setPixmap(slot_chip(self.icons, colour, None, HEADER_CHIP,
+                                      self.deep))
         self.populate()
 
     def effect_names(self, item) -> list[str]:

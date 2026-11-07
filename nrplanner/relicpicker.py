@@ -40,9 +40,10 @@ from . import advisorbar, advisorblock, cardgrid, effecttext, favourites, model
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
+from .relicslots import HEADER_CHIP, slot_chip
 from .theme import (
     ACCENT, BORDER, CURSE, FAVOURITE, HOVER_FILL, MUTED, NAME_POINT_SIZE,
-    PANEL, SLOT_COLOURS,
+    PANEL,
 )
 
 #: How many cards wide the dialog first asks to be. Not a claim about the
@@ -1169,11 +1170,9 @@ class RelicPicker(QDialog):
 
         top = QHBoxLayout()
         chip = QLabel()
-        chip.setFixedSize(16, 16)
-        chip.setStyleSheet(
-            f"background: {SLOT_COLOURS.get(slot.colour, MUTED)};"
-            f" border: 1px solid {BORDER}; border-radius: 8px;"
-        )
+        chip.setFixedSize(HEADER_CHIP, HEADER_CHIP)
+        chip.setPixmap(slot_chip(icons, slot.colour, None, HEADER_CHIP,
+                                 slot.deep))
         top.addWidget(chip)
 
         self.search = QLineEdit(search_text)

@@ -6,9 +6,52 @@ import json
 import time
 import pathlib
 
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QIcon, QPixmap
+from PySide6.QtWidgets import QLabel
 
 from . import paths
+
+#: How tall a symbol stands beside a line of text, in logical pixels.
+INLINE_ICON = 14
+
+#: A damage type or status, however a tab spells it, to the game's own symbol.
+#: The relic screen's filter list holds the first twelve; the three grey
+#: physical icons were pinned by looking at them enlarged -- club on rubble is
+#: Strike, the broad blade Slash, the gauntlet thrust Pierce. `Physical`, which
+#: the game shows for the sum of those, wears the plain one. Scarlet Rot, Sleep
+#: and Death Blight come from the equipment screen's status symbols instead:
+#: see iconbuild's UI_SPRITES for the working.
+TYPE_SPRITES = {
+    "standard": "MENU_FL_40141.png",
+    "physical": "MENU_FL_40141.png",
+    "strike": "MENU_FL_40142.png",
+    "slash": "MENU_FL_40143.png",
+    "pierce": "MENU_FL_40144.png",
+    "holy": "MENU_FL_40145.png",
+    "magic": "MENU_FL_40146.png",
+    "frostbite": "MENU_FL_40147.png",
+    "frost": "MENU_FL_40147.png",
+    "fire": "MENU_FL_40148.png",
+    "lightning": "MENU_FL_40150.png",
+    "madness": "MENU_FL_40151.png",
+    "poison": "MENU_FL_40172.png",
+    "blood loss": "MENU_FL_40173.png",
+    "scarlet rot": "MENU_PropertyIcon_31231.png",
+    "rot": "MENU_PropertyIcon_31231.png",
+    "sleep": "MENU_PropertyIcon_31234.png",
+    "death blight": "MENU_PropertyIcon_31236.png",
+    "death": "MENU_PropertyIcon_31236.png",
+}
+
+#: The slot-colour gems, by relic colour. The game has exactly four, so a White
+#: slot shows none.
+GEM_SPRITES = {
+    0: "MENU_MenuIcon_40480.png",
+    1: "MENU_MenuIcon_40481.png",
+    2: "MENU_MenuIcon_40483.png",   # Yellow
+    3: "MENU_MenuIcon_40482.png",   # Green
+}
 
 
 def _read_with_retries(path: pathlib.Path, attempts: int = 4) -> bytes | None:
@@ -84,6 +127,7 @@ class IconPack:
                 except ValueError:
                     pass
         self._cache: dict[str, QPixmap | None] = {}
+        self._tags: dict[tuple, str] = {}
 
     @property
     def available(self) -> bool:
@@ -148,3 +192,60 @@ class IconPack:
     def item_icon(self, icon_id: int) -> QIcon | None:
         pixmap = self.item(icon_id)
         return QIcon(pixmap) if pixmap else None
+
+    def status(self, icon_id: int | None) -> QPixmap | None:
+        """A status symbol: what an effect or a world-event buff shows."""
+        return self._pixmap(self.manifest.get("status", {}).get(str(icon_id)))
+
+    def inline(self, group: str, key, size: int = INLINE_ICON) -> str:
+        """An `<img>` for rich text, empty where the pack has no such symbol.
+
+        Kept once asked for: a sheet redraw asks for dozens, and each answer
+        is a path resolved on disk that no longer changes while the pack is
+        open.
+        """
+        asked = (group, str(key), size)
+        if asked not in self._tags:
+            path = self._inside_pack(self.manifest.get(group, {}).get(str(key)))
+            self._tags[asked] = (
+                f"<img src='{path.as_uri()}' width='{size}' height='{size}'"
+                f" align='middle'>&nbsp;"
+                if path is not None and path.exists() else "")
+        return self._tags[asked]
+
+
+def inline(icons: IconPack | None, group: str, key,
+           size: int = INLINE_ICON) -> str:
+    """`IconPack.inline` for a widget that may have been given no pack."""
+    return icons.inline(group, key, size) if icons is not None else ""
+
+
+def inline_type(icons: IconPack | None, label: str,
+                size: int = INLINE_ICON) -> str:
+    """The `<img>` of a damage type or status, empty if it has no symbol."""
+    return inline(icons, "ui", TYPE_SPRITES.get(label.lower()), size)
+
+
+def type_pixmap(icons: IconPack | None, label: str) -> QPixmap | None:
+    """The pixmap of a damage type or status, for a combo box or a table."""
+    if icons is None:
+        return None
+    return icons.ui(TYPE_SPRITES.get(label.lower()))
+
+
+def sharp(pixmap: QPixmap, size: int) -> QPixmap:
+    """A pixmap at `size` logical pixels, rendered for this screen's scale."""
+    ratio = QGuiApplication.primaryScreen().devicePixelRatio()
+    scaled = pixmap.scaled(round(size * ratio), round(size * ratio),
+                           Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    scaled.setDevicePixelRatio(ratio)
+    return scaled
+
+
+def symbol_label(pixmap: QPixmap, size: int = INLINE_ICON) -> QLabel:
+    """A symbol standing beside a plain-text label (AK-29: names are no markup)."""
+    label = QLabel()
+    label.setPixmap(sharp(pixmap, size))
+    label.setFixedSize(size, size)
+    label.setStyleSheet("border: none; background: transparent;")
+    return label
