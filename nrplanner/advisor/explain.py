@@ -633,7 +633,7 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     # AK-383: AK-290.2 holds only for an effect that counts. One of another
     # Nightfarer or one that acts on the enemy never does, and no condition
     # parks either (`model.compute_qualitative`).
-    if effect_id in problem.required and not effecttext.works_for(effect, hero):
+    if effect_id in problem.favourites_of_others:
         nightfarer = effecttext.owner(effect) or "another Nightfarer"
         return said(f"{name}: you favourited it, but it only works for "
                     f"{nightfarer}, so it moves no number.",

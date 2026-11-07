@@ -9542,6 +9542,7 @@ Teilmenge vor dem Beam, danach Bestand: gewaehlt.**
    Zusage "blockiert nie" gegen den Fall, dass die K-Grenze der Zwangszweige einen Traeger verfehlt.
 5. `AdvisorResult.required_left_out: tuple[int, ...]` **ersetzt** `blocked_by_a_requirement`;
    `required_but_unmet` bekommt diese Ids und liefert je Effekt den A7-Satz in `unknowns`.
+6. **Nutzerentscheidung 07.11.2026:** eine Marke, die auf diesem Nightfarer nichts bewirkt (`effecttext.works_for`), kommt gar nicht in `required`, sondern aus `advisorbar.asking_from` in `SlotProblem.favourites_of_others`, das nur `Why` liest; kein Slot, nie fehlend, die Marke bleibt gespeichert.
 
 **Gemessen (Prototyp, 110 Kombinationen, Ziel Schaden):** 110 von 110 mit 6 gefuellten Slots; alle
 6 Favoriten 39, 5: 20, 4: 41, 2: 10; Gleichstand der Teilmenge 4; Beam Median 0,89 s, Maximum 1,33 s.

@@ -182,6 +182,10 @@ class SlotProblem:
     refused: the window keeps them apart, and a problem that asked for both
     would have no answer that is not a lie about one of them.
 
+    `favourites_of_others` are the marks left out of `required` because they
+    do nothing on this Nightfarer (user decision 07.11.2026): no slot, never
+    missing. Only `Why` reads them, for a copy in the build that carries one.
+
     `pinned` are the rolls the player starred for this Nightfarer (A28,
     AD-059), sorted: each goes into the suggestion when it fits, and the run
     says why when it does not. Not `favourites`' text form: this package is
@@ -192,6 +196,7 @@ class SlotProblem:
     held: tuple[HeldSlot, ...] = ()
     excluded: frozenset[int] = frozenset()
     required: frozenset[int] = frozenset()
+    favourites_of_others: frozenset[int] = frozenset()
     rejected: frozenset[Roll] = frozenset()
     pinned: tuple[Roll, ...] = ()
 

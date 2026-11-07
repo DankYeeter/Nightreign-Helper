@@ -24,6 +24,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - A favourited effect no longer blocks a suggestion: Optimize carries every
   favourite the chalice can hold, fills the other slots, and Why names the
   rest. A slot Optimize leaves empty shows NO SUGGESTION with the reason.
+- A favourited effect of another Nightfarer ("[Guardian] ..." while you build
+  Wylder) is ignored there: it takes no slot and never counts as missing. The
+  mark stays.
 - Effects that land on the enemy no longer count as your own build's. They are
   listed as "On the enemy" and move no figure (see Fixed).
 

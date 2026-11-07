@@ -2413,8 +2413,10 @@ def test_no_favourite_that_waits_on_a_qa_321_cause_says_it_always_counts(
                               or effecttext.ailment_awaited(effect)))):
             continue
         asked += 1
+        marks = ("required" if effecttext.works_for(effect, wylder["name"])
+                 else "favourites_of_others")
         problem = dataclasses.replace(advisor.problem([advisor.RED]),
-                                      required=frozenset({effect["id"]}))
+                                      **{marks: frozenset({effect["id"]})})
         chosen = (a_copy(0, 1, "Relic", [effect["id"]]),)
         groups = explain.reasons(problem, chosen,
                                  evaluate(problem, (), ctx, goal=goal),
@@ -2427,15 +2429,16 @@ def test_no_favourite_that_waits_on_a_qa_321_cause_says_it_always_counts(
 
 def test_a_favourite_of_another_nightfarer_says_so_in_a_real_answer(
         game_data, wylder, armament):
-    """QA-321, fourth cause: favourites hold for every Nightfarer, so a run on
-    Wylder offers and binds a relic carrying Raider's effect."""
+    """QA-321, fourth cause: a mark for Raider binds nothing on Wylder (user
+    decision 07.11.2026), but a relic in the build can still carry it."""
     foreign = next(effect for effect in game_data["effects"].values()
                    if effecttext.owner(effect) == "Raider")
     ctx = advisor.context(game_data, wylder, reference=armament)
     owned = advisor.make_inventory(game_data, wylder, count=1, handles=[100],
                                    rolls=[[foreign["id"]]])
-    problem = dataclasses.replace(advisor.problem([advisor.RED]),
-                                  required=frozenset({foreign["id"]}))
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED]),
+        favourites_of_others=frozenset({foreign["id"]}))
     frozen = run.frozen_inventory(owned, problem)
 
     result = run.run(advisor.request_for(problem, ctx, frozen), frozen, ctx,

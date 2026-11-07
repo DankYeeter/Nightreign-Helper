@@ -265,7 +265,9 @@ suggestion already meets."; or, where every copy you own also carries an
 effect you avoided, "You own 1 copy carrying “{effect}”, which you
 favourited, but it also carries an effect you avoided: “{name}”. Remove the
 avoid under Filters to use it." (the last sentence is the way back: Filters,
-search the effect, uncheck **Avoid**).
+search the effect, uncheck **Avoid**). A favourite that works only for another
+Nightfarer ("[Guardian] ..." while you build Wylder) is ignored there: it takes
+no slot and never counts as missing, and the mark stays for that Nightfarer.
 
 The **Why** dialog shows the same marks, but only to read — a `▲` marks a
 favourited effect, a struck-through one does nothing for you (an avoided

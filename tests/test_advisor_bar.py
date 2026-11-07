@@ -23,7 +23,7 @@ import pytest
 from PySide6.QtCore import QObject, QSettings, Qt, Signal
 from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QScrollArea
 
-from nrplanner import advisorbar, favourites
+from nrplanner import advisorbar, effecttext, favourites
 from nrplanner.advisor import goals, types
 from tests import rendered
 from tests.advisor_row_at_the_window import NARROW_DESKTOPS
@@ -1294,6 +1294,110 @@ def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
         filters.mark_family(family, False)
         for effect_id in (11, 22, 7330000):
             filters.mark(effect_id, None)
+
+
+def _answer_of_the_window(planner):
+    """The real run on what the window asks, fingerprint filled as
+    `AdvisorController.ask` fills it."""
+    from nrplanner.advisor import run as advisor_run
+
+    asking = advisorbar.asking_from(planner, "max_damage")
+    frozen = advisor_run.frozen_inventory(asking.inventory,
+                                          asking.request.problem)
+    return advisor_run.run(
+        dataclasses.replace(asking.request,
+                            inventory_fingerprint=advisor_run.
+                            inventory_fingerprint(frozen)),
+        frozen, asking.ctx, goals.GOALS)
+
+
+def _guardian_effect_on_a_copy(planner) -> int:
+    """A "[Guardian]" effect the frozen slot carries, so a requirement would
+    change the answer on another Nightfarer."""
+    for relic in planner.owned.relics:
+        for effect_id in relic.effect_ids:
+            name = planner.data["effects"].get(str(effect_id), {}).get("name", "")
+            if name.startswith("[Guardian]"):
+                return effect_id
+    pytest.fail("no copy in the frozen slot carries a [Guardian] effect")
+
+
+def _an_effect_no_copy_carries(planner, works_on_wylder: bool) -> int:
+    carried = {effect_id for relic in planner.owned.relics
+               for effect_id in relic.effect_ids}
+    return next(int(key) for key, effect in planner.data["effects"].items()
+                if int(key) not in carried and effect.get("name")
+                and effecttext.works_for(effect, "Wylder") == works_on_wylder)
+
+
+def _select_hero(planner, name: str) -> None:
+    planner.select_hero(next(index for index, hero in enumerate(planner.heroes)
+                             if hero["name"] == name))
+
+
+def test_a_favourite_of_another_nightfarer_changes_no_answer(planner):
+    """User decision 07.11.2026: a "[Guardian]" favourite on Wylder takes no
+    slot and costs no figure. The mark stays. Red with the split in
+    `asking_from` taken out."""
+    from nrplanner import effectfilters
+
+    _select_hero(planner, "Wylder")
+    free = _answer_of_the_window(planner)
+    foreign = _guardian_effect_on_a_copy(planner)
+    planner.effect_filters.mark(foreign, effectfilters.REQUIRED)
+    try:
+        marked = _answer_of_the_window(planner)
+        problem = advisorbar.asking_from(planner, "max_damage").request.problem
+        assert problem.favourites_of_others == {foreign}
+        assert foreign in planner.effect_filters.required
+    finally:
+        planner.effect_filters.mark(foreign, None)
+    assert marked.suggestions[0].score == free.suggestions[0].score
+    assert marked.suggestions[0].choices == free.suggestions[0].choices
+    assert marked.required_left_out == ()
+    assert marked.unknowns == free.unknowns
+
+
+def test_the_same_favourite_binds_on_its_own_nightfarer(planner):
+    """The other half of the decision: on Guardian the mark is what it was."""
+    from nrplanner import effectfilters
+
+    _select_hero(planner, "Guardian")
+    own = _guardian_effect_on_a_copy(planner)
+    planner.effect_filters.mark(own, effectfilters.REQUIRED)
+    try:
+        assert advisorbar.asking_from(
+            planner, "max_damage").request.problem.required == {own}
+        answer = _answer_of_the_window(planner)
+    finally:
+        planner.effect_filters.mark(own, None)
+    assert answer.required_left_out == ()
+    carriers = {relic.handle for relic in planner.owned.relics
+                if own in relic.effect_ids}
+    assert carriers & {choice.handle for choice in answer.suggestions[0].choices}
+
+
+def test_a_favourite_of_another_nightfarer_is_not_missing_in_the_comparison(
+        planner):
+    """Nothing counts it as left out (AK-455, the vessel list's rank); a
+    favourite of the Nightfarer's own that no copy carries still does."""
+    from nrplanner import effectfilters
+    from nrplanner.advisor import run as advisor_run
+
+    _select_hero(planner, "Wylder")
+    foreign = _an_effect_no_copy_carries(planner, works_on_wylder=False)
+    own = _an_effect_no_copy_carries(planner, works_on_wylder=True)
+    filters = planner.effect_filters
+    filters.mark(own, effectfilters.REQUIRED)
+    try:
+        without = advisor_run.vessel_row(7, _answer_of_the_window(planner))
+        filters.mark(foreign, effectfilters.REQUIRED)
+        with_foreign = advisor_run.vessel_row(7, _answer_of_the_window(planner))
+    finally:
+        filters.mark(own, None)
+        filters.mark(foreign, None)
+    assert with_foreign.required_left_out == (own,)
+    assert advisor_run.rank_key(with_foreign) == advisor_run.rank_key(without)
 
 
 def test_the_question_carries_the_starting_armament_without_its_rolls(planner):

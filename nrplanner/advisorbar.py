@@ -878,9 +878,15 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     holding = planner.held_slot_indices()
     held = tuple(held_slot(index, card) for index, card in enumerate(cards)
                  if index in holding)
+    favourited = planner.effect_filters.required
+    of_others = frozenset(
+        effect_id for effect_id in favourited
+        if not effecttext.works_for(
+            planner.data["effects"].get(str(effect_id), {}), hero["name"]))
     problem = types.SlotProblem(slots=slots, held=held,
                                 excluded=planner.effect_filters.resolved_excluded,
-                                required=planner.effect_filters.required,
+                                required=favourited - of_others,
+                                favourites_of_others=of_others,
                                 rejected=planner.rejected_rolls(),
                                 pinned=favourites.marked_for(hero["id"]))
 
