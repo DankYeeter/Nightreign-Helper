@@ -82,7 +82,7 @@ andere Kacheln als Wylder/Guardian/Duchess/Raider.
 
 Siehe Zeilen `QA-279` und `QA-281` mit Datum 2026-09-15 am Tabellenende.
 
-Bilder: `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\1102cb1a-733e-4319-a4c2-e819573c0f84\scratchpad\T-276\*.png`
+Bilder: `%TEMP%\claude\<Projekt>\1102cb1a-733e-4319-a4c2-e819573c0f84\scratchpad\T-276\*.png`
 (10 Dateien; Hauptfenster 2028x1122 physisch, Fensterinhalt per PrintWindow).
 Prozesse 33488 (Lauf A), 23896/4816 (Lauf B) beendet; `tasklist` 12:47: 0
 Nightreign-Prozesse.

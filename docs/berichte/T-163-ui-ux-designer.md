@@ -116,4 +116,4 @@ savefile.py, ebenfalls ohne Beruehrungspunkt.
 Keine — beide Punkte des Auftrags waren Entscheidungen, die der `director`
 laut Auftrag mir ausdruecklich ueberlassen hat, nicht Geschmacksfragen.
 
-Pfad: C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\UI_SPEC.md
+Pfad: <Hauptbaum>\UI_SPEC.md

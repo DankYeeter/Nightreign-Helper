@@ -146,7 +146,7 @@ maschinelle Beleg ist staerker als der geloeschte Prosa-Kopf.
 
 ### [GRUEN] 4. Der neue Ort des Testabzugs wahrt die Auflagenlage
 
-**Sachverhalt:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
+**Sachverhalt:** `<ClaudeCode>\NightreignHelper-Testabzug`
 — 841 Dateien aus der Spielinstallation, **ausserhalb** des Projektbaums
 (Schwesterverzeichnis des Repos), vom `archivist` in T-208 gegen den Push
 geprueft.
@@ -158,7 +158,7 @@ den Umzug**. Die Lage zu Spieldaten ist gewahrt, solange der Abzug nicht
 committet wird; ausserhalb des Baums kann ihn kein `git add` versehentlich
 erfassen. **Hinweis an den Director (keine Rechtsfrage):** `CLAUDE.md`
 nennt weiterhin den alten Pfad
-`C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug` — vor der
+`%LOCALAPPDATA%\NightreignHelper-Testabzug` — vor der
 Baurunde (QA-231) nachziehen, sonst baut der naechste Fensterlauf am
 falschen Ort.
 

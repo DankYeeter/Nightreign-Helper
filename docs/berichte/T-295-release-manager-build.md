@@ -28,7 +28,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.141.726 Byte (56,40 MiB) |
 | **SHA-256** | `A45BDF1151C28D2ED0F43B8797F4E27F4C8F7BD114A30BF186A954C3692CEA9C` |
 | **Code-Stand des Artefakts** | `099459b` (AK-317-Nachtrag "Allow immer klickbar", T-295a), Branch `docs/audit-and-advisor-design` |
@@ -156,13 +156,13 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.141.726 Byte (56,40 MiB)
 - **SHA-256:** `A45BDF1151C28D2ED0F43B8797F4E27F4C8F7BD114A30BF186A954C3692CEA9C`
 - **Versionsressource:** 1.14.0, am Fenstertitel bestaetigt (Startprobe).
 - **Vorstands-Vergleichsartefakt** (T-294b-Stand, falls fuer Vergleich
   gebraucht):
-  `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\0c1b1951-b796-49a5-9cbc-7588742f286c\scratchpad\artefakte\NightreignHelper-1.14.0-t294.exe`,
+  `%TEMP%\claude\<Projekt>\0c1b1951-b796-49a5-9cbc-7588742f286c\scratchpad\artefakte\NightreignHelper-1.14.0-t294.exe`,
   SHA-256 `8CF4B6943416357EEB443B3AB0DB473BE30E5C1287620D21EBC43B5D4329D3E7`.
 - Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`,
   `LOCALAPPDATA`, `APPDATA` - Testabzug kopieren, nicht darauf zeigen

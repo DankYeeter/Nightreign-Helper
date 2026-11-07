@@ -71,7 +71,7 @@ eine kurze Begruendung.
   (Korrektur 2026-09-01: der Entwurf nannte faelschlich Tkinter.)
 - Repo: github.com/DankYeeter/Nightreign-Helper (public), `main` ist geschuetzt
   — jede Aenderung geht ueber einen Pull Request.
-- Arbeitskopie: C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper
+- Arbeitskopie: `<Hauptbaum>`
 - Datenquelle: die Spielinstallation des Nutzers. NIGHTREIGN ist auf diesem
   Rechner installiert (Nutzer bestaetigt 2026-09-01) — Tests gegen echte
   Spieldaten sind moeglich und werden verlangt.

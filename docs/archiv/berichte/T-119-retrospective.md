@@ -8,7 +8,7 @@ security/findings.md · docs/legal/C-003.md, C-004.md, AUFLAGEN.md ·
 docs/tasks/T-104 bis T-118 (15 Dateien) · docs/berichte/T-104 bis T-117
 (14 Dateien) · docs/berichte/T-062-retrospective.md · docs/archiv/ ·
 Git-Historie des Projekts (seit 2026-09-07 21:35) und des Agenten-Repos
-`C:/Users/Daniel/claude-agent-team` · ~/.claude/agents/_rahmen.md und alle 15
+`%USERPROFILE%/claude-agent-team` · ~/.claude/agents/_rahmen.md und alle 15
 Rollendefinitionen (Frontmatter: tools, model) · ~/.claude/commands/director.md
 · ~/.claude/templates/task.md · ~/.claude/settings.json · ~/.claude/hooks/
 (check-handoff.ps1, remind-rules.ps1, set-dispatch-model.ps1) ·

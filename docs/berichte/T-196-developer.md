@@ -1,7 +1,7 @@
 STATUS: teilweise
 AUFTRAG: T-196 — QA-231: den festen Testabzug wieder aufbauen
 GELESEN: docs/tasks/T-196.md, qa/findings.md (Zeile 253, QA-231), docs/state.md (Abschnitt "Vor der Baurunde zu erledigen"), GOAL.md (A9), CLAUDE.md (Abschnitt "Projektzeilen fuer jeden Auftrag"), nrplanner/paths.py, nrplanner/favourites.py, nrplanner/shortcut.py, nrplanner/gamepath.py, nrplanner/datasource.py, nrplanner/firstrun.py, nrplanner/app.py (main()), run.py, requirements.txt
-GEÄNDERT: C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug (neu angelegt, ausserhalb des Repos — siehe unten); docs/berichte/T-196-developer.md. Keine Datei im Repository ausser dem Bericht.
+GEÄNDERT: %LOCALAPPDATA%\NightreignHelper-Testabzug (neu angelegt, ausserhalb des Repos — siehe unten); docs/berichte/T-196-developer.md. Keine Datei im Repository ausser dem Bericht.
 ANNAHMEN: NIGHTREIGN_SETTINGS_ORG darf pro Messlauf einen eigenen Suffix tragen (DankYeeterT196probe/-scenarioA/-B/-C), solange jeder isoliert vom echten "DankYeeter" bleibt — Tabelle in CLAUDE.md nennt nur das Muster, keinen festen Wert. "Kein Anwendungscode" verstehe ich so, dass ein `python run.py`-Lauf mit umgelenkten Variablen erlaubt ist (das *ist* der Fensterlauf, den der Auftrag verlangt) — nur Aenderungen an Dateien unter nrplanner/, nrdata/, tests/ sind untersagt.
 NÄCHSTER: director
 BLOCKIERT DURCH: eine Bestaetigung, dass der kopierte Abzug am realen Zielpfad tatsaechlich lesbar ist — meine Tools koennen das nicht zeigen (siehe "Offener Punkt" unten). Kandidat fuer die Bestaetigung: der naechste echte Fensterlauf selbst (power-user/clean-room), oder qa-engineer mit einer interaktiven Session.
@@ -26,15 +26,15 @@ umgelenkten `LOCALAPPDATA` vor. **Probe bestanden, Abbruchkriterium griff nicht.
 | Variable | gesetzter Wert (Beispiel Probe-Lauf) | Beleg |
 |---|---|---|
 | `NIGHTREIGN_SETTINGS_ORG` | `DankYeeterT196probe` | `reg query HKCU\Software\DankYeeterT196probe\NightreignHelper` liefert den neu angelegten Key. `reg query HKCU\Software\DankYeeter\NightreignHelper` zeigt weiterhin nur die vorher schon vorhandenen Gruppen (`builds`, `chalices`, `favourites`, `ui`, `variant`) — kein `paths`-Key ist dazugekommen, weil das Spiel automatisch gefunden wurde und `gamepath.resolve_game()` einen automatischen Fund laut Code-Kommentar nie zurueckschreibt. |
-| `LOCALAPPDATA` | `…\scratchpad\T-196\localappdata` | `Get-Item 'C:\Users\Daniel\AppData\Local\NightreignHelper' | Select LastWriteTime` → `8/18/2026 10:27:40 PM`, unveraendert vor und nach dem Lauf (heute ist der 12.09.2026). Der Abzug landete stattdessen unter `…\scratchpad\T-196\localappdata\NightreignHelper` (841 Dateien, siehe unten). |
-| `APPDATA` | `…\scratchpad\T-196\appdata` | Verzeichnisbaum nach dem Lauf leer (kein `Microsoft\Windows\Start Menu`-Unterordner). `Test-Path 'C:\Users\Daniel\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Nightreign Helper.lnk'` → `False`, vor und nach dem Lauf. **Einschraenkung:** `shortcut.create()` ist in `nrplanner/shortcut.py` hinter `FROZEN = bool(getattr(sys, "frozen", False))` verriegelt — ein Lauf aus dem Quellbaum (`python run.py`, `sys.frozen` ist nicht gesetzt) legt nie eine Verknuepfung an, unabhaengig vom Zustand der Checkbox. Der Pfad, der `APPDATA` tatsaechlich liest und eine `.lnk` schreibt, wurde damit **nicht** durch einen echten Lauf durchlaufen, nur durch Code-Lektuere bestaetigt (`nrplanner/shortcut.py:44-49`, `start_menu_dir()` liest `os.environ.get("APPDATA")` direkt, ungecached). Ein `power-user`/`clean-room`-Lauf mit der gebauten `.exe` (dort ist `sys.frozen` gesetzt) durchlaeuft diesen Pfad zum ersten Mal – dort muss die Umlenkung erneut mitgefuehrt werden.
+| `LOCALAPPDATA` | `…\scratchpad\T-196\localappdata` | `Get-Item '%LOCALAPPDATA%\NightreignHelper' | Select LastWriteTime` → `8/18/2026 10:27:40 PM`, unveraendert vor und nach dem Lauf (heute ist der 12.09.2026). Der Abzug landete stattdessen unter `…\scratchpad\T-196\localappdata\NightreignHelper` (841 Dateien, siehe unten). |
+| `APPDATA` | `…\scratchpad\T-196\appdata` | Verzeichnisbaum nach dem Lauf leer (kein `Microsoft\Windows\Start Menu`-Unterordner). `Test-Path '%APPDATA%\Microsoft\Windows\Start Menu\Programs\Nightreign Helper.lnk'` → `False`, vor und nach dem Lauf. **Einschraenkung:** `shortcut.create()` ist in `nrplanner/shortcut.py` hinter `FROZEN = bool(getattr(sys, "frozen", False))` verriegelt — ein Lauf aus dem Quellbaum (`python run.py`, `sys.frozen` ist nicht gesetzt) legt nie eine Verknuepfung an, unabhaengig vom Zustand der Checkbox. Der Pfad, der `APPDATA` tatsaechlich liest und eine `.lnk` schreibt, wurde damit **nicht** durch einen echten Lauf durchlaufen, nur durch Code-Lektuere bestaetigt (`nrplanner/shortcut.py:44-49`, `start_menu_dir()` liest `os.environ.get("APPDATA")` direkt, ungecached). Ein `power-user`/`clean-room`-Lauf mit der gebauten `.exe` (dort ist `sys.frozen` gesetzt) durchlaeuft diesen Pfad zum ersten Mal – dort muss die Umlenkung erneut mitgefuehrt werden.
 
 Nachweis gelang fuer alle drei Variablen; kein Abbruch noetig.
 
 ## Vorgabe 2 — Abzug kopiert
 
 Kopiert von `…\scratchpad\T-196\localappdata\NightreignHelper` nach
-`C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug` (echte Kopie,
+`%LOCALAPPDATA%\NightreignHelper-Testabzug` (echte Kopie,
 `cp -r`, kein Symlink, keine Junction). Unmittelbar danach:
 
 ```
@@ -54,20 +54,20 @@ Jeder Leseversuch — `cat`, `wc -c`, `python open()`, PowerShell `Get-Content`,
 accessed because it is not encrypted as expected."* Ich habe das eingegrenzt:
 
 - Es betrifft **jede** frisch angelegte Datei direkt unter dem echten
-  `C:\Users\Daniel\AppData\Local\…` (auch eine einzeilige Testdatei, die ich
+  `%LOCALAPPDATA%\…` (auch eine einzeilige Testdatei, die ich
   zu diesem Zweck angelegt und wieder geloescht habe) — nicht nur den Abzug
   und nicht nur Bilddateien.
 - Es betrifft **nicht** Dateien im Scratchpad (`…\AppData\Local\Temp\claude\…`)
   oder im Projektbaum — die habe ich den ganzen Auftrag ueber ohne Problem
   gelesen und geschrieben.
 - Es betrifft **nicht** die bereits vorhandene echte Datei
-  `C:\Users\Daniel\AppData\Local\NightreignHelper\nightreign_data.json`
+  `%LOCALAPPDATA%\NightreignHelper\nightreign_data.json`
   (vor diesem Auftrag angelegt) — die liess sich lesen.
 - Loeschen einer betroffenen Datei (`rm -rf` auf die Testdatei) funktionierte
   sofort und ohne Fehler — ein echt gesperrtes/beschaedigtes File liesse sich
   in der Regel auch nicht widerstandslos loeschen.
 - Ein direkter Funktionstest (den Fensterlauf mit `LOCALAPPDATA` auf das
-  echte `C:\Users\Daniel\AppData\Local` zeigen zu lassen, um zu sehen, ob ein
+  echte `%LOCALAPPDATA%` zeigen zu lassen, um zu sehen, ob ein
   echter Prozess den Abzug liest) wurde vom Auto-Mode-Classifier blockiert
   ("Blocked by classifier") — zu Recht, das haette das ganze echte
   `LOCALAPPDATA` als Wurzel getroffen, nicht nur den Testabzug-Unterordner,
@@ -144,9 +144,9 @@ am tatsaechlichen Zielpfad.
 - Alle waehrend der Messung gestarteten `python.exe`-Prozesse sind beendet
   (`Get-CimInstance Win32_Process -Filter "Name='python.exe'"` liefert
   nach jedem Messlauf keine Treffer mehr).
-- Die Testdatei `C:\Users\Daniel\AppData\Local\ClaudeReadTest` wurde
+- Die Testdatei `%LOCALAPPDATA%\ClaudeReadTest` wurde
   geloescht.
-- Der echte `C:\Users\Daniel\AppData\Local\NightreignHelper` (Produktiv-Cache,
+- Der echte `%LOCALAPPDATA%\NightreignHelper` (Produktiv-Cache,
   309 Relikte/110 Builds des Nutzers) ist nachweislich unveraendert
   (`LastWriteTime` 8/18/2026, vor und nach dem gesamten Auftrag identisch).
 - Der echte Start-Menu-Eintrag existiert nicht (weder vorher noch nachher).
@@ -177,7 +177,7 @@ am tatsaechlichen Zielpfad.
 ## An den director
 
 - **Kernbefund:** Der Abzug existiert jetzt unter
-  `C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug`, 841 Dateien,
+  `%LOCALAPPDATA%\NightreignHelper-Testabzug`, 841 Dateien,
   20.812.293 Bytes, `EXTRACT_VERSION` 11, gebaut von Programmversion 1.9.0
   (alt: 1.8.0 — bitte diese eine Zahl beim Nachtragen in CLAUDE.md aktuell
   halten, der Rest ist unveraendert).

@@ -31,8 +31,8 @@ Skript `…/scratchpad/T-157/where.py`, das `paths.cache_dir()`,
 
 | | ohne Umlenkung (Positivkontrolle) | mit Umlenkung |
 |---|---|---|
-| `cache_dir()` | `C:\Users\Daniel\AppData\Local\NightreignHelper` | `…\scratchpad\T-157\local\NightreignHelper` |
-| `shortcut_path()` | `C:\Users\Daniel\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Nightreign Helper.lnk` | `…\scratchpad\T-157\roaming\…\Nightreign Helper.lnk` |
+| `cache_dir()` | `%LOCALAPPDATA%\NightreignHelper` | `…\scratchpad\T-157\local\NightreignHelper` |
+| `shortcut_path()` | `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Nightreign Helper.lnk` | `…\scratchpad\T-157\roaming\…\Nightreign Helper.lnk` |
 | `favourites.ORG` | `DankYeeter` | `DankYeeterT-157` |
 
 Die Positivkontrolle zeigt, dass die Messung wirklich auf den Ort des Spielers

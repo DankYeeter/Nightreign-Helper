@@ -108,8 +108,8 @@ Ein Skript, das `paths.cache_dir()`, `shortcut.shortcut_path()` und
 
 ```
 === ohne Umlenkung (Positivkontrolle)
-cache_dir   : C:\Users\Daniel\AppData\Local\NightreignHelper
-shortcut    : C:\Users\Daniel\AppData\Roaming\Microsoft\Windows\Start Menu\
+cache_dir   : %LOCALAPPDATA%\NightreignHelper
+shortcut    : %APPDATA%\Microsoft\Windows\Start Menu\
               Programs\Nightreign Helper.lnk
 settings ORG: DankYeeter / APP: NightreignHelper
 === mit Umlenkung

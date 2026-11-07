@@ -14,7 +14,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau. Fuer das Release unveraendert A-025 (GR
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | **59.062.648 Byte** (56,33 MiB) |
 | **SHA-256** | `A2180D5DB3A2B1B1AAF88028C6E7A1429087596E58EC3757469FD234E1366EF3` |
 | **Commit** | `07169114d327f1b635ab6461a7aa03c36ed0a758` (Branch `docs/audit-and-advisor-design`, Arbeitsbaum sauber vor und nach dem Lauf) |
@@ -28,7 +28,7 @@ Der Auftrag sagte: *"`dist/NightreignHelper-notices.zip` ist veraltet (07.09.) -
 
 Mein erster Schritt vor Build 1 war `rm -rf dist build`, um einen echten Kaltstart ohne Cache zu erzwingen (dieselbe Methodik wie in T-168 fuer die Reproduzierbarkeits-Gegenprobe). Dabei wurde die alte `dist/NightreignHelper-notices.zip` mitgeloescht - eine Datei, die der Auftrag ausdruecklich unangetastet lassen wollte. Das ist mein Fehler, keine Nebenwirkung des Bauwerkzeugs.
 
-**Gesucht und nicht gefunden:** keine Kopie der Datei liegt irgendwo auf diesem Rechner (Volltextsuche `*notices*.zip` unter `C:\Users\Daniel\AppData\Local\Temp\claude` und den ueblichen Projektpfaden, keine Treffer ausser fremder Projekte).
+**Gesucht und nicht gefunden:** keine Kopie der Datei liegt irgendwo auf diesem Rechner (Volltextsuche `*notices*.zip` unter `%TEMP%\claude` und den ueblichen Projektpfaden, keine Treffer ausser fremder Projekte).
 
 **Eingegrenzt, wie schwer das wiegt:** Das Archiv wird von `.github/workflows/release.yml` (Zeilen 101-116) aus genau vier Pfaden gepackt: `LICENSE`, `THIRD_PARTY.md`, `licenses/`, `vendor/Paramdex/NOTICE`. Alle vier sind versioniert im Repository. `git log -1 --format=%cd` je Pfad:
 
@@ -102,7 +102,7 @@ Vergleichsskript und Rohausgaben liegen im Scratchpad: `…\scratchpad\T-174\com
 - `HKCU\Software\DankYeeter\NightreignHelper`: Unterschluessel `builds`, `chalices`, `ui`.
 - `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Nightreign Helper.lnk`: existiert nicht.
 
-**Vorbereitung:** fester Testabzug (`C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug`, 841 Dateien) kopiert nach `…\scratchpad\T-174\localappdata\NightreignHelper`. `meta.extract_version` im Abzug gepr체ft: **11** - stimmt mit `EXTRACT_VERSION = 11` im heutigen Quellstand (`nrdata/extract.py:79`) ueberein. Vorlage bleibt gueltig, **kein E-1-Fall**.
+**Vorbereitung:** fester Testabzug (`%LOCALAPPDATA%\NightreignHelper-Testabzug`, 841 Dateien) kopiert nach `…\scratchpad\T-174\localappdata\NightreignHelper`. `meta.extract_version` im Abzug gepr체ft: **11** - stimmt mit `EXTRACT_VERSION = 11` im heutigen Quellstand (`nrdata/extract.py:79`) ueberein. Vorlage bleibt gueltig, **kein E-1-Fall**.
 
 **Start:** `dist\NightreignHelper.exe` per `ProcessStartInfo.EnvironmentVariables` (nicht `Start-Process`, damit die Variablen nur im Kindprozess gelten) mit `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-174`, `LOCALAPPDATA=…\scratchpad\T-174\localappdata`, `APPDATA=…\scratchpad\T-174\appdata`. Fenstertitel **"Nightreign Helper 1.9.0"** nach rund 20 s (PyInstaller-Onefile-Bootloader entpackt sich zunaechst, zwei Prozesse: Elternprozess ohne Fenster, Kindprozess mit Fenster).
 
@@ -142,7 +142,7 @@ Keine neuen Befunde im Anwendungscode. Alle 63 Module verhalten sich in beiden B
 
 ## An `clean-room`-Lauf und `power-user` (Ausgangspunkt)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.062.648 Byte
 - **SHA-256:** `A2180D5DB3A2B1B1AAF88028C6E7A1429087596E58EC3757469FD234E1366EF3`
 - **Versionsressource:** 1.9.0

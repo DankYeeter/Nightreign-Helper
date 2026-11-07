@@ -874,7 +874,7 @@ Cffi-Fallback; `java`/`vms_lib`/`_winreg`-Plattformstubs). Keine Zeile ohne
 Erklaerung.
 
 **Artefakt:**
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+`<Hauptbaum>\dist\NightreignHelper.exe`
 — Stand nach Bau 2: **59.182.825 Bytes**,
 SHA-256 `CCCCC79EC1E5B998C985AB92B8E80195469514B3A35B1BC17079D90EFE1D293B`,
 `FileVersion`/`ProductVersion` beide `1.19.0` (gelesen aus den
@@ -945,7 +945,7 @@ Eintraege (POSIX-Stdlib-Module, optionale Fremdpakete `olefile`/`numpy`/
 Stubs `imp`/`StringIO` aus pycryptodome); keine unerklaerte Zeile.
 
 **Artefakt (Lauf 2):**
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+`<Hauptbaum>\dist\NightreignHelper.exe`
 — **59.186.282 Bytes**, SHA-256
 `2306C5E0662E78967B7501E694DAF8A393EE0A078398DCB1A815F97C1524610B`,
 FileVersion/ProductVersion `1.19.0` (aus den Dateieigenschaften gelesen).
@@ -1024,7 +1024,7 @@ Reihenfolge einer Aufzaehlung (`posix`) identisch; Eintraege nur bekannte
 `StringIO`); keine unerklaerte Zeile.
 
 **Artefakt (Lauf 2, zuletzt gebaut):**
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+`<Hauptbaum>\dist\NightreignHelper.exe`
 — **59.199.168 Bytes**, SHA-256
 `2dbfeddf58a3aa5b34b44a405ddb6f6f51faf054d6b6b42c77bdf58b3e7e8beb`,
 FileVersion/ProductVersion `1.19.0` (aus den Dateieigenschaften). Vorgaenger
@@ -1051,7 +1051,7 @@ vor dem Bau sauber (`git status --short` leer). Werkzeuge: `.venv`, Python
 43 s, keine Warnung im Log. Zwei Laeufe nacheinander: Groesse und SHA-256
 identisch.
 
-**Artefakt:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+**Artefakt:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **59.200.884 Bytes**, SHA-256
 `80f34cb7b678b01a2ab78bd75ee44e73e24770c0908f6b43033a62734682cfdb`.
 Vorgaenger (`ed93e31`, Ingame-Test): 59.199.168 B,
@@ -1080,7 +1080,7 @@ bitgleich; welche der beiden die Abweichung verursacht, ist nicht getrennt
 gemessen. Empfehlung: beide in das Bauskript bzw. `release.yml` aufnehmen
 (Eigentum `developer`/`director`, hier nicht geaendert).
 
-**Artefakt:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+**Artefakt:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **59.233.901 Bytes**, SHA-256
 `b479a9bb21c3c947d5b37e2619ccc3816974baf1a550b330bad84b8ea12b1eff`.
 Vorgaenger (`7070d0c`): 59.200.884 B, `80f34cb7...cfdb`. `dist/` und `build/`
@@ -1154,7 +1154,7 @@ Werkzeuge: `.venv`, Python 3.12.10, PyInstaller 6.21.0 (Hooks 2026.7), kein
 66 s und 57 s, Log je 4 INFO-Zeilen, keine Warnung. Zwei `--clean`-Laeufe:
 **bitgleich**.
 
-**Artefakt:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+**Artefakt:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **59.238.241 Bytes**, SHA-256
 `ed3346d512daaa04dffbc0ad2ab30e1b682549f483e747655759e8549715f6d2`.
 Vorgaenger v1.19.1 (Release-Asset): 59.252.654 B, `36a29f67...bd05`.
@@ -1227,7 +1227,7 @@ Python 3.12.10, PyInstaller 6.21.0 (Hooks 2026.7), kein `upx`, 0 Treffer
 `--noconfirm --clean --log-level WARN`), 77 s und 61 s, keine Warnung. Zwei
 Laeufe **bitgleich**.
 
-**Artefakt:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+**Artefakt:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - 59.300.781 Bytes, SHA-256
 `c5aa2e89efc6e824634c0abf2f663dcc59744a0372e752071c3ee495627becbb`.
 Die vorherige `dist/`-Datei (6.11., 59.256.833 B) ist ersetzt.

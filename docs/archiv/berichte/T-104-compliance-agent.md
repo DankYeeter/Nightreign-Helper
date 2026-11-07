@@ -10,7 +10,7 @@ BLOCKIERT DURCH: nichts fuer diesen Auftrag. Das Release selbst ist blockiert du
 
 **Frage:** Darf die gebaute EXE an Dritte? **Ampel: GELB**, mit einem GRAU
 (Befund 5), das nur der Nutzer entscheidet. Volltext:
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\docs\legal\C-003.md`.
+`<Hauptbaum>\docs\legal\C-003.md`.
 
 **Was das Release heute sperrt (A-020):** Die Releases-Seite liefert nur
 `NightreignHelper.exe` und `.sha256`. LGPL-3.0 § 4(a)/(b) und BSD Klausel 2

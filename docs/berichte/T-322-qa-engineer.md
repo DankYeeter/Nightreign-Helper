@@ -507,7 +507,7 @@ docs/berichte/T-322-power-user.md (Punkt 1 und 3, Einordnung Director
 GEAENDERT: nichts im Arbeitsbaum ausser diesem Bericht (Abschnitt T-322p
 angehaengt). Kein Eintrag in `qa/findings.md` - kein Befund, Register bleibt
 unveraendert. Scratchpad/Testordner
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-T322p\` (eigenes
+`<ClaudeCode>\NightreignHelper-T322p\` (eigenes
 LOCALAPPDATA/APPDATA, Testabzug 842 Eintraege hineinkopiert, nach dem Lauf
 geloescht); Registry-Zweig `HKCU\Software\DankYeeterT-322p` nach dem Lauf
 geloescht

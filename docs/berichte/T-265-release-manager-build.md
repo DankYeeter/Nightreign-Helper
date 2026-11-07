@@ -14,7 +14,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau - siehe Pflichtlektuere unten.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.118.289 Byte (56,38 MiB) |
 | **SHA-256** | `89C2967ACAAAAAC8CA108935CAC0A79C8292D2C7EC0E77831755A15B295F59D8` (64 Zeichen, `certutil -hashfile … SHA256` und `sha256sum` stimmen ueberein) |
 | **Commit** | `79e6089fa055df3bdb2d86ef227fc005ceafd2a7` ("docs(qa,security): T-265 Retest PASS - QA-272, SEC-046/047 geschlossen"), Branch `docs/audit-and-advisor-design`; enthaelt `02e0721` (Versionsbump 1.12.0) und `2640602` (SEC-046-Fix) als Vorfahren |
@@ -89,11 +89,11 @@ Keine neuen Befunde im Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.118.289 Byte (56,38 MiB)
 - **SHA-256:** `89C2967ACAAAAAC8CA108935CAC0A79C8292D2C7EC0E77831755A15B295F59D8`
 - **Versionsressource:** 1.12.0 (aus `nrplanner/__init__.py`, ungeprueft am Fenstertitel - kein Rauchtest in diesem Lauf)
-- **Fuer den clean-room-Vergleich:** Vorversion 1.11.0 liegt gesichert unter `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\1102cb1a-733e-4319-a4c2-e819573c0f84\scratchpad\artefakte\NightreignHelper-1.11.0.exe`, SHA-256 `F23EB0F784665A8C018C19F353AD114E9809061033076311DCDF21DBB916E8E0` in diesem Lauf gegengeprueft (`certutil`, stimmt mit dem Auftragstext ueberein) - fuer einen Update-Pfad-Test (alte Version installieren/Daten erzeugen, 1.12.0 drueberbauen) geeignet.
+- **Fuer den clean-room-Vergleich:** Vorversion 1.11.0 liegt gesichert unter `%TEMP%\claude\<Projekt>\1102cb1a-733e-4319-a4c2-e819573c0f84\scratchpad\artefakte\NightreignHelper-1.11.0.exe`, SHA-256 `F23EB0F784665A8C018C19F353AD114E9809061033076311DCDF21DBB916E8E0` in diesem Lauf gegengeprueft (`certutil`, stimmt mit dem Auftragstext ueberein) - fuer einen Update-Pfad-Test (alte Version installieren/Daten erzeugen, 1.12.0 drueberbauen) geeignet.
 - Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`, `LOCALAPPDATA`, `APPDATA` - Testabzug kopieren, nicht darauf zeigen (`CLAUDE.md`).
 - Kein laufender `NightreignHelper.exe`-Prozess zum Zeitpunkt dieses Laufs (`tasklist` geprueft) - der Auftrag nennt eine moegliche parallele Fensterinstanz des technical-writer; vor eigenem Start selbst mit `tasklist` pruefen.
 

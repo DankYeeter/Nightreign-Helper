@@ -95,7 +95,7 @@ sauber beenden, (2) A6 nach T-265d-Rezept (S11-Szenario, Cache je Messung ueber
 behoben, QA-274/QA-275 → behoben, mit den obigen Belegen).
 
 Verwendete Hilfsskripte (nicht Teil des Projekts, im System-Temp):
-`C:\Users\Daniel\AppData\Local\Temp\uia_helpers_T268.ps1` und die
+`%TEMP%\uia_helpers_T268.ps1` und die
 `*_T268.ps1`-Familie daneben — wiederverwendbar fuer den Fortsetzungslauf
 (UIA-Fensterfindung, PrintWindow inkl. `SetProcessDpiAwarenessContext(-4)`,
 Klick-Helfer). Wichtige Lektion darin bereits verankert: ohne

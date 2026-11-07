@@ -29,7 +29,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.151.716 Byte (56,41 MiB) |
 | **SHA-256** | `1D4197DF0F0C765B507CCA824FBA480DBCFCA76C482CF3F7A852B199CB6BBDF0` |
 | **Code-Stand des Artefakts** | `6edab2e` (HEAD, Branch `docs/audit-and-advisor-design`) |
@@ -104,7 +104,7 @@ Bibliotheksliste).
 
 ## Testabzug
 
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` nach
+`<ClaudeCode>\NightreignHelper-Testabzug` nach
 `<scratchpad>/T-313/release-manager/localappdata\NightreignHelper` **kopiert**
 (nicht verlinkt, nicht unter echtem `%LOCALAPPDATA%`). Dateizahl nach dem
 Kopieren: **841**, Gesamtgroesse **21.131.645 Byte** - deckungsgleich mit dem
@@ -166,13 +166,13 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.151.716 Byte (56,41 MiB)
 - **SHA-256:** `1D4197DF0F0C765B507CCA824FBA480DBCFCA76C482CF3F7A852B199CB6BBDF0`
 - **Versionsressource:** 1.15.0, am Fenstertitel bestaetigt (Startprobe).
 - **Vorstands-Vergleichsartefakt** (T-312a-Stand, 1.15.0 auf `79b3ecb`, falls
   fuer Vergleich gebraucht):
-  `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\6bddddf0-aa03-4ff3-b040-79bcd15d445d\scratchpad\T-313\release-manager\artefakte\NightreignHelper-1.15.0-t312a-79b3ecb.exe`,
+  `%TEMP%\claude\<Projekt>\6bddddf0-aa03-4ff3-b040-79bcd15d445d\scratchpad\T-313\release-manager\artefakte\NightreignHelper-1.15.0-t312a-79b3ecb.exe`,
   SHA-256 `E2F614F80BD5ED6661A7059ED862E16FD81DF51B2901D913B592CE93A4E8405A`.
 - Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`,
   `LOCALAPPDATA`, `APPDATA` - Testabzug kopieren, nicht darauf zeigen

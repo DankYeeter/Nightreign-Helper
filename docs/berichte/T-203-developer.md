@@ -1,8 +1,8 @@
 STATUS: erledigt
 AUFTRAG: T-203 — Der Waechter, der die Umlenkung erzwingt statt sie zu verlangen
-GELESEN: docs/tasks/T-203.md; CLAUDE.md (vollstaendig); run.py; NightreignHelper.spec; requirements-dev.txt; .gitignore; docs/berichte/T-199-developer.md (Auszug: Umlenkungen, `python run.py`); docs/berichte/T-200-developer.md (Auszug: Umlenkungen, `python run.py`, Fensterlauf); nrplanner/favourites.py:15-27; nrplanner/paths.py:10-25; nrplanner/shortcut.py:38-52; C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team\hooks\no-root-find.ps1; C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team\hooks\block-source-read.ps1; ~/.claude/settings.json (Format-Referenz fuer Hook-Registrierung)
+GELESEN: docs/tasks/T-203.md; CLAUDE.md (vollstaendig); run.py; NightreignHelper.spec; requirements-dev.txt; .gitignore; docs/berichte/T-199-developer.md (Auszug: Umlenkungen, `python run.py`); docs/berichte/T-200-developer.md (Auszug: Umlenkungen, `python run.py`, Fensterlauf); nrplanner/favourites.py:15-27; nrplanner/paths.py:10-25; nrplanner/shortcut.py:38-52; <ClaudeCode>\claude-agent-team\hooks\no-root-find.ps1; <ClaudeCode>\claude-agent-team\hooks\block-source-read.ps1; ~/.claude/settings.json (Format-Referenz fuer Hook-Registrierung)
 GEÄNDERT: .claude/hooks/enforce-data-redirect.ps1 (neu); .claude/settings.json (neu); CLAUDE.md; requirements-dev.txt; docs/berichte/T-203-developer.md
-ANNAHMEN: Hook-Registrierung fuer `$CLAUDE_PROJECT_DIR` in `command` uebernommen wie von Claude Code dokumentiert (Substitution vor dem Start der Shell) — im Team-Repo selbst nicht als Beispiel vorhanden, da dessen Hooks alle mit absoluten `C:/Users/Daniel/...`-Pfaden arbeiten (dort passend, weil teamweit und nicht projektrelativ). Ein Fehlschlag dieser Substitution wuerde den Hook stumm wirkungslos machen (leerer Pfad zur .ps1) statt ihn ploetzlich zu haerten — das ist ein Risiko, siehe unten.
+ANNAHMEN: Hook-Registrierung fuer `$CLAUDE_PROJECT_DIR` in `command` uebernommen wie von Claude Code dokumentiert (Substitution vor dem Start der Shell) — im Team-Repo selbst nicht als Beispiel vorhanden, da dessen Hooks alle mit absoluten `%USERPROFILE%/...`-Pfaden arbeiten (dort passend, weil teamweit und nicht projektrelativ). Ein Fehlschlag dieser Substitution wuerde den Hook stumm wirkungslos machen (leerer Pfad zur .ps1) statt ihn ploetzlich zu haerten — das ist ein Risiko, siehe unten.
 NÄCHSTER: director
 
 ## Erkannte Startformen (aus dem Repository, nicht aus Vorstellung)
@@ -37,7 +37,7 @@ $ echo '{"tool_name":"Bash","tool_input":{"command":"pytest -n auto -q"}}' | pow
 Zusaetzlich live im Verlauf dieses Auftrags gemessen (kein Denial durch die Bash-Klassifizierung, kein Hook-Deny sichtbar): `python -m pytest -n auto -q` im Repo-Wurzelverzeichnis lief vollstaendig durch, Ergebnis `1781 passed, 9 skipped in 130.77s` — deckt sich mit der in CLAUDE.md genannten aktuellen Zahl und belegt nebenbei, dass der reale `pytest`-Lauf in dieser Sitzung nicht blockiert wurde.
 
 **Weitere Faelle, mit derselben Methode geprueft (nicht explizit gefordert, aber zur Absicherung der Logik):**
-- `& 'C:/Users/Daniel/dist/NightreignHelper/NightreignHelper.exe'` ohne Variablen → deny (alle drei fehlen).
+- `& '%USERPROFILE%/dist/NightreignHelper/NightreignHelper.exe'` ohne Variablen → deny (alle drei fehlen).
 - `NIGHTREIGN_SETTINGS_ORG=DankYeeterT203 LOCALAPPDATA=/c/scratch/localappdata python run.py` (zwei von drei, kein Trennzeichen vor `python`) → deny, nennt nur `APPDATA` als fehlend.
 - `NIGHTREIGN_SETTINGS_ORG=DankYeeterT203 LOCALAPPDATA=/c/scratch/T-203/localappdata APPDATA=/c/scratch/T-203/appdata python run.py` → allow (keine Ausgabe).
 - PowerShell-Form `$env:NIGHTREIGN_SETTINGS_ORG='...'; $env:LOCALAPPDATA='...'; $env:APPDATA='...'; python run.py` → allow.
@@ -53,7 +53,7 @@ Inhaltlich umgesetzt:
 - Satz "Gelingt ein Nachweis nicht, wird der Lauf abgebrochen..." entfernt, ersetzt durch die Hook-Aussage.
 - Zwei-Zeilen-Unterscheidung: positive Pfadaufloesung haelt (Beispiel `paths.cache_dir()`), Abwesenheits-Nachweis haelt nicht (gleiche geteilte Ueberlagerung, QA-237) — als zwei Saetze in denselben Absatz integriert, nicht als separate Zeilen im Markdown-Sinn (das schien mir die gemeinte Lesart von "in zwei Zeilen", da die Datei insgesamt kuerzer werden musste).
 - Satz zur Ueberlagerung als Nicht-Sicherheitsnetz mit der `shortcut.create()`-Kindprozess-Erklaerung, explizit als **Hypothese** des `security-reviewer` markiert (belegt, nicht gegengeprueft).
-- "Fester Testabzug"-Abschnitt richtiggestellt: `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`, 841 Dateien, 20 812 293 Bytes, `EXTRACT_VERSION` 11, gebaut von 1.9.0, Ersparnis 110,0 s ohne / 5,75 s mit; Begruendung "nicht unter `%LOCALAPPDATA%`" (QA-237) und "nicht im Projektbaum" (NH-002, A-003).
+- "Fester Testabzug"-Abschnitt richtiggestellt: `<ClaudeCode>\NightreignHelper-Testabzug`, 841 Dateien, 20 812 293 Bytes, `EXTRACT_VERSION` 11, gebaut von 1.9.0, Ersparnis 110,0 s ohne / 5,75 s mit; Begruendung "nicht unter `%LOCALAPPDATA%`" (QA-237) und "nicht im Projektbaum" (NH-002, A-003).
 - Testbefehl-Zeile "Stand 08.09.2026: 1257 passed..." bleibt stehen, ergaenzt um "aktuell 1781 passed, 9 skipped, 0 failed (T-199)" mit dem Hinweis, dass die Differenz ungeklaert ist — nicht erklaert, wie gefordert.
 
 ## `requirements-dev.txt`

@@ -11,6 +11,11 @@ ausschliesslich `https://github.com/DankYeeter/Nightreign-Helper.git`; der
 `archivist` prüft `git remote -v` vor jedem Push, bei Abweichung wird nicht
 gepusht, sondern gemeldet. Arbeitsrechtliche Grenze, Vorrang vor allem.
 
+**Pfade in Repo-Dateien nur als Platzhalter** (`tests/test_personenbezug.py`):
+`<Hauptbaum>` ist dieses Projekt, `<ClaudeCode>` der Ordner darueber, dazu `%TEMP%`,
+`%LOCALAPPDATA%`, `%APPDATA%`, `%USERPROFILE%`, `<SP>` fuer den Scratchpad. Die beiden
+Steam-Konten dieses Rechners heissen `<Konto-A>` (309 Relikte) und `<Konto-B>`.
+
 ## Projektsprache
 
 | wo | Sprache |
@@ -78,7 +83,7 @@ endet stumm, der Hook weist ihn ab, solange eine Kopie läuft.
 stehen im Auftrag in einer Reihenfolge, nie unter `Parallel: ja`;
 `notes`, `security-reviewer`, `compliance-agent` dürfen parallel.
 
-**Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
+**Fester Testabzug:** `<ClaudeCode>\NightreignHelper-Testabzug`
 (1027 Dateien, 23 470 299 Bytes, `EXTRACT_VERSION` 19, `ICON_VERSION` 4,
 JSON neu am 01.11.2026 (Zustandsquellen); spart 110 s je Lauf). In das umgelenkte
 `LOCALAPPDATA` **kopieren**, nicht darauf zeigen. Nicht unter `%LOCALAPPDATA%`,

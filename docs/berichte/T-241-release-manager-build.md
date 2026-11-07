@@ -14,7 +14,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau. Keine Auflage steht auf ROT mit Status 
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.083.369 Byte (56,35 MiB) - Ergebnis von Lauf 2, siehe unten |
 | **SHA-256** | `314CA35C9AFA9BD71C6FAE9928BC0E1E4ABDBE19814BBB099CCA11A04A3930BD` |
 | **Commit** | `9e8933d51f80adec89fb1be24bae299c6912c1bf` (Branch `docs/audit-and-advisor-design`) |
@@ -35,7 +35,7 @@ Damit ist `build` nicht gesperrt. Waehrend des Laufs war `docs/legal/AUFLAGEN.md
 
 Vor dem ersten Schritt (`.venv\Scripts\python.exe scripts/check_licences.py`) zeigte sich: kein `.venv`-Verzeichnis im Repo-Wurzelverzeichnis (`Get-ChildItem -Force` bestaetigt, kein versteckter Ordner uebersehen). `.venv/` ist korrekt in `.gitignore` erfasst - das ist kein Repo-Fehler, sondern eine fehlende lokale Werkzeugumgebung auf diesem Rechner zum Zeitpunkt dieses Laufs.
 
-System-Python (`C:\Users\Daniel\AppData\Local\Programs\Python\Python312\python.exe`, 3.12.10) hatte zwar alle sechs Pakete bereits installiert, aber PyInstaller dort in **6.22.1** statt der in `requirements.txt` gepinnten **6.21.0** - deshalb nicht verwendet. Stattdessen `.venv` neu angelegt (`python -m venv .venv`, `pip install -r requirements.txt -r requirements-dev.txt`, 48,8 s) und damit exakt die gepinnten Versionen hergestellt (`pyinstaller --version` → `6.21.0` bestaetigt). Das ist Werkzeug-/Build-Umgebung, keine Abhaengigkeitsauswahl - keine Version wurde geaendert.
+System-Python (`%LOCALAPPDATA%\Programs\Python\Python312\python.exe`, 3.12.10) hatte zwar alle sechs Pakete bereits installiert, aber PyInstaller dort in **6.22.1** statt der in `requirements.txt` gepinnten **6.21.0** - deshalb nicht verwendet. Stattdessen `.venv` neu angelegt (`python -m venv .venv`, `pip install -r requirements.txt -r requirements-dev.txt`, 48,8 s) und damit exakt die gepinnten Versionen hergestellt (`pyinstaller --version` → `6.21.0` bestaetigt). Das ist Werkzeug-/Build-Umgebung, keine Abhaengigkeitsauswahl - keine Version wurde geaendert.
 
 **Risiko fuer den Director:** ein frischer Checkout auf einem dritten Rechner ohne vorbereitetes `.venv` scheitert am selben Punkt, wenn dort kein System-Python mit den passenden Paketen bereitsteht. Der Ablaufplan (`ROLLOUT.md:279`) setzt ein existierendes `.venv` stillschweigend voraus.
 
@@ -81,7 +81,7 @@ Keine neuen Befunde im Anwendungscode.
 
 ## An `power-user` / `T-241d` (Ausgangspunkt)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.083.369 Byte (56,35 MiB)
 - **SHA-256:** `314CA35C9AFA9BD71C6FAE9928BC0E1E4ABDBE19814BBB099CCA11A04A3930BD`
 - **Versionsressource:** 1.10.0 (aus `nrplanner/__init__.py`, ungeprueft am Fenstertitel - kein Rauchtest in diesem Lauf, Auftrag verlangt ihn nicht)
@@ -110,7 +110,7 @@ Vor Buildbeginn geprueft: HEAD-Stand `83fdcdd` enthaelt `docs/legal/AUFLAGEN.md`
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.082.953 Byte (56,35 MiB) — Ergebnis von Lauf 2, siehe unten |
 | **SHA-256** | `473E109DFE32DE9982D9A21BA8FA0C04851DC188F6644EC9C4E792B767FC7283` |
 | **Commit** | `83fdcdd77d1c3149aa91b021c079370549586a4e` (Branch `docs/audit-and-advisor-design`); Code-Stand `0e1269f` ("fix(model): Exklusivgruppe zaehlt genau einmal (QA-257)"), `83fdcdd` ist eine Doku-Commit darueber |
@@ -156,7 +156,7 @@ Keine neuen Befunde im Anwendungscode.
 
 ## An `power-user` / `T-241d` (Ausgangspunkt)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.082.953 Byte (56,35 MiB)
 - **SHA-256:** `473E109DFE32DE9982D9A21BA8FA0C04851DC188F6644EC9C4E792B767FC7283`
 - **Versionsressource:** 1.10.0 (aus `nrplanner/__init__.py`, ungeprueft am Fenstertitel — kein Rauchtest in diesem Lauf)
@@ -183,7 +183,7 @@ Vor Buildbeginn geprueft: letzter Commit auf der Datei ist unveraendert `2730906
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.083.751 Byte (56,35 MiB) |
 | **SHA-256** | `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158C` (korrigiert 14.09., release-manager notes-Lauf: certutil-Nachmessung ergab 64 statt 63 Zeichen; Director-Hinweis) |
 | **Commit** | `1b36238609c0da450c0bfa3ca945ab49f0029602` ("fix(model): AK-272 - Klammerzusatz aus Exklusivgruppen-Warnung entfernen"), Branch `docs/audit-and-advisor-design`, HEAD zum Zeitpunkt dieses Laufs |
@@ -229,7 +229,7 @@ Keine neuen Befunde im Anwendungscode.
 
 ## An `power-user` / `T-241d` (Ausgangspunkt)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.083.751 Byte (56,35 MiB)
 - **SHA-256:** `11F5EECD3BE4DBC2583AD1DCA82DDA0F78D54F84B205A4AB6F060F028792158C` (korrigiert 14.09., release-manager notes-Lauf: certutil-Nachmessung ergab 64 statt 63 Zeichen; Director-Hinweis)
 - **Versionsressource:** 1.10.0 (aus `nrplanner/__init__.py`, unveraendert; ungeprueft am Fenstertitel — kein Rauchtest in diesem Lauf)

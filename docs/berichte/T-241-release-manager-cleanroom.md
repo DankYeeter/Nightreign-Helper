@@ -49,13 +49,13 @@ if appdata:
 roots.append(pathlib.Path.home() / "AppData" / "Roaming")   # <- zusaetzlicher, fest verdrahteter Fallback
 ```
 
-Der Docstring begruendet das ausdruecklich fuer den echten Nutzer (Ordnerumleitung, OneDrive-Profile, Unternehmensprofile). Fuer die Testisolierung heisst das: `Path.home()` haengt an `USERPROFILE`, das meine Umlenkung nicht gesetzt hat (und ein Setzen waere riskant - Windows-APIs verlassen sich an vielen Stellen darauf) - der zweite Suchpfad zeigt deshalb weiterhin auf den echten `C:\Users\Daniel\AppData\Roaming`, unabhaengig vom gesetzten `APPDATA`. Die im Auftrag verlangte Handlung ("dann den Dialog benutzen und ... NR0000.sl2 waehlen") **war dadurch nicht noetig und wurde nicht ausgefuehrt** - die Automatik fand den Spielstand von selbst. Die Datei blieb nachweislich unveraendert (`LastWriteTime` vor dem Lauf), also kein Schreibzugriff, aber die Isolierung war an dieser einen Stelle luecken­haft.
+Der Docstring begruendet das ausdruecklich fuer den echten Nutzer (Ordnerumleitung, OneDrive-Profile, Unternehmensprofile). Fuer die Testisolierung heisst das: `Path.home()` haengt an `USERPROFILE`, das meine Umlenkung nicht gesetzt hat (und ein Setzen waere riskant - Windows-APIs verlassen sich an vielen Stellen darauf) - der zweite Suchpfad zeigt deshalb weiterhin auf den echten `%APPDATA%`, unabhaengig vom gesetzten `APPDATA`. Die im Auftrag verlangte Handlung ("dann den Dialog benutzen und ... NR0000.sl2 waehlen") **war dadurch nicht noetig und wurde nicht ausgefuehrt** - die Automatik fand den Spielstand von selbst. Die Datei blieb nachweislich unveraendert (`LastWriteTime` vor dem Lauf), also kein Schreibzugriff, aber die Isolierung war an dieser einen Stelle luecken­haft.
 
 **Tragweite:** `CLAUDE.md` fuehrt `APPDATA` nur fuer `nrplanner/shortcut.py` als umzulenkende Stelle - `nrdata/savefile.py` liest `APPDATA` zwar auch, hat aber zusaetzlich diesen nicht dokumentierten `Path.home()`-Fallback. Jeder kuenftige Test, der sich fuer eine *echte* Trennung von der Spielstand-Suche auf die in `CLAUDE.md` genannten drei Variablen verlaesst, bekommt trotzdem den echten Spielstand zu sehen. Das ist harmlos, solange nur gelesen wird (wie hier, wie es das Programm laut README auch immer tut), aber es widerspricht der Grundannahme "eigene Umlenkung = eigene Daten" an dieser einen Stelle.
 
 ## Artefakt
 
-Unveraendert aus T-241c: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`, 59.083.369 Byte, SHA-256 `314CA35C9AFA9BD71C6FAE9928BC0E1E4ABDBE19814BBB099CCA11A04A3930BD`, Commit `9e8933d`. In diesem Lauf nicht neu gebaut, nur kopiert und gestartet; Hash vor und nach dem Test gegengeprueft, identisch.
+Unveraendert aus T-241c: `<Hauptbaum>\dist\NightreignHelper.exe`, 59.083.369 Byte, SHA-256 `314CA35C9AFA9BD71C6FAE9928BC0E1E4ABDBE19814BBB099CCA11A04A3930BD`, Commit `9e8933d`. In diesem Lauf nicht neu gebaut, nur kopiert und gestartet; Hash vor und nach dem Test gegengeprueft, identisch.
 
 ## Blocker
 

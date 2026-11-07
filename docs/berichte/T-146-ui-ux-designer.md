@@ -102,4 +102,4 @@ wie im T-145-Abschnitt.
 Keine neuen. Frage 2 aus T-145 (README/Release-Text) bleibt offen, geht an
 den `technical-writer` nach V3.
 
-Pfad: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\UI_SPEC.md`
+Pfad: `<Hauptbaum>\UI_SPEC.md`

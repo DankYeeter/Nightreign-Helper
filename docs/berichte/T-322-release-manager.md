@@ -29,7 +29,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.159.482 Byte (56,42 MiB) |
 | **SHA-256** | `804F9E2B4A0A41289F64F4D8EE34146D99F489FDE30C679058E783F2CBF25E6C` |
 | **Code-Stand des Artefakts** | `41173d9` (HEAD, Branch `docs/audit-and-advisor-design`) |
@@ -106,7 +106,7 @@ dieselbe Bibliotheksliste).
 
 ## Testabzug
 
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` nach
+`<ClaudeCode>\NightreignHelper-Testabzug` nach
 `<scratchpad>\T-322b\localappdata\NightreignHelper` **kopiert** (nicht
 verlinkt, nicht unter echtem `%LOCALAPPDATA%`). Dateizahl nach dem Kopieren:
 **841**, Gesamtgroesse **21.131.645 Byte** - deckungsgleich mit dem in
@@ -171,7 +171,7 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.159.482 Byte (56,42 MiB)
 - **SHA-256:** `804F9E2B4A0A41289F64F4D8EE34146D99F489FDE30C679058E783F2CBF25E6C`
 - **Versionsressource:** 1.16.0, am Fenstertitel bestaetigt (Startprobe).
@@ -228,7 +228,7 @@ Version bleibt 1.16.0 (kein neuer Versionsbump im Auftrag genannt,
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.233.161 Byte (56,49 MiB) |
 | **SHA-256** | `51F694986D11CA1DED16B6170D552C89579C0E5C67192D78F68FFFF063E8BFC9` |
 | **Code-Stand des Artefakts** | `5b9fad9` (HEAD, Branch `docs/audit-and-advisor-design`) |
@@ -306,7 +306,7 @@ ohne dass eine neue Abhaengigkeit dazukam (`check_licences.py` unveraendert
 
 ## Testabzug
 
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` nach
+`<ClaudeCode>\NightreignHelper-Testabzug` nach
 `<scratchpad>\T-322h\localappdata\NightreignHelper` **kopiert** (nicht
 verlinkt, nicht unter echtem `%LOCALAPPDATA%`). Dateizahl nach dem Kopieren:
 **841**, Gesamtgroesse **21.131.645 Byte** - deckungsgleich mit dem in
@@ -376,7 +376,7 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.233.161 Byte (56,49 MiB)
 - **SHA-256:** `51F694986D11CA1DED16B6170D552C89579C0E5C67192D78F68FFFF063E8BFC9`
 - **Versionsressource:** 1.16.0, am Fenstertitel bestaetigt (Startprobe).
@@ -415,7 +415,7 @@ Auftrag genannt, `nrplanner/__init__.py` weiterhin `"1.16.0"` geprueft).
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.233.451 Byte (56,49 MiB) |
 | **SHA-256** | `FE7DB4B966FC9FA39100CBC6016BC330733A0905DCE763B6ADF51240761CDED2` |
 | **Code-Stand des Artefakts** | `9f95de0` (HEAD, Branch `docs/audit-and-advisor-design`) |
@@ -492,7 +492,7 @@ Bibliotheksliste).
 
 ## Testabzug
 
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` nach
+`<ClaudeCode>\NightreignHelper-Testabzug` nach
 `<scratchpad>\T-322o\localappdata\NightreignHelper` **kopiert** (nicht
 verlinkt, nicht unter echtem `%LOCALAPPDATA%`). Dateizahl nach dem Kopieren:
 **841**, Gesamtgroesse **21.131.645 Byte** - deckungsgleich mit dem in
@@ -562,7 +562,7 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.233.451 Byte (56,49 MiB)
 - **SHA-256:** `FE7DB4B966FC9FA39100CBC6016BC330733A0905DCE763B6ADF51240761CDED2`
 - **Versionsressource:** 1.16.0, am Fenstertitel bestaetigt (Startprobe).

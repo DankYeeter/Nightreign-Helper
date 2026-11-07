@@ -662,7 +662,7 @@ Kein Beleg fuer QA-095, aber der erste plausible Fundort, den die Suche uebrig l
 ## 11. Anhang: Messstrecke
 
 Alle Skripte unter
-`C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-ApplicationHelper\1bdcd2ac-606b-47f3-b01a-9963efeb41a0\scratchpad\t042\`,
+`%TEMP%\claude\<Projekt>\1bdcd2ac-606b-47f3-b01a-9963efeb41a0\scratchpad\t042\`,
 Klon unter `…\scratchpad\nr-t038` (89015aa), Eingabedaten aus
 `…\scratchpad\t038\assignment.json`. Alle lesen die Spieldateien ausschliesslich lesend.
 

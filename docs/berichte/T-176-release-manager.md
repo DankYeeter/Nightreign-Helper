@@ -81,7 +81,7 @@ Nur die EXE in ein leeres Verzeichnis, gestartet exakt wie im README beschrieben
 
 ## Artefakt
 
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` — 59.062.648 B, SHA-256 `a2180d5db3a2b1b1aaf88028c6e7a1429087596e58ec3757469fd234e1366ef3`, Version 1.9.0, Commit `0716911` (laut Auftrag; von mir nicht neu gebaut, nur geprueft). Reproduzierbarkeit war nicht Gegenstand dieses Laufs (siehe T-106/ROLLOUT.md: dort bereits als **nicht bit-identisch** dokumentiert). Dazu `NightreignHelper-notices.zip`, 46.480 B, SHA-256 `51a0b7cb8ed3aa1eced1c2e1868380ecdf778950eb3881329ee46ec25f334419`.
+`<Hauptbaum>\dist\NightreignHelper.exe` — 59.062.648 B, SHA-256 `a2180d5db3a2b1b1aaf88028c6e7a1429087596e58ec3757469fd234e1366ef3`, Version 1.9.0, Commit `0716911` (laut Auftrag; von mir nicht neu gebaut, nur geprueft). Reproduzierbarkeit war nicht Gegenstand dieses Laufs (siehe T-106/ROLLOUT.md: dort bereits als **nicht bit-identisch** dokumentiert). Dazu `NightreignHelper-notices.zip`, 46.480 B, SHA-256 `51a0b7cb8ed3aa1eced1c2e1868380ecdf778950eb3881329ee46ec25f334419`.
 
 ## Blocker
 
@@ -109,7 +109,7 @@ Keiner. 1.9.0 installiert und laeuft auf einem System ohne Entwicklungswerkzeuge
 
 ## An den `power-user`
 
-Ausgangspunkt: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` (1.9.0, Hash oben) plus `dist\NightreignHelper-notices.zip`. Installation ausschliesslich nach README (`## Install`): EXE in ein leeres Verzeichnis, starten, fertig — kein Installer, keine Adminrechte.
+Ausgangspunkt: `<Hauptbaum>\dist\NightreignHelper.exe` (1.9.0, Hash oben) plus `dist\NightreignHelper-notices.zip`. Installation ausschliesslich nach README (`## Install`): EXE in ein leeres Verzeichnis, starten, fertig — kein Installer, keine Adminrechte.
 
 **Deine Aufgabe ist der A15-Dialog, den ich nicht sehen konnte.** Auf meiner Maschine findet die Automatik das Spiel ueber die normale Steam-Registrierung, ganz ohne Dialog. Damit dein Lauf den Auswahldialog ueberhaupt zeigt, brauchst du entweder eine Umgebung, in der Steam nicht registriert ist bzw. das Spiel nicht in `libraryfolders.vdf` steht, oder du musst selbst dafuer sorgen, dass die Automatik ins Leere greift — **wie, ist bewusst nicht meine Entscheidung**, das ist genau der Ablauf, den du unverfaelscht als Mensch erleben sollst. Ich habe ihn nicht vorweggenommen und keine Pfade/Verknuepfungen hinterlassen.
 

@@ -136,4 +136,4 @@ entscheidet was" (T1 bis T6; T1, T2 und T5 brauchen kein Spiel).
 
 ## Pfad
 
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\docs\research\R-004.md`
+`<Hauptbaum>\docs\research\R-004.md`

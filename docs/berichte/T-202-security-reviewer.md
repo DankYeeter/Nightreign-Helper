@@ -157,7 +157,7 @@ Das ist nie eine Ausnahme, also sieht kein Wächter es — der AST-Scan liest
 `except`-Blöcke.
 
 **Auswirkung:** Gemessen trägt PowerShells `stderr` den **vollen `.lnk`-Pfad**:
-`Unable to save shortcut "C:\Users\Daniel\...\Nightreign Helper.lnk".` Der
+`Unable to save shortcut "%USERPROFILE%\...\Nightreign Helper.lnk".` Der
 echte Pfad liegt unter `%APPDATA%\Microsoft\Windows\Start Menu\Programs` und
 enthält den Windows-Benutzernamen. Dazu zwei Nebenwirkungen: PowerShell
 **bricht die Zeile bei 128 Zeichen um**, `detail[0]` liefert also einen *mitten
@@ -172,7 +172,7 @@ ist eine Zahl und spricht keine Sprache; `stderr` gehört auf die Konsole
 
 **Nachweis:** Lokal gemessen mit absichtlich ungültigem Ziel im Scratchpad (es
 wurde **nichts** geschrieben, geprüft): `stderr` =
-`Unable to save shortcut "C:\Users\Daniel\...\...\does-not-exist-dir\Nightreign Helper.lnk".`
+`Unable to save shortcut "%USERPROFILE%\...\...\does-not-exist-dir\Nightreign Helper.lnk".`
 über zwei Zeilen. `CurrentUICulture` dieser Maschine: `en-GB` — die
 Sprachhälfte ist hier daher **Hypothese**, die Pfadhälfte gemessen.
 

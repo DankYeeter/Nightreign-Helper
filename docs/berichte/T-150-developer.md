@@ -269,8 +269,8 @@ historischer Befundtext, vermutlich richtig so.
 **Positivkontrolle zuerst** (`probe.py`, ohne Umlenkung):
 
 ```
-cache_dir()     : C:\Users\Daniel\AppData\Local\NightreignHelper
-shortcut_path() : C:\Users\Daniel\AppData\Roaming\...\Programs\Nightreign Helper.lnk
+cache_dir()     : %LOCALAPPDATA%\NightreignHelper
+shortcut_path() : %APPDATA%\...\Programs\Nightreign Helper.lnk
 favourites.ORG  : DankYeeter
 ```
 

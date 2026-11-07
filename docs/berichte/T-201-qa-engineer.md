@@ -45,8 +45,8 @@ auf die erwartete Laufzeitstreuung. Kein `--ignore`, `texture2ddecoder` und
 nicht Teil dieses Auftrags.
 
 **Umlenkung nach QA-237:** `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-201`,
-`LOCALAPPDATA=C:\Users\Daniel\AppData\Local\NH-T-201-test`,
-`APPDATA=C:\Users\Daniel\AppData\Local\NH-T-201-test\Roaming`, per `export`
+`LOCALAPPDATA=%LOCALAPPDATA%\NH-T-201-test`,
+`APPDATA=%LOCALAPPDATA%\NH-T-201-test\Roaming`, per `export`
 gesetzt und vor dem Lauf mit `echo` verifiziert. Das ist **kein Nachweis**,
 dass die Schreibvorgaenge dort ankommen (QA-237) — nur der Beleg, dass die
 Variablen beim Aufruf tatsaechlich standen. Erster Versuch mit Git-Bash-`set`

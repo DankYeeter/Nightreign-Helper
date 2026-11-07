@@ -58,7 +58,7 @@ BLOCKIERT DURCH: nichts.
 | | |
 |---|---|
 | **Modus** | `clean-room` |
-| **Artefakt** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Artefakt** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.250.281 Byte (gemessen, `Get-Item`) - identisch mit dem im Auftrag genannten Wert und mit T-325k |
 | **SHA-256 (nachgemessen)** | `BFEEB0270D16C88FDEC67DF10F2D5C76FD29AB5002F6EEC2E14691F321E7C4B4` (`Get-FileHash`) - identisch mit dem im Auftrag genannten Wert |
 | **Quell-Commit** | `fc57b93` (`git rev-parse HEAD`, Arbeitsstand sauber vor und nach dem Lauf) |
@@ -236,7 +236,7 @@ moeglicher UX-Punkt fuer `ui-ux-designer`, kein Bug.
 
 ## An `power-user`
 
-Ausgangspunkt: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\
+Ausgangspunkt: `<Hauptbaum>\dist\
 NightreignHelper.exe`, 59.250.281 Byte, SHA-256
 `BFEEB0270D16C88FDEC67DF10F2D5C76FD29AB5002F6EEC2E14691F321E7C4B4` - nicht
 loeschen, nicht neu bauen. Installation ausschliesslich nach README:

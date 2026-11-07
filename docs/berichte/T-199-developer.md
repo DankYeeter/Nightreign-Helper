@@ -53,7 +53,7 @@ Befund unten). Alle drei Datenverzeichnisse vor dem ersten `nrplanner`-Import
 umgelenkt und im Lauf geprueft:
 
 ```
-nrplanner imported from: C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\nrplanner\model.py
+nrplanner imported from: <Hauptbaum>\nrplanner\model.py
 cache_dir: …\scratchpad\T-199\localappdata\NightreignHelper
 shortcut_path: …\scratchpad\T-199\appdata\Microsoft\Windows\Start Menu\Programs\Nightreign Helper.lnk
 ```

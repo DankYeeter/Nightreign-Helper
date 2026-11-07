@@ -27,7 +27,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.129.818 Byte (56,38 MiB) |
 | **SHA-256** | `F988C5207AF533F7E6EE993F4B91A2C23D1FC43538799C7C35425A7EA8B82367` (`Get-FileHash -Algorithm SHA256`) |
 | **Versionsbump-Commit** | `7d2a100` ("chore(release): Version 1.13.2") |
@@ -77,7 +77,7 @@ Vor dem Loeschen von `dist/`/`build/` (`Get-Process -Name NightreignHelper`:
 kein Treffer) wurde der erste Bau ueber `python -m PyInstaller
 NightreignHelper.spec` gestartet. `python` loeste dabei auf die
 system-globale Installation auf
-(`C:\Users\Daniel\AppData\Local\Programs\Python\Python312\python.exe`, **nicht**
+(`%LOCALAPPDATA%\Programs\Python\Python312\python.exe`, **nicht**
 das projekteigene `.venv`), mit PyInstaller 6.22.1 statt der in
 `requirements.txt` gepinnten 6.21.0 und einem global installierten `numpy`
 (2.5.2), das in `requirements.txt` nirgends vorkommt. Sichtbare Folge: die
@@ -190,12 +190,12 @@ Keiner fuer diesen Bau.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.129.818 Byte (56,38 MiB)
 - **SHA-256:** `F988C5207AF533F7E6EE993F4B91A2C23D1FC43538799C7C35425A7EA8B82367`
 - **Versionsressource:** 1.13.2, am Fenstertitel bestaetigt (Startprobe).
 - **Fuer den Update-Pfad-Test:** Vorversion 1.13.1 liegt gesichert unter
-  `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\0c1b1951-b796-49a5-9cbc-7588742f286c\scratchpad\artefakte\NightreignHelper-1.13.1.exe`,
+  `%TEMP%\claude\<Projekt>\0c1b1951-b796-49a5-9cbc-7588742f286c\scratchpad\artefakte\NightreignHelper-1.13.1.exe`,
   SHA-256 `71E8202980BA528119815C75818757668EA956480A918C0236D1C8E420E67E1C`
   (gegen Original verifiziert).
 - Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`,

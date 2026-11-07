@@ -176,7 +176,7 @@ Alle Testlaeufe in diesem Auftrag liefen mit:
 
 Nachweis: `python -c "import os; print(...)"` zeigte die umgelenkten
 Pfade vor dem ersten Testlauf. Der feste Testabzug
-(`C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug`, 841 Dateien)
+(`%LOCALAPPDATA%\NightreignHelper-Testabzug`, 841 Dateien)
 wurde **kopiert** nach `…\scratchpad\T-156\local\NightreignHelper`
 (841 Dateien nachgezaehlt), nicht direkt referenziert. Kein Schreibzugriff
 auf die echten drei Orte in diesem Lauf.

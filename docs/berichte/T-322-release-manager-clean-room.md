@@ -42,7 +42,7 @@ BLOCKIERT DURCH: nichts.
 | | |
 |---|---|
 | **Modus** | `clean-room` |
-| **Artefakt** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Artefakt** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.233.161 Byte (gemessen, `Get-Item`) - identisch mit dem im Auftrag genannten Wert und mit T-322h |
 | **SHA-256 (nachgemessen)** | `51F694986D11CA1DED16B6170D552C89579C0E5C67192D78F68FFFF063E8BFC9` (`Get-FileHash`) - identisch mit dem im Auftrag genannten Wert |
 | **Vorversion fuer Update-Pfad** | `NightreignHelper.exe` aus Release `v1.15.0`, 59.232.620 B, SHA-256 `59D0D4308460CD6DC6F5D9E3156A1575E40FE68CD9695719CF514C4FD0E1CCDE` (`gh release download`, Hash gegen die mitgelieferte `.sha256`-Datei und gegen die eigene Nachmessung bestaetigt) |
@@ -185,7 +185,7 @@ fuer kuenftige Berichte festgehalten, kein Fehler.
 
 ## An `power-user`
 
-Ausgangspunkt: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\
+Ausgangspunkt: `<Hauptbaum>\dist\
 NightreignHelper.exe`, 59.233.161 Byte, SHA-256
 `51F694986D11CA1DED16B6170D552C89579C0E5C67192D78F68FFFF063E8BFC9` - nicht
 loeschen, nicht neu bauen. Installation ausschliesslich nach README

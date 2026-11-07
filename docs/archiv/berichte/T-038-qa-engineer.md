@@ -823,7 +823,7 @@ ersetzt sie durch QA-095 ff.
 
 Alles ausserhalb des Repos: Klon `<scratchpad>\nr-t038` (Commit 64174eb, unveraendert),
 Skripte `<scratchpad>\t038\`, Python
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\.venv\Scripts\python.exe`.
+`<Hauptbaum>\.venv\Scripts\python.exe`.
 
 | Skript | Zweck | tragende Ausgabe |
 |---|---|---|

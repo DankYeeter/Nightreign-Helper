@@ -126,5 +126,5 @@ Messauftrag an den Nutzer (das schneidet der `director`).
 
 ## Pfad
 
-- `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\docs\research\R-005.md`
-- `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\docs\berichte\T-040-researcher.md`
+- `<Hauptbaum>\docs\research\R-005.md`
+- `<Hauptbaum>\docs\berichte\T-040-researcher.md`

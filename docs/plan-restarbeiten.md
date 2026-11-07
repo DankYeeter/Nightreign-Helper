@@ -251,7 +251,7 @@ Spielinstallation.
 **Die Loesung.** Ein einmal gebauter Abzug liegt fest unter
 
 ```
-C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug
+%LOCALAPPDATA%\NightreignHelper-Testabzug
 ```
 
 **841 Dateien, 19,8 MB**, `nightreign_data.json` 8 484 651 B, gebaut am
@@ -264,7 +264,7 @@ das umgelenkte `LOCALAPPDATA` **kopieren** (nicht darauf zeigen lassen — das
 Programm schreibt hinein):
 
 ```
-Copy-Item "C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug" `
+Copy-Item "%LOCALAPPDATA%\NightreignHelper-Testabzug" `
           "<dein LOCALAPPDATA>\NightreignHelper" -Recurse
 ```
 
@@ -333,7 +333,7 @@ Geprueft an `nrdata/extract.py`/`nrplanner/datasource.py`: nur die
 T-324a-Quittung uebernommen, kein neuer Extraktorlauf noetig). Stand der
 Vorlage: 841 Dateien, **21 139 391 B**, Ort unveraendert. Alte v15-JSON
 gesichert unter
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug-v15`
+`<ClaudeCode>\NightreignHelper-Testabzug-v15`
 (8 803 996 B). `pytest -n auto` gegen den neuen Abzug: **1849 passed, 9
 skipped in 135,16 s**. `CLAUDE.md` Z. 74-79 ist auf diesen Stand gezogen
 (Zahlen, Herkunft T-324b, Grenze "ueber 16").

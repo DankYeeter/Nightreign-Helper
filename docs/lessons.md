@@ -2280,7 +2280,7 @@ kontrakt-verstoesse}.log`, `~/.claude/state/zugzaehler/*`,
 **Zu T-329 gibt es keine einzige Berichtsdatei** (`ls docs/berichte`, letzte
 T-327a) — nach Rahmen korrekt, weil kein Lauf `teilweise` mit Datei meldete.
 Primaerquelle der Laufdetails sind deshalb die Transkripte
-`~/.claude/projects/C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper/c074ac46-…/subagents/*.jsonl`
+`~/.claude/projects/<Projekt>/c074ac46-…/subagents/*.jsonl`
 (18 Laeufe) und die Director-Sitzung `c074ac46-….jsonl`. Zeiten aus den
 Transkripten sind hier in Ortszeit (UTC+2) umgerechnet.
 
