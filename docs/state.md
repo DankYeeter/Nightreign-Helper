@@ -2,10 +2,11 @@
 
 2026-11-07, **T-336 fertig: Spalte Stacks im Effekt-Filter von Optimize, 0 bis 10
 (`10e2c07`, Treiber `a56af52`), Nachtest T-336g im Fenster bestanden; kein neues Artefakt,
-kein Release, UI_SPEC AK-469 bis AK-473.** Offen: QA-339 (P4, `CountLine`); A6 am
+kein Release, UI_SPEC AK-469 bis AK-473.** T-336h (`7886ba4`): QA-339 behoben, Zeilen gleich
+hoch, ×-Zahl der Statistik-Seite bis 99 (erreicht Optimize bei leerem Filter weiter, bewusst so
+gelassen: bis zum Vorschlag 2,85 bis 3,55 s); Nachtest T-336i bestanden. Offen: A6 am
 Zielgeraet nicht gemessen (hier leer bis 2,27 s, Stacks 10 bis 3,67 s, auf dem Zielgeraet
-hochgerechnet ueber 6 s auch ohne Stack-Wert, nur gerechnet); Zeilenhoehe der Felder (1,5-fach),
-Geschmacksfrage an den Nutzer; ×-Zahl der Statistik-Seite ohne Grenze. Registry-Vorfall
+hochgerechnet ueber 6 s auch ohne Stack-Wert, nur gerechnet). Registry-Vorfall
 07.11.: `HKCU\Software` teilweise geloescht, aus der Schattenkopie von 08:23 wiederhergestellt,
 Schluessel gegen die Liste geprueft (1348 von 1348).
 
