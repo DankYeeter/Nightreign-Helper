@@ -109,7 +109,7 @@ ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
                  "is avoided. It matters only once the family header is set "
                  "to Avoid.")
 STACKS_TOOLTIP = ("How many stacks Optimize and the relic picker's figures "
-                  "count, a whole number from 0 to 10; 0 leaves this effect "
+                  "count, a whole number from 0 to {limit}; 0 leaves this effect "
                   "out. Empty: the count ticked on the stat sheet, otherwise "
                   "1. Anything else turns red and counts as empty. The stat "
                   "sheet itself does not change.")
@@ -173,9 +173,9 @@ def counter_line(shown: int, total: int, filters) -> str:
     return CLAUSES.join([f"{shown} of {total} effects", *clauses])
 
 
-def _is_refused(text: str) -> bool:
-    """Typed, and neither empty nor a count."""
-    return bool(text) and effectfilters.stack_count(text) is None
+def _is_refused(text: str, effect_id: int) -> bool:
+    """Typed, and neither empty nor a count of this effect."""
+    return bool(text) and effectfilters.stack_count(text, effect_id) is None
 
 
 class _Item(QTreeWidgetItem):
@@ -350,7 +350,8 @@ class EffectFilterWindow(QDialog):
         field.setFixedHeight(max(box.sizeHint().height(),
                                  field.fontMetrics().height()))
         field.setAlignment(Qt.AlignCenter)
-        field.setToolTip(STACKS_TOOLTIP)
+        field.setToolTip(STACKS_TOOLTIP.format(
+            limit=effectfilters.stack_limit(row.effect_id)))
         field.setAccessibleName(f"Stacks: {row.name}")
         field.textEdited.connect(
             lambda text, i=row.effect_id, f=field: self._stacks_typed(i, f, text))
@@ -359,8 +360,10 @@ class EffectFilterWindow(QDialog):
 
     def _stacks_typed(self, effect_id: int, field: QLineEdit, text: str) -> None:
         """A text that is no count stays as typed, in red, and counts as empty."""
-        field.setStyleSheet(f"color: {BAD};" if _is_refused(text) else "")
-        self._filters.set_stacks(effect_id, effectfilters.stack_count(text))
+        field.setStyleSheet(
+            f"color: {BAD};" if _is_refused(text, effect_id) else "")
+        self._filters.set_stacks(effect_id,
+                                 effectfilters.stack_count(text, effect_id))
 
     def shown_ids(self) -> list[int]:
         """The ids of the rows the search leaves visible, top to bottom --
@@ -409,7 +412,8 @@ class EffectFilterWindow(QDialog):
             shown = "" if count == NO_STACKS else str(count)
             # Not when equal: `setText` would throw the cursor to the end. Not
             # over a refused text either: it is what the red is about.
-            if field.text() != shown and not _is_refused(field.text()):
+            if (field.text() != shown
+                    and not _is_refused(field.text(), effect_id)):
                 field.setText(shown)
             self._marks[effect_id][-1].on[COL_STACKS] = count
         self._say_the_count()

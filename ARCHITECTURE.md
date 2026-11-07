@@ -9810,6 +9810,9 @@ Vergleich pausiert, solange der Picker offen ist; (c) `qa-engineer` A18-Nachweis
    Favoriten, sonst koennte ein Favorit an dieser Regel scheitern, obwohl `attainable` ihn zusagt.
    `model.STACK_EFFECT_IDS` steht als Liste, weil die Suche nur Effekt-Ids kennt; der Test
    `tests/test_stack_effects_count_once.py` haelt sie gegen den Datensatz.
+3. **Grenzen je Effekt** stehen in `model.STACK_LIMITS` (EMEVD-Lesart aus T-337, keine Spielprobe) und
+   gelten in der Rechnung, im Stacks-Feld und in der ×-Zahl. Fuer 6500500 ohne Skriptbeleg bleiben die
+   beiden Anschlaege der Bedienelemente (10 wegen A6, 99 als Tippfehler-Stopp).
 
 ---
 

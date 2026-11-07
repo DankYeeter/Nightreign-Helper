@@ -242,8 +242,9 @@ to one family sit under a heading: **Avoid** on the heading avoids every
 member below it, and **Allow** on one member lets just that one back in. An
 effect that stacks, such as "Attack power increased for each Night Invader
 defeated", also has a **Stacks** field: type how many stacks Optimize and the
-figures in the relic picker should count, a whole number from 0 to 10, 0 to not
-count it at all, or leave it empty to use the count ticked on the stat sheet
+figures in the relic picker should count, a whole number from 0 to that effect's
+limit (its tooltip names it: 4 for Night Invaders, 7 for evergaol prisoners and
+Sorcerer's Rises, 10 for the others), 0 to not count it at all, or leave it empty to use the count ticked on the stat sheet
 (one if it is not ticked there). Anything else turns red and counts as empty.
 Stacks belong to the effect and not to the relic: a second relic carrying the
 same stack effect adds nothing, so Optimize does not suggest one unless a
@@ -462,7 +463,7 @@ game's own per-Nightfarer level tables, not a formula.
 | **Rally recovery** | How much HP a landed hit rallies back. A flat amount, not a share of damage dealt. |
 | **Resistances** | The net change from everything equipped — changes, not totals. |
 | **Multipliers** | Anything applying as a multiplier rather than a flat figure. |
-| **Conditional & situational** | Effects that are not simply on. Each gets a switch, and its numbers join the totals only when you say the condition is met. An effect that stacks also has a box for how many times it holds, up to 99; a larger number becomes 99 when you leave the box. |
+| **Conditional & situational** | Effects that are not simply on. Each gets a switch, and its numbers join the totals only when you say the condition is met. An effect that stacks also has a box for how many times it holds, up to that effect's limit (4 for Night Invaders, 7 for evergaol prisoners and Sorcerer's Rises, 10 for great enemies, 99 where the game's scripts show none); a larger number becomes the limit when you leave the box. |
 
 **1H / 2H**, the switch beneath the six weapon tiles, decides which hand's
 attack rating **Optimize** and the Advisor's directions count, and whether

@@ -158,8 +158,9 @@ def _heading(text: str) -> QLabel:
     return label
 
 
-#: Not a fact about the game, only a stop for a slip of the keyboard: above it
-#: the count is left at this. Measured 2026-11-07, offscreen, on "Attack power
+#: For the effect with no ceiling in the game's scripts (`model.STACK_LIMITS`),
+#: and so not a fact about the game, only a stop for a slip of the keyboard:
+#: above it the count is left at this. Measured 2026-11-07, offscreen, on "Attack power
 #: increased for each Night Invader defeated": the page takes 12 ms at 99; at
 #: 100000 it takes 1.4 s, the attack rating is infinite and `damage.displayed`
 #: raises in the middle of drawing it. Not `effectfilters.MOST_STACKS`: that one
@@ -167,8 +168,8 @@ def _heading(text: str) -> QLabel:
 MOST_COUNT = 99
 
 
-def _within_reason(count: int) -> int:
-    return min(max(count, 1), MOST_COUNT)
+def _within_reason(count: int, effect_id: int) -> int:
+    return min(max(count, 1), model.stack_limit(effect_id, MOST_COUNT))
 
 
 class SituationalRow(QFrame):
@@ -210,17 +211,19 @@ class SituationalRow(QFrame):
         head.addWidget(self.title, 1)
 
         if entry.accumulates:
-            # Free text, not a spin box. How many Night Invaders a map can
-            # hold, or how many Sites of Grace are in reach, is a fact about
-            # the run rather than about this program -- so the player states
-            # the number and the arithmetic follows it, up to `MOST_COUNT`.
+            # Free text, not a spin box. How many Night Invaders this run has
+            # brought is a fact about the run rather than about this program
+            # -- so the player states the number and the arithmetic follows
+            # it, up to the effect's own limit.
             self.times = QLabel("×")
             self.times.setStyleSheet(f"color: {MUTED}; border: none;")
             head.addWidget(self.times, 0, Qt.AlignTop)
-            self.count = QLineEdit(str(_within_reason(count)))
+            self.count = QLineEdit(str(_within_reason(count, self.effect_id)))
             self.count.setFixedWidth(42)
             self.count.setAlignment(Qt.AlignCenter)
-            self.count.setToolTip("How many times this is true right now")
+            self.count.setToolTip(
+                "How many times this is true right now, at most "
+                f"{_within_reason(MOST_COUNT, self.effect_id)}")
             self.count.editingFinished.connect(self._edited)
             head.addWidget(self.count, 0, Qt.AlignTop)
             self._set_count_enabled(count > 0)
@@ -268,7 +271,7 @@ class SituationalRow(QFrame):
         try:
             # A blank or nonsense box means "it is true", not "it is true zero
             # times" -- switching it on is already the statement that it holds.
-            return _within_reason(int(text))
+            return _within_reason(int(text), self.effect_id)
         except ValueError:
             return 1
 

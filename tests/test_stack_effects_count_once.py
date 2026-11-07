@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from nrplanner import model, stacking
+from nrplanner import effectfilters, favourites, model, stacking, statsheet
 from nrplanner.advisor import explain, goals, run, search, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -74,6 +74,50 @@ def test_the_effects_tab_says_a_second_copy_adds_nothing(game_data):
     assert effect["stacks"] is True, "the flag itself is not what changed"
     assert stacking.repetition(effect) == stacking.STRONGEST
     assert "second relic" in stacking.evidence(effect)
+
+
+# -- how far each one counts -------------------------------------------------
+
+@pytest.mark.parametrize("effect_id, limit", [
+    (7060200, 4), (7060000, 7), (7060100, 7),
+    (6060300, 10), (6060400, 10), (6060500, 10), (6060600, 10),
+])
+def test_a_scripted_limit_holds_in_the_figure(game_data, raider, effect_id,
+                                              limit):
+    """In the calculation too: above the limit changes no total."""
+    effect = game_data["effects"][str(effect_id)]
+    curves = game_data.get("curves", {})
+    at = model.compute(raider, LEVEL, [effect], curves,
+                       declared={effect_id: limit})
+    above = model.compute(raider, LEVEL, [effect], curves,
+                          declared={effect_id: limit + 1})
+    assert (above.rates, above.attributes, above.other) == (
+        at.rates, at.attributes, at.other)
+    assert model.stack_limit(effect_id, 99) == limit
+
+
+def test_the_effect_without_a_scripted_limit_keeps_the_stops_of_each_control():
+    """6500500: the filter stops at 10 for Optimize's budget, the sheet at 99."""
+    assert effectfilters.stack_limit(6500500) == 10
+    assert statsheet._within_reason(100000, 6500500) == 99
+    assert model.stack_limit(6500500, 1234) == 1234
+
+
+@pytest.mark.parametrize("stored, read", [
+    ("7060200=4", {7060200: 4}),
+    ("7060200=5", {}),
+    ("7060000=7,7060100=8", {7060000: 7}),
+    ("6060300=10", {6060300: 10}),
+    ("6500500=10,6500500=11", {6500500: 10}),
+])
+def test_a_stored_stacks_value_is_read_against_its_own_limit(stored, read):
+    settings = favourites.settings()
+    key = effectfilters.KEYS[effectfilters.STACKS]
+    settings.setValue(key, stored)
+    try:
+        assert effectfilters.stored_stacks() == read
+    finally:
+        settings.remove(key)
 
 
 # -- the search -------------------------------------------------------------

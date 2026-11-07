@@ -809,11 +809,26 @@ def satisfied_by_weapon(field_name: str, value, wep_type) -> bool:
     return value == wep_type
 
 
+#: Where each stack effect stops, as the game's event scripts count it (the
+#: EMEVD reading of T-337, 2026-11-07; no probe in the game). `None` is the one
+#: effect those scripts show no ceiling for (`stack_limit`).
+#: `tests/test_stack_effects_count_once.py` holds the keys against the dataset.
+STACK_LIMITS = {
+    7060200: 4,                                # Night Invaders
+    7060000: 7, 7060100: 7,                    # evergaols, Sorcerer's Rises
+    6060300: 10, 6060400: 10,                  # great enemies, Church and Fort
+    6060500: 10, 6060600: 10,                  # Ruin, Great Encampment
+    6500500: None,                             # [Revenant] Max FP
+}
+
 #: The eight effects `accumulates` names, for the search, which has the relic's
-#: ids and not the records. `tests/test_stack_effects_count_once.py` holds the
-#: list against the dataset.
-STACK_EFFECT_IDS = frozenset({6060300, 6060400, 6060500, 6060600, 6500500,
-                              7060000, 7060100, 7060200})
+#: ids and not the records.
+STACK_EFFECT_IDS = frozenset(STACK_LIMITS)
+
+
+def stack_limit(effect_id: int, unproven: int) -> int:
+    """How far this effect counts; `unproven` where the scripts do not say."""
+    return STACK_LIMITS.get(effect_id) or unproven
 
 
 def accumulates(effect: dict) -> bool:
@@ -1208,7 +1223,8 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     # than kept alongside them: leaving the original in would make the first
     # copy of an isStrongestEffect look like a duplicate of it and be dropped.
     effects = _first_carriers(effects, build)
-    live = {int(k): int(v) for k, v in (declared or {}).items() if int(v) > 0}
+    live = {int(k): min(int(v), stack_limit(int(k), int(v)))
+            for k, v in (declared or {}).items() if int(v) > 0}
     if live:
         expanded: list[dict] = []
         for eff in effects:

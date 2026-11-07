@@ -9722,8 +9722,10 @@ Wortlaute sind aus dem Code uebernommen und massgeblich. Naechste freie AK: AK-4
 - Akzeptanz: eine Zeile mit `model.accumulates(effect)` hat ein Feld, jede andere keins; die
   Kopfzeile heisst `Stacks`; die Reihenfolge der Spaltenkoepfe ist wortgleich die obige.
 
-**AK-470 Eingabe, Grenzen, Fehlerzustand.** Gueltig ist eine ganze Zahl von 0 bis 10
-(`effectfilters.MOST_STACKS = 10`, Nutzer 07.11.2026), in ASCII-Ziffern, hoechstens zwei Zeichen.
+**AK-470 Eingabe, Grenzen, Fehlerzustand.** Gueltig ist eine ganze Zahl von 0 bis zur Grenze des
+Effekts (T-339, `model.STACK_LIMITS`: 7060200 bis 4; 7060000 und 7060100 bis 7; 6060300, 6060400,
+6060500, 6060600 bis 10; 6500500 ohne Skriptbeleg bis `effectfilters.MOST_STACKS = 10`), in
+ASCII-Ziffern, hoechstens zwei Zeichen. Die Beispiele unten gelten fuer die Grenze 10.
 - Das Feld hat keinen Validator; ein Text wird so stehen gelassen, wie er getippt ist. Ein Text,
   der keine gueltige Zahl ist (`11`, `100`, `2.5`, `-1`, Buchstaben, Leerzeichen), wird in `BAD`
   (`#d1655f`, bestehender Token) gefaerbt und **zaehlt als leer**; er wird nie still zu einer anderen
@@ -9732,7 +9734,8 @@ Wortlaute sind aus dem Code uebernommen und massgeblich. Naechste freie AK: AK-4
   ein Wert, der getippt und durch X oder Esc stehen gelassen wird, bleibt. Enter schliesst das
   Fenster nicht.
 - Speicher: fester Schluessel `advisor/stacks`, Wert `id=zahl,id=zahl`; eine beschaedigte oder
-  ausserhalb 0 bis 10 liegende Angabe liest sich als leer, nie als Fehler (gespeichertes `11` = leer).
+  ausserhalb der Grenze des Effekts liegende Angabe liest sich als leer, nie als Fehler (gespeichertes
+  `11` = leer, `7060200=5` = leer).
 - Akzeptanz: `10` gilt, `11` ist rot und zaehlt als leer; `0` bleibt 0 (nicht leer); `07` wird 7, `007` ist rot und zaehlt als leer;
   nach Neustart stehen die Werte unveraendert da; ein gespeichertes `11` zeigt ein leeres Feld.
 
@@ -9759,8 +9762,8 @@ Rangfolge fuer den Zaehlwert eines Stack-Effekts: Filterwert, sonst die ×-Zahl 
   in der genannten Reihenfolge; ein Wert ueberlebt Suchen und Sortieren.
 
 **AK-473 Legende, Tooltip, Fenstergroesse.**
-- `STACKS_TOOLTIP` (wortgleich): `How many stacks Optimize and the relic picker's figures count, a
-  whole number from 0 to 10; 0 leaves this effect out. Empty: the count ticked on the stat sheet,
+- `STACKS_TOOLTIP` (wortgleich, `{limit}` ist die Grenze des Effekts): `How many stacks Optimize and
+  the relic picker's figures count, a whole number from 0 to {limit}; 0 leaves this effect out. Empty: the count ticked on the stat sheet,
   otherwise 1. Anything else turns red and counts as empty. The stat sheet itself does not change.`
 - `MARKS_EXPLANATION` endet mit (wortgleich): `Stacks: how many stacks Optimize and the relic
   picker's figures count for an effect that stacks, not the stat sheet; 0 does not count it, empty
@@ -9769,7 +9772,7 @@ Rangfolge fuer den Zaehlwert eines Stack-Effekts: Filterwert, sonst die ×-Zahl 
   Spalte `Stacks` kostet 94 px Breite, der laengere Satz 26 px Hoehe, die Baumhoehe bleibt
   449 px). Im echten Fenster bestaetigt QA die Breite 702 logisch (702 / 877 / 1053 px physisch bei
   100 / 125 / 150 %), kein waagerechter Rollbalken.
-- Akzeptanz: beide Saetze stehen je einmal im Code und nennen keine andere Grenze als 10;
+- Akzeptanz: beide Saetze stehen je einmal im Code und nennen keine feste Grenze;
   das Fenster oeffnet ohne waagerechten Rollbalken.
 - **Abweichung zu AK-445, nur gemeldet:** der Wortlaut dort (`These marks apply to every
   Nightfarer; an effect that only works for another Nightfarer is ignored here.`) lautet im Code
@@ -9783,13 +9786,13 @@ QA-Bericht, hier nicht nachgemessen). Richtung: Feldhoehe an die Zeilenhoehe ang
 und Innenabstand des Feldes verkleinern, Feld nicht hoeher als Kontrollkaestchen). Nicht
 spezifiziert: ob ein dichteres Feld lesbar bleibt, entscheidet der App Designer.
 
-**Nicht Teil dieser Vorgabe:** eine Grenze fuer die ×-Zahl der Statistik-Seite (seit T-336h: 99,
-`statsheet.MOST_COUNT`, Entscheidung des Directors); ein Pfeil- oder
+**Nicht Teil dieser Vorgabe:** eine Grenze fuer die ×-Zahl der Statistik-Seite (seit T-339 die des
+Effekts, AK-476; ohne Skriptbeleg 99, `statsheet.MOST_COUNT`); ein Pfeil- oder
 Drehfeld; ein Hinweistext im Fehlerfall ausser der roten Schrift.
 
 #### Nachtrag T-338 (developer), 2026-11-07 — Waffen-Icon in der Kachel, AK-474 (nur nachgetragen)
 
-*Naechste freie AK: AK-476.*
+*Naechste freie AK: AK-477.*
 
 #### Nachtrag T-339 (developer), 2026-11-07 — Stack-Effekte, Grenzen, Ziel `Balanced` (nur nachgetragen)
 
@@ -9800,6 +9803,12 @@ wie ein nicht stapelbarer; die Spalte `Stacks` im Reiter Effekte sagt `Strongest
 zweiten Traeger `another copy of it is already counted`. Optimize legt keinen zweiten Traeger, ausser
 ein Favorit braucht genau dieses Relikt. Akzeptanz: Raider, Stufe 15, zwei Traeger 7060200, n=2:
 Faktor 1,1449, wie mit einem.
+
+**AK-476 Grenze je Stack-Effekt.** `model.STACK_LIMITS` (EMEVD-Lesart aus T-337, keine Spielprobe) gilt
+im Stacks-Feld (AK-470), in der ×-Zahl der Statistik-Seite und in der Rechnung. Die ×-Zahl wird beim
+Verlassen des Feldes auf die Grenze gesetzt, ihr Tooltip nennt sie (`How many times this is true right
+now, at most {n}`). 6500500 hat keinen Skriptbeleg: Filter bis 10, ×-Zahl bis 99, Rechnung ungedeckelt.
+Akzeptanz: `5` im Feld von 7060200 ist rot und zaehlt als leer, `4` gilt; ×100000 wird ×4.
 
 **AK-474 Symbol der Waffe in der Kachel `Weapon damage`.** Eine belegte `WeaponTile` zeigt das
 Symbol der Waffe (`icons.item_icon(weapon["icon"])`, 28 x 28 logisch wie in der Waehleliste des

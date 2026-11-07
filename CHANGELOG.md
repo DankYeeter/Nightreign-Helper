@@ -13,6 +13,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
   suggests a second carrier unless a favourite needs that relic, and one you
   place yourself is flagged and moves no figure. Figures that used to count two
   carriers fall (Raider, two stacks: all damage +14.5 % where it was +31.1 %).
+- **Each stack effect now has its own limit**, in the Stacks field, in the count
+  on the stat sheet and in the figures: Night Invaders 4, evergaol prisoners and
+  Sorcerer's Rises 7, great enemies 10. A Stacks value saved above the limit
+  reads as empty. These limits are read from the game's event scripts and were
+  not tried in play.
 
 ### Added
 - The armament tiles under Weapon damage now show the armament's symbol above

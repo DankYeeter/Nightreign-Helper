@@ -393,7 +393,7 @@ def test_only_a_stack_effect_has_a_stacks_field(stack_window):
     assert set(window.stack_fields) == {STACKING, STACKING_MEMBER}
     assert window.tree.itemWidget(_head(window), dlg.COL_STACKS) is None
     field = window.stack_fields[STACKING]
-    assert field.toolTip() == dlg.STACKS_TOOLTIP == (
+    assert field.toolTip() == dlg.STACKS_TOOLTIP.format(limit=10) == (
         "How many stacks Optimize and the relic picker's figures count, a whole "
         "number from 0 to 10; 0 leaves this effect out. Empty: the count ticked "
         "on the stat sheet, otherwise 1. Anything else turns red and counts as "
@@ -401,6 +401,23 @@ def test_only_a_stack_effect_has_a_stacks_field(stack_window):
     assert field.accessibleName() == "Stacks: Attack up for each kill"
     assert window.tree.itemWidget(window._marks[STACKING][-1],
                                   dlg.COL_STACKS) is field
+
+
+def test_the_red_field_starts_above_the_limit_of_its_own_effect(qapp, filters):
+    """Night Invaders stop at 4 (`model.STACK_LIMITS`), and the tooltip says so."""
+    night_invader = 7060200
+    row = dlg.Row(effect_id=night_invader, name="Night Invader", is_curse=False,
+                  copies=1, family="Night Invader", stacks=True)
+    window = dlg.EffectFilterWindow(filters, [row])
+    field = window.stack_fields[night_invader]
+    assert "from 0 to 4;" in field.toolTip()
+    QTest.keyClicks(field, "4")
+    assert filters.stacks == {night_invader: 4} and field.styleSheet() == ""
+    field.clear()
+    QTest.keyClicks(field, "5")
+    assert filters.stacks == {} and dlg.BAD in field.styleSheet()
+    window.close()
+    window.deleteLater()
 
 
 def test_typing_a_stacks_value_writes_through_and_clearing_empties_it(
