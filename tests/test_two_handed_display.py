@@ -207,7 +207,7 @@ def _sheet_with(shared_planner, game_data, hero, weapon):
 def test_the_panel_and_its_popup_show_both_hands_on_every_figure(
         shared_planner, game_data, hero, greatsword):
     sheet = _sheet_with(shared_planner, game_data, hero, greatsword)
-    panel = sheet.ar_label.text()
+    panel = tabtext.unsymboled(sheet.ar_label.text())
     rows = [row for row in panel.split("<div")
             if row.startswith(">Physical") or "<b>Total</b>" in row]
     assert len(rows) == 2, panel
@@ -231,7 +231,8 @@ def _arsenal_row(tab, weapon, label_text: str) -> str:
     tab.search.setText(f'"{weapon["name"]}"')
     tab.recalculate()
     for tile in tab.scroll.widget().findChildren(arsenaltab.Tile):
-        labels = [label.text() for label in tile.findChildren(QLabel)]
+        labels = [tabtext.unsymboled(label.text())
+                  for label in tile.findChildren(QLabel)]
         if labels[1] == weapon["name"]:
             return labels[labels.index(label_text) + 1]
     raise AssertionError(f"no tile drawn for {weapon['name']!r}")

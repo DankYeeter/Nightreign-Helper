@@ -30,6 +30,17 @@ from PySide6.QtWidgets import QLabel, QTableWidget, QWidget
 _TAG = re.compile(r"<[^>]+>")
 _ENTITY = {"&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">",
            "&#9608;": "█"}
+#: The game symbol `iconpack.IconPack.inline` puts before a name (T-340).
+_SYMBOL = re.compile(r"<img [^>]*>&nbsp;")
+
+
+def unsymboled(markup: str) -> str:
+    """`markup` without the game symbols and with every other byte kept.
+
+    For a test reading a name or a frozen line: the symbol is held by
+    `test_game_symbols`, and its `file:` path names this machine's pack.
+    """
+    return _SYMBOL.sub("", markup)
 
 
 def plain(markup: str) -> str:

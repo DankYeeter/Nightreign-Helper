@@ -23,6 +23,7 @@ import pytest
 
 from nrplanner import damage, model, statsheet, weaponslots, weapons
 
+from tests import tabtext
 from tests import weapon_damage_cases as cases
 
 LEVEL = 15
@@ -74,7 +75,7 @@ TOTAL_ROW = re.compile(
 
 
 def panel(planner) -> str:
-    return planner.stat_sheet.ar_label.text()
+    return tabtext.unsymboled(planner.stat_sheet.ar_label.text())
 
 
 def art_row(planner):
