@@ -317,8 +317,8 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
         "effect, if it can. Avoid: no "
         "suggestion uses a relic that carries it — on a family header, every "
         "member below, unless one is set to Allow. Allow lets that one member "
-        "back in without allowing the rest of the family. These marks apply "
-        "to every Nightfarer; an effect that only works for another "
+        "back in without allowing the rest of the family. These marks are saved "
+        "for every Nightfarer; one that only works for another "
         "Nightfarer is ignored here. They are separate from the ★ you can give a "
         "relic in the relic picker: that is per Nightfarer, and Optimize puts "
         "a favourited relic in when it fits.")

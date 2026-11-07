@@ -2452,6 +2452,29 @@ def test_a_favourite_of_another_nightfarer_says_so_in_a_real_answer(
                          f"Raider, so it moves no number.")
 
 
+def test_a_held_relic_with_a_favourite_of_another_nightfarer_says_so(
+        game_data, wylder, armament):
+    """Director, reading B: `Why` lists no held slot (AD-014.6), so the sentence
+    of the line above goes beside the held-slots line, with the relic it is on."""
+    foreign = next(effect for effect in game_data["effects"].values()
+                   if effecttext.owner(effect) == "Raider")
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    owned = advisor.make_inventory(game_data, wylder, count=1, handles=[100])
+    held = types.HeldRelic(relic_id=1, name="Held relic",
+                           effect_ids=(foreign["id"],), colour=advisor.RED)
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED], held={0: held}),
+        favourites_of_others=frozenset({foreign["id"]}))
+    frozen = run.frozen_inventory(owned, problem)
+
+    result = run.run(advisor.request_for(problem, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    name, = effect_names(game_data, [foreign["id"]])
+    assert (f"Held relic, held in Slot 1 — {name}: you favourited it, but it "
+            f"only works for Raider, so it moves no number.") in result.unknowns
+
+
 def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):
     """AK-276 binds the marking control to the effect id, so every line of
     every filling -- figure, silent, curse -- has to say which it is."""

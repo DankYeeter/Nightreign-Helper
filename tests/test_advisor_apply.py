@@ -1187,6 +1187,16 @@ def test_a_switch_without_holds_leaves_the_stored_hand_alone(planner, told):
     assert not _stored_hand(planner, target_id)
 
 
+def test_the_switch_says_so_when_the_hand_comes_along(planner, told):
+    """Without another hand there, `test_a_switch_without_holds...` holds it."""
+    _a_stored_build_in_one_hand(planner, planner.hero_vessels[-1]["id"])
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    assert planner.switch_button.toolTip() == (
+        "Opens this vessel with its suggestion. It opens in 2H, the hand it "
+        "was compared in.")
+
+
 def test_applying_after_a_switch_writes_the_hand_and_undo_takes_it_back(
         planner, told, monkeypatch):
     target = planner.hero_vessels[-1]

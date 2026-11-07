@@ -245,8 +245,8 @@ relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
 the search field says so directly: "Favourite: every suggestion for this
 Nightfarer must carry this effect, if it can. Avoid: no suggestion uses a
 relic that carries it — on a family header, every member below, unless one is set to Allow. Allow lets that one
-member back in without allowing the rest of the family. These marks apply to
-every Nightfarer; an effect that only works for another Nightfarer is ignored
+member back in without allowing the rest of the family. These marks are saved
+for every Nightfarer; one that only works for another Nightfarer is ignored
 here. They are separate from the ★ you can give a relic in the
 relic picker: that is per Nightfarer, and Optimize puts a favourited relic
 in when it fits." A counter
@@ -395,8 +395,8 @@ vessel, its cards and its suggestion stay as they were.
   relics or rejections the bar then reads `Nothing suggested yet.`
   **Switch to it** brings your held relics and rejections along. Held relics
   go into the slots they fit and **Undo apply** puts them back; **Apply all**
-  stays for the other slots. Rejections alone save nothing until you apply.
-  Hover the button for the sentence that applies.
+  stays for the other slots. Rejections alone save nothing until you apply. A
+  vessel compared in another hand opens in that hand, and the tooltip says so.
 - The comparison goes stale — `Out of date — use Optimize again to compare.`,
   the figures stay but without BEST — when you change the goal or its boxes,
   the level, the Nightfarer, the Deep of Night box, an Avoid, Favourite or

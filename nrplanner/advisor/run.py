@@ -525,6 +525,8 @@ def run(request: types.AdvisorRequest, inventory,
     unknowns = tuple(dict.fromkeys(ranked.unknowns
                                    + explain.unknowns(problem)
                                    + held_favourites
+                                   + explain.favourite_of_another_on_a_hold(
+                                       problem, ctx)
                                    + explain.avoided_on_a_hold(problem, ctx)))
     # A7 for A19: a favourite the suggestion does not carry is said by name.
     # Under AK-365 the whole suggestion fell, and that has its own sentence.

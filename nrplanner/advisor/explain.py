@@ -583,6 +583,12 @@ def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
         is_curse=is_curse, silence=silence)
 
 
+def _works_for_another(name: str, effect: Mapping) -> str:
+    nightfarer = effecttext.owner(effect) or "another Nightfarer"
+    return (f"{name}: you favourited it, but it only works for {nightfarer}, "
+            f"so it moves no number.")
+
+
 def _silent_effect(candidate: types.Candidate, effect_id: int,
                    ctx: types.GoalContext, built: model.Build,
                    counted_elsewhere: bool, group_counted: bool,
@@ -634,9 +640,7 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     # Nightfarer or one that acts on the enemy never does, and no condition
     # parks either (`model.compute_qualitative`).
     if effect_id in problem.favourites_of_others:
-        nightfarer = effecttext.owner(effect) or "another Nightfarer"
-        return said(f"{name}: you favourited it, but it only works for "
-                    f"{nightfarer}, so it moves no number.",
+        return said(_works_for_another(name, effect),
                     types.SILENT_ANOTHER_NIGHTFARER)
     if (effect_id in problem.required
             and effect_id in model.ON_THE_ENEMY_EFFECT_IDS):
@@ -1504,6 +1508,19 @@ def avoided_on_a_hold(problem: types.SlotProblem,
         for entry in problem.held if entry.relic is not None
         for effect_id in (*entry.relic.effect_ids, *entry.relic.curse_ids)
         if effect_id in problem.excluded)
+
+
+def favourite_of_another_on_a_hold(problem: types.SlotProblem,
+                                   ctx: types.GoalContext) -> tuple[str, ...]:
+    """The `_silent_effect` sentence for a relic `Why` does not list (AD-014.6),
+    beside the held-slots line like `avoided_on_a_hold`."""
+    return tuple(
+        f"{entry.relic.name}, held in Slot {entry.index + 1} — "
+        + _works_for_another(_effect_name(ctx, effect_id),
+                             ctx.data["effects"][str(effect_id)])
+        for entry in problem.held if entry.relic is not None
+        for effect_id in (*entry.relic.effect_ids, *entry.relic.curse_ids)
+        if effect_id in problem.favourites_of_others)
 
 
 def held_favourites_card_line(lines: tuple[str, ...]) -> str:

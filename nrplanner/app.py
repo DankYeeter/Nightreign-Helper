@@ -42,7 +42,7 @@ from .depthstab import DepthsTab
 from .eventstab import WorldEventsTab
 from .relicslots import (RelicSlot, _custom_effects,
                          _relic_count, slot_chip)
-from .statsheet import StatSheet, _heading
+from .statsheet import HAND_CAPTIONS, StatSheet, _heading
 from .theme import (ACCENT, BORDER, MUTED, NAME_POINT_SIZE, PANEL,
                     SLOT_COLOURS)
 
@@ -1750,17 +1750,28 @@ class Planner(QMainWindow):
         self.switch_button.setToolTip(self._what_the_switch_does(comparing))
 
     def _what_the_switch_does(self, comparing) -> str:
-        """The tooltip of `Switch to it` (AK-454, QA-331)."""
-        if (comparing is None or not comparing.carries
-                or self._switch_target in (None, comparing.asked_vessel)):
-            return "Opens this vessel with its suggestion."
-        if not comparing.held_relics:
-            return ("Opens this vessel with its suggestion and brings your "
-                    "rejections along. Nothing is saved until you apply it.")
-        rejected = comparing.questions[self._switch_target].problem.rejected
-        what = "held relics and rejections" if rejected else "held relics"
-        return (f"Moves your {what} to this vessel, into the slots they fit; "
-                f"the other slots stay as saved. Undo apply puts them back.")
+        """The tooltip of `Switch to it` (AK-454, QA-331), and the hand of the
+        question where it is not the one stored there (AD-062.8)."""
+        target = self._switch_target
+        opens = "Opens this vessel with its suggestion."
+        if comparing is None or target is None:
+            return opens
+        question = comparing.questions[target]
+        if comparing.carries and target != comparing.asked_vessel:
+            if comparing.held_relics:
+                what = ("held relics and rejections" if question.problem.rejected
+                        else "held relics")
+                opens = (f"Moves your {what} to this vessel, into the slots they "
+                         f"fit; the other slots stay as saved. Undo apply puts "
+                         f"them back.")
+            else:
+                opens = ("Opens this vessel with its suggestion and brings your "
+                         "rejections along. Nothing is saved until you apply it.")
+        stored = chalices.load(self.current_hero()["id"], target)[3]
+        if question.two_handed == stored:
+            return opens
+        return (f"{opens} It opens in {HAND_CAPTIONS[question.two_handed]}, the "
+                f"hand it was compared in.")
 
     def _vessel_row_chosen(self, *_) -> None:
         """AK-435: a click opens the vessel, with its answer if it is known."""
