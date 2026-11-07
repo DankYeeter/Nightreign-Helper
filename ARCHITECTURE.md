@@ -9530,10 +9530,13 @@ Teilmenge vor dem Beam, danach Bestand: gewaehlt.**
    offenen Effekte; Sieger hoechste Bitzahl, Gleichstand nach Summe der besten Traeger-Grenzbeitraege
    je Effekt, dann Ids. Dieselbe Kopie zweimal aendert keine Vereinigung, die Rechnung ist exakt.
    Gemessen 110 von 110 gleich der Aufzaehlung aller Teilmengen, Median 0,245 ms, Maximum 1,041 ms;
-   Belastung 20 Favoriten 116,4 ms (im Worker). `ponytail:` exponentiell in den Favoriten; Aufstieg
-   Greedy, falls deutlich mehr als 20 vorkommen.
+   Belastung 20 Favoriten 116,4 ms (im Worker). Exponentiell in den Favoriten, darum seit QA-326 ein Deckel: ueber
+   `MOST_SETS_FOLLOWED` (4096) laufen nur die groessten Mengen weiter; das Ergebnis ist dann vielleicht kleiner als das Maximum, aber
+   immer tragbar. Gemessen Wylder's Chalice, Deep an, meistgetragene Effekte zuerst: bis 30 Favoriten gleich der ungedeckelten Rechnung
+   (30: 79 ms gegen 4,18 s), 319 in 1,28 s. Voller `run.run`: 30 = 3,85 s, 40 = 4,21 s, 60 = 4,61 s, 120 = 5,68 s, 319 = 3,96 s (vorher 30 = 12,6 s, 40 nach 30 s nicht fertig,
+   319 `MemoryError`). `attainable` fragt `should_cancel` je Pool.
 3. `_can_still_be_met` rechnet ueber Kopien: je Ebene eine Kopie, `rest` = offene Effekte, die sie
-   nicht traegt; Kopien mit gleichem `rest` nur einmal probieren. Exakt, weil eine Kopie alles
+   nicht traegt; gleiche offene Effekte auf gleicher Ebene nur einmal fragen (QA-326: je Aufruf gemerkt, sonst 3,4 Mio. Aufrufe bei 40 Favoriten). Exakt, weil eine Kopie alles
    deckt, was sie traegt, und spaeter nicht mehr gebraucht wird. Der `ponytail`-Vermerk dort faellt.
 4. `run.run`: `found = beam(q) or beam(replace(q, required=frozenset()))`. Der Rueckfall ist die
    Zusage "blockiert nie" gegen den Fall, dass die K-Grenze der Zwangszweige einen Traeger verfehlt.

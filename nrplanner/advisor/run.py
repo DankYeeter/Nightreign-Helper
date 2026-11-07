@@ -377,7 +377,8 @@ def _lay_the_pins(inventory, problem: types.SlotProblem,
     def attainable(asked: types.SlotProblem) -> frozenset[int]:
         free = {slot.index for slot in types.free_slots(asked)}
         return search.attainable(asked, [pool for pool in bare
-                                         if pool.slot_index in free])
+                                         if pool.slot_index in free],
+                                 should_cancel)
 
     return candidates.pin(inventory, problem, ctx, goal, attainable)
 
@@ -456,7 +457,8 @@ def run(request: types.AdvisorRequest, inventory,
     # search is the promise "never blocks" against the K limit of its forced
     # branches missing a carrier (AD-058.2, .4).
     found = (search.beam(dataclasses.replace(
-                 searched, required=search.attainable(searched, pools)),
+                 searched, required=search.attainable(searched, pools,
+                                                      should_cancel)),
                  pools, request.budget, scorer, should_cancel)
              or search.beam(dataclasses.replace(searched, required=frozenset()),
                             pools, request.budget, scorer, should_cancel))

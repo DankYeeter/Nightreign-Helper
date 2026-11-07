@@ -1055,3 +1055,40 @@ def test_a_suggestion_the_search_produced_can_be_a_cache_key(game_data,
     assert found, "nothing was suggested, so nothing is being hashed"
     assert len({hash(suggestion) for suggestion in found}) >= 1
     assert dataclasses.replace(found[0], reasons=("a line",)) != found[0]
+
+
+# -- QA-326: many favourites ---------------------------------------------------
+
+def test_past_the_limit_attainable_keeps_what_one_copy_per_slot_can_carry(
+        monkeypatch):
+    monkeypatch.setattr(search, "MOST_SETS_FOLLOWED", 3)
+    # One favourite per copy, so three slots can never carry more than three.
+    effects = range(WANTED, WANTED + 12)
+    rows = [[(100 * row + column, 1.0, {WANTED + 4 * row + column})
+             for column in range(4)] for row in range(3)]
+    found = attainable_over(effects, *rows)
+    assert len(found) == 3
+    for row in rows:
+        assert len(found & {eid for _, _, carried in row for eid in carried}) == 1
+
+
+def test_a_stopped_run_is_heard_inside_attainable():
+    pools = [pool_of(0, [offer(0, 1, 1.0, effects={WANTED})], rank_by=DAMAGE)]
+    problem = types.SlotProblem(slots=slots_of(advisor.RED),
+                                required=frozenset({WANTED}))
+    with pytest.raises(types.Cancelled):
+        search.attainable(problem, pools, lambda: True)
+
+
+def test_many_open_favourites_are_refuted_without_walking_every_order(
+        monkeypatch):
+    """Fourteen favourites, six levels, one each: no. Walking every order asked
+    2,1 million times; the same open set at the same level is one question."""
+    wanted = tuple(range(WANTED, WANTED + 14))
+    level = {eid: (offer(0, eid, 1.0, effects={eid}),) for eid in wanted}
+    asked = []
+    still_unmet = search._still_unmet
+    monkeypatch.setattr(search, "_still_unmet", lambda unmet, copy: (
+        asked.append(1), still_unmet(unmet, copy))[1])
+    assert not search._can_still_be_met(wanted, [level] * 6, frozenset())
+    assert len(asked) < 100_000

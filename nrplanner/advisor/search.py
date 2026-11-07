@@ -164,33 +164,44 @@ def _carriers_by_level(problem: types.SlotProblem,
 
 def _can_still_be_met(unmet: tuple[int, ...],
                       later: Sequence[dict[int, tuple[types.Candidate, ...]]],
-                      spent: frozenset[int]) -> bool:
+                      spent: frozenset[int],
+                      refuted: set[tuple[int, tuple[int, ...]]] | None = None
+                      ) -> bool:
     """Can the levels to come still carry the unmet effects (AD-058.3)?
 
     One copy per level, and what is left open afterwards goes to the next
     one. `spent` does not grow on the way down, and that is exact rather than
     generous: a copy covers everything it carries at once, so a second use of
-    it covers nothing new. Copies that leave the same effects open are one
-    question, asked once.
+    it covers nothing new. So the same effects left open at the same level are
+    one question, and `refuted` keeps it from being asked twice: without it a
+    state with many open favourites took seconds (QA-326).
     """
     if not unmet:
         return True
     if not later:
         return False
-    tried = set()
+    refuted = set() if refuted is None else refuted
+    question = len(later), unmet
+    if question in refuted:
+        return False
     for effect in unmet:
         for copy in later[0].get(effect, ()):
-            left = _still_unmet(unmet, copy)
-            if copy.handle in spent or left in tried:
-                continue
-            tried.add(left)
-            if _can_still_be_met(left, later[1:], spent):
+            if copy.handle not in spent and _can_still_be_met(
+                    _still_unmet(unmet, copy), later[1:], spent, refuted):
                 return True
-    return _can_still_be_met(unmet, later[1:], spent)
+    if _can_still_be_met(unmet, later[1:], spent, refuted):
+        return True
+    refuted.add(question)
+    return False
 
 
-def attainable(problem: types.SlotProblem,
-               pools: Sequence[types.SlotPool]) -> frozenset[int]:
+#: AD-058.2: the sets of favourites `attainable` follows at once.
+MOST_SETS_FOLLOWED = 4096
+
+
+def attainable(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
+               should_cancel: Callable[[], bool] = never_cancelled
+               ) -> frozenset[int]:
     """The required effects this vessel can carry at once (A28, AD-058.2).
 
     What a held relic carries, and the largest set of the others the free
@@ -201,8 +212,10 @@ def attainable(problem: types.SlotProblem,
     stronger best carriers decide, in the direction that ranked the pools,
     then the lower ids.
 
-    ponytail: exponential in the favourites; a greedy pick if far more than
-    twenty ever occur (AD-058.2).
+    Exponential in the favourites, so past `MOST_SETS_FOLLOWED` only the
+    largest sets go on (QA-326). What comes back can then be smaller than the
+    true maximum, but the vessel can always carry all of it, and that is what
+    the search binds to.
     """
     held = types.held_relics(problem)
     effects = [eid for eid in sorted(problem.required)
@@ -210,6 +223,8 @@ def attainable(problem: types.SlotProblem,
     worth: dict[int, float] = {}
     reach = {0}
     for pool in pools:
+        if should_cancel():
+            raise Cancelled("stopped while weighing the favourites")
         masks = set()
         for copy in pool.candidates:
             mask = 0
@@ -220,6 +235,9 @@ def attainable(problem: types.SlotProblem,
                     worth[eid] = max(worth.get(eid, gain), gain)
             masks.add(mask)
         reach |= {before | mask for before in reach for mask in masks}
+        if len(reach) > MOST_SETS_FOLLOWED:
+            reach = set(sorted(reach, key=lambda mask: (-mask.bit_count(), mask)
+                               )[:MOST_SETS_FOLLOWED])
 
     def carried_by(mask: int) -> list[int]:
         return [eid for bit, eid in enumerate(effects) if mask >> bit & 1]
