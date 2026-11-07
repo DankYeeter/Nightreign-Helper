@@ -1272,14 +1272,14 @@ class StatSheet(QScrollArea):
         if curses:
             lines = []
             for source, eff in curses:
-                detail = effecttext.describe_full(eff)
+                detail = html.escape(effecttext.describe_full(eff))
                 lines.append(
                     f"<div style='margin-bottom:6px'>"
                     f"<span style='color:{BAD}'>✦ "
                     f"{iconpack.inline(self.planner.icons, 'status', eff.get('icon'))}"
-                    f"{effecttext.name(eff)}</span>"
+                    f"{html.escape(effecttext.name(eff))}</span>"
                     f"<div style='color:{MUTED}; font-size:11px'>{detail}</div>"
-                    f"<div style='color:{MUTED}; font-size:10px'>from {source}</div>"
+                    f"<div style='color:{MUTED}; font-size:10px'>from {html.escape(source)}</div>"
                     f"</div>"
                 )
             self.curse_label.setText("".join(lines))
