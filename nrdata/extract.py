@@ -120,7 +120,12 @@ MAX_LEVEL = 15
 #      row's onHitSpEffect ("Attacks Inflict Rot" 8110400-402). A cache left
 #      on 18 would leave the advisor without those sources of an ailment
 #      (user decision 01.11.2026).
-EXTRACT_VERSION = 19
+#  20  the symbols the game shows for what had none here (T-340): `icon` on
+#      `effects[]` (`AttachEffectParam.statusIconId`), on the world events'
+#      `buffs[]` and `states[]` (`SpEffectParam.iconId`) and on every entry of
+#      `drops`, and `deep_of_night.sigil_icon`. A cache left on 19 draws those
+#      names without a symbol.
+EXTRACT_VERSION = 20
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -644,6 +649,11 @@ def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
     return out
 
 
+def _icon(value: Any) -> int | None:
+    """A symbol id as a param row states it; 0 and -1 mean there is none."""
+    return value if isinstance(value, int) and value > 0 else None
+
+
 def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
                    text: dict[str, dict[int, str]],
                    subbosses: dict[str, Any]) -> dict:
@@ -858,6 +868,10 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
     # "<?image@4500##17?>", which is a button glyph the app cannot render.
     sigil_name = (text.get("AntiqueName", {}).get(SOVEREIGN_SIGIL_ID) or "").strip()
     sigil_info = (text.get("AntiqueInfo", {}).get(SOVEREIGN_SIGIL_ID) or "").strip()
+    sigil_icon = next(
+        (_icon(row.values.get("iconId")) for row in param.read(
+            members["EquipParamAntique"], defs.get("EquipParamAntique")).rows
+         if row.id == SOVEREIGN_SIGIL_ID), None)
 
     rating_text = re.sub(
         r"<\?[^>]*\?>", "",
@@ -880,6 +894,7 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
         "rating_text": rating_text,
         "sigil_name": sigil_name,
         "sigil_info": sigil_info,
+        "sigil_icon": sigil_icon,
         "depth_count": DEPTH_COUNT,
         "rewards": rewards,
         "scaling": list(profiles.values()),
@@ -1050,6 +1065,7 @@ def _event_buffs(members: dict, defs: dict,
             "info": (info.get(row.id) or "").strip(),
             "caption": (caption.get(row.id) or "").strip(),
             "sp_id": row.values["spEffectId"],
+            "icon": _icon(root.get("iconId")),
             # -1 means no timer at all: it lasts the rest of the expedition.
             "duration": root.get("effectEndurance"),
             # None means the files do not say. See the docstring: the
@@ -1117,6 +1133,7 @@ def _event_states(members: dict, defs: dict,
         out.append({
             "sp_id": row.id,
             "name": label,
+            "icon": _icon(row.values.get("iconId")),
             "duration": row.values.get("effectEndurance"),
             "lines": lines,
             "shares_with_allies": _states_allies(label),
@@ -1423,6 +1440,38 @@ def _event_drops(members: dict, defs: dict,
             return (label or f"weapon {item_id}").strip(), "weapon"
         return f"[{category}:{item_id}]", "unknown"
 
+    def symbol_rows(name: str) -> dict[int, Any]:
+        return {r.id: r.values.get("iconId")
+                for r in param.read(members[name], defs.get(name)).rows}
+
+    goods_symbols = symbol_rows("EquipParamGoods")
+    weapon_symbols = symbol_rows("EquipParamWeapon")
+    talisman_symbols = symbol_rows("EquipParamAccessory")
+    power_symbols = symbol_rows("PermanentBuffParam")
+
+    def symbol_of(category: int, item_id: int) -> int | None:
+        """The drop's symbol, by the same two id forms `name_of` tries."""
+        if category == LOT_GOODS:
+            if (item_id - 1 in buffs and buffs[item_id - 1]) or buffs.get(item_id):
+                return _icon(power_symbols.get(
+                    item_id - 1 if buffs.get(item_id - 1) else item_id))
+            return _icon(goods_symbols.get(item_id))
+        if category == LOT_WEAPON:
+            return _icon(weapon_symbols.get(item_id))
+        if category == LOT_ACCESSORY:
+            return _icon(talisman_symbols.get(item_id))
+        if category == LOT_CUSTOM_WEAPON:
+            return _icon(weapon_symbols.get(custom_target.get(item_id)))
+        return None
+
+    symbols: dict[tuple[str, str], int | None] = {}
+
+    def named(category: int, item_id: int) -> tuple[str, str]:
+        """`name_of`, noting which symbol that name is drawn with."""
+        key = name_of(category, item_id)
+        symbols.setdefault(key, symbol_of(category, item_id))
+        return key
+
     def walk(table_id: int, weight: float, depth: int,
              out: dict[tuple[str, str], float]) -> None:
         entries = groups.get(table_id)
@@ -1439,7 +1488,7 @@ def _event_drops(members: dict, defs: dict,
             if category == LOT_TABLE:
                 walk(item_id, share, depth + 1, out)
             else:
-                key = name_of(category, item_id)
+                key = named(category, item_id)
                 out[key] = out.get(key, 0.0) + share
 
     npc = param.read(members["NpcParam"], defs.get("NpcParam"))
@@ -1469,7 +1518,7 @@ def _event_drops(members: dict, defs: dict,
                 if category == LOT_TABLE:
                     walk(item_id, 1.0, 0, collected)
                 else:
-                    key = name_of(category, item_id)
+                    key = named(category, item_id)
                     collected[key] = collected.get(key, 0.0) + 1.0
 
         if not collected:
@@ -1486,7 +1535,8 @@ def _event_drops(members: dict, defs: dict,
             if share <= 0:
                 omitted += 1
                 continue
-            entries.append({"name": name, "kind": kind, "share": share})
+            entries.append({"name": name, "kind": kind, "share": share,
+                            "icon": symbols.get((name, kind))})
         entries.sort(key=lambda e: (-e["share"], e["name"]))
         if omitted:
             entries.append({"name": f"{omitted} entries rarer than 0.005%",
@@ -2401,6 +2451,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
 
         effects[key] = {
             "id": effect_id,
+            "icon": _icon(row.values.get("statusIconId")),
             "name": (effect_name.get(text_id) or effect_name.get(effect_id)
                      or buff_name or f"Effect {effect_id}"),
             # Mirror the name lookup's fallback. The name tries the text id

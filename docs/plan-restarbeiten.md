@@ -360,6 +360,16 @@ gesichert unter `...\Desktop\ClaudeCode\NightreignHelper-Testabzug-v17`
 (9 025 778 B). `CLAUDE.md` "Fester Testabzug" ist nachgezogen (Grenze
 "ueber 18").
 
+*Ersetzt am 07.11.2026 (T-340, developer):* `EXTRACT_VERSION` **20** und
+`ICON_VERSION` **5** (`icon` an `effects[]`, Event-`buffs[]`/`states[]` und
+`drops`, `deep_of_night.sigil_icon`; Slotlicht, Zelle, Death Blight, 165
+Status-Symbole, Talismane, Goods und Powers im Satz). Beides neu gebaut an der
+echten Installation: `nightreign_data.json` 9 884 065 B (+417 865 B, 52,8 s),
+Symbolsatz 47,6 s (1240 von 1356 Item-Symbolen). Stand der Vorlage: **1545
+Dateien, 27 006 981 B**, Ort unveraendert. Alte v19-Vorlage ganz gesichert unter
+`<ClaudeCode>\NightreignHelper-Testabzug-v19`. `CLAUDE.md` "Fester Testabzug"
+nachgezogen (Grenze "ueber 20" bzw. `ICON_VERSION` "ueber 5").
+
 *Ersetzt am 01.11.2026 (developer, Zustandsquellen im Berater):*
 `EXTRACT_VERSION` **19** (`arts[].inflicts`, `spells[].inflicts` ueber
 AtkParam/Bullet `spEffectId0..4`; `inflicts_on_hit` auch ueber

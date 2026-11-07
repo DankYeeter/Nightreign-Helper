@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 from typing import Callable, Iterator
 
 from . import (bnd4, dvdbnd, icons, param, paramdef, regulation, tpf)
@@ -27,13 +28,20 @@ from . import (bnd4, dvdbnd, icons, param, paramdef, regulation, tpf)
 #      no art for
 #   4  the weapon arts' symbols (`SwordArtsParam.iconId`), which sit in the
 #      item atlas beside the relics and spells (AD-056.2)
-ICON_VERSION = 4
+#   5  the slot light, normal and Deep, and its cell (T-338 row F); Death
+#      Blight; the talismans, goods and powers a boss drops; every status
+#      symbol, which is what an effect and a world-event buff show in game
+ICON_VERSION = 5
 
 PORTRAIT_SIZE = 128
 ITEM_SIZE = 64
 VARIANT_SIZE = 256
 BOSS_SIZE = 128
 BOSS_LARGE = 256
+# The sprites are 80 px and rich text draws an <img> unsmoothed, so a symbol
+# shown at text height has to start from close to that height (T-340).
+STATUS_SIZE = 32
+STATUS_SPRITE = re.compile(r"MENU_StatusIcon_(\d+)\.png")
 
 SOLO_HEADER = "/menu/00_solo_h.tpfbhd"
 SOLO_DATA = "/menu/00_solo_h.tpfbdt"
@@ -85,11 +93,19 @@ UI_SPRITES = {
     # known members anchor the run and fix the two wanted here: 31231 is the
     # red growth (Scarlet Rot) and 31234 the closed eye (Sleep).
     #
-    # 31235 (Madness) and 31236 (Death Blight) are deliberately left out:
-    # Madness already has its MENU_FL icon, and no Nightlord row reports Death
-    # Blight.
+    # 31235 (Madness) is deliberately left out: it already has its MENU_FL
+    # icon.
     "MENU_PropertyIcon_31231.png": "ui_dmg_rot.png",
     "MENU_PropertyIcon_31234.png": "ui_dmg_sleep.png",
+    "MENU_PropertyIcon_31236.png": "ui_dmg_death.png",
+    # The light standing in a chalice slot, and the cell under it. The ids are
+    # `nightreign.exe` RVA 0x785560, which maps the colour of a slot and its
+    # kind onto them: 40240-44 for `relicSlot1-3`, 40254-58 for `deepSlot1-3`,
+    # Red, Blue, Yellow, Green, White in that order. `02_400_Antique` stacks
+    # the light over the cell (T-338).
+    "MENU_In_bg_22.png": "ui_slot_cell.png",
+    **{f"MENU_MenuIcon_{sprite}.png": f"ui_slot_light_{sprite}.png"
+       for sprite in (*range(40240, 40245), *range(40254, 40259))},
 }
 
 MANIFEST_NAME = "manifest.json"
@@ -132,11 +148,12 @@ def write_manifest(manifest: dict, out_dir: pathlib.Path) -> None:
 
 
 def item_icon_ids(members: dict, defs: dict) -> set[int]:
-    """Every item-atlas symbol the program draws: relics, chalices,
-    armaments, spells and weapon arts."""
+    """Every item-atlas symbol the program draws: relics, chalices, armaments,
+    spells and weapon arts, and the talismans, goods and powers bosses drop."""
     wanted = set()
     for name in ("EquipParamAntique", "AntiqueStandParam", "EquipParamWeapon",
-                 "Magic", "SwordArtsParam"):
+                 "Magic", "SwordArtsParam", "EquipParamAccessory",
+                 "EquipParamGoods", "PermanentBuffParam"):
         rows = param.read(members[name], defs[name]).rows
         wanted |= {r.values.get("iconId") for r in rows}
     return {i for i in wanted if isinstance(i, int) and i > 0}
@@ -224,9 +241,26 @@ def build(
         image = source.crop(sprite)
         if image is None:
             continue
+        if name.startswith("ui_gem_"):
+            # The stone fills the middle of an 84 px frame that is otherwise
+            # its halo; at text height the uncropped sprite is a speck.
+            margin = image.width // 4
+            image = image.crop((margin, margin, image.width - margin,
+                                image.height - margin))
         image.save(OUT / name)
         manifest.setdefault("ui", {})[sprite] = name
     report(f"ui sprites: {len(manifest.get('ui', {}))} of {len(UI_SPRITES)}")
+
+    # -- status symbols ---------------------------------------------------
+    # All of them rather than the ids some param names today: their atlas is
+    # small, and `AttachEffectParam` and `SpEffectParam` both draw from it.
+    for sprite in source.sprites:
+        match = STATUS_SPRITE.fullmatch(sprite or "")
+        if match:
+            name = f"status_{match[1]}.png"
+            source.crop(sprite, STATUS_SIZE).save(OUT / name)
+            manifest.setdefault("status", {})[match[1]] = name
+    report(f"status symbols: {len(manifest.get('status', {}))}")
 
     source.release()
 
