@@ -629,10 +629,15 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
                     "no name here and counted for nothing.",
                     types.SILENT_NOT_IN_THE_DATA)
     effect = ctx.data["effects"][str(effect_id)]
-    # AK-383: AK-290.2 holds only for an effect that counts. A favourited
-    # weapon-count condition the player did not declare counts only for the
-    # type of the selected armament tile, and only when no other type is
-    # declared by hand (`advisorbar.asking_from`,
+    # AK-383: AK-290.2 holds only for an effect that counts. One that acts on
+    # the enemy never does, and no condition parks it (`model.NO_SWITCH`).
+    if (effect_id in problem.required
+            and effect_id in model.ON_THE_ENEMY_EFFECT_IDS):
+        return said(f"{name}: you favourited it, but it acts on the enemy, so "
+                    f"it moves no number.", types.SILENT_REQUIRED_OTHER_TYPE)
+    # A favourited weapon-count condition the player did not declare counts
+    # only for the type of the selected armament tile, and only when no other
+    # type is declared by hand (`advisorbar.asking_from`,
     # `evaluate._declared_variants`); otherwise it waits on its condition.
     # The same holds for a weapon-type bonus of another type and for a
     # condition on an enemy ailment the build does not inflict (01.11.2026,

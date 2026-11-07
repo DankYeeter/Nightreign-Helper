@@ -2367,6 +2367,58 @@ def test_a_favourite_of_a_type_the_selected_tile_is_not_says_so(
         types.SILENT_REQUIRED_OTHER_TYPE]
 
 
+def test_a_favourite_that_acts_on_the_enemy_says_it_moves_no_number(game_data):
+    """QA-321, third cause: no condition parks it, so it fell through to "it
+    always counts" while the sheet counted nothing for it."""
+    raider = cases.hero_by_name(game_data, "Raider")
+    ctx = advisor.context(game_data, raider)
+    goal = goals.GOALS[DAMAGE]
+    for effect_id in sorted(model.ON_THE_ENEMY_EFFECT_IDS):
+        problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                      required=frozenset({effect_id}))
+        chosen = (a_copy(0, 1, "Relic", [effect_id]),)
+        name, = effect_names(game_data, [effect_id])
+
+        groups = explain.reasons(problem, chosen,
+                                 evaluate(problem, (), ctx, goal=goal),
+                                 evaluate(problem, chosen, ctx, goal=goal),
+                                 ctx, goal)
+
+        line, = groups[0].lines
+        assert line.silence == types.SILENT_REQUIRED_OTHER_TYPE
+        assert line.text == (f"{name}: you favourited it, but it acts on the "
+                             f"enemy, so it moves no number.")
+
+
+def test_no_favourite_that_waits_on_a_qa_321_cause_says_it_always_counts(
+        game_data, wylder, armament):
+    """All of them, undeclared as `asking_from` leaves them: a weapon type, a
+    weapon count, an enemy ailment, and whatever acts on the enemy."""
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    goal = goals.GOALS[DAMAGE]
+    wep_type = armament.weapon.get("wep_type")
+    asked = 0
+    for effect in game_data["effects"].values():
+        if not (model.is_conditional(effect, wep_type)
+                and effecttext.works_for(effect, wylder["name"])
+                and (effect["id"] in model.ON_THE_ENEMY_EFFECT_IDS
+                     or effecttext.counts_armaments(effect)
+                     or "triggerOnWepType" in effect["modifiers"]
+                     or effecttext.ailment_awaited(effect))):
+            continue
+        asked += 1
+        problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                      required=frozenset({effect["id"]}))
+        chosen = (a_copy(0, 1, "Relic", [effect["id"]]),)
+        groups = explain.reasons(problem, chosen,
+                                 evaluate(problem, (), ctx, goal=goal),
+                                 evaluate(problem, chosen, ctx, goal=goal),
+                                 ctx, goal)
+        assert not any("always counts" in line.text
+                       for group in groups for line in group.lines), effect["name"]
+    assert asked
+
+
 def test_every_line_carries_the_id_it_is_about(game_data, wylder, armament):
     """AK-276 binds the marking control to the effect id, so every line of
     every filling -- figure, silent, curse -- has to say which it is."""
