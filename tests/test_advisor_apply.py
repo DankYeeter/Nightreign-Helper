@@ -27,7 +27,8 @@ from PySide6.QtWidgets import QPushButton
 
 from nrplanner import advisorbar, advisorblock, chalices, effectfilters, inventory
 from nrplanner import app as appmod
-from nrplanner.advisor import goals, types
+from nrplanner.advisor import candidates, goals, run, types
+from tests import relics
 from tests.advisor_row_at_the_window import AK_350_ROOMS
 
 
@@ -796,3 +797,290 @@ def test_a_rejection_is_named_in_the_list_with_its_effects(planner):
     finally:
         planner._rejects.clear()
         planner._show_the_rejects()
+
+
+# --- the vessel list after a comparison (AK-431 to AK-436, AK-454) -----------
+
+class _ToldRuns:
+    """Runs that answer by the vessel's layout, later in the list is better.
+
+    Told rather than searched: the figures are the claim, and a hit has to find
+    its entry by the real key, which is what `Switch to it` depends on. Deep is
+    on, where all 11 layouts differ (AD-062).
+    """
+
+    def __init__(self, planner, monkeypatch) -> None:
+        self.calls = 0
+        self.planner = planner
+        planner.deep_check.setChecked(True)
+        self.value_of = {
+            run.vessel_slots(vessel, True): 100.0 + index
+            for index, vessel in enumerate(planner.hero_vessels)}
+        bar = planner.advisor_bar
+        monkeypatch.setattr(bar._controller, "_answer", self)
+        monkeypatch.setattr(bar.comparison._controller, "_answer", self)
+
+    def __call__(self, request, _inventory, _ctx, _goals, _stop):
+        self.calls += 1
+        value = self.value_of[request.problem.slots]
+        score = types.GoalScore(value=value, display=f"Attack rating {value:.0f}",
+                                unit="AR")
+        return types.AdvisorResult(
+            goal_id=request.goal_id, goal_label="Maximise damage",
+            suggestions=(types.Suggestion(choices=(), score=score),),
+            held=request.problem.held)
+
+
+def _spin_until(what, seconds: float = 20.0) -> None:
+    import time
+
+    from PySide6.QtWidgets import QApplication
+
+    deadline = time.monotonic() + seconds
+    while not what():
+        assert time.monotonic() < deadline, "it never came"
+        QApplication.instance().processEvents()
+        time.sleep(0.002)
+
+
+def _compared(planner) -> None:
+    bar = planner.advisor_bar
+    bar.optimize_button.click()
+    _spin_until(lambda: bar.comparing is not None
+                and bar.comparing.state is advisorbar.Compared.DONE)
+
+
+def _row_of(planner, vessel_id: int) -> int:
+    return next(row for row in range(planner.chalice_list.count())
+                if (planner.chalice_list.item(row).data(Qt.UserRole) or {}
+                    ).get("id") == vessel_id)
+
+
+def _line_of(planner, vessel_id: int):
+    return planner.chalice_list.item(_row_of(planner, vessel_id)).data(
+        advisorbar.VESSEL_LINE_ROLE)
+
+
+@pytest.fixture
+def told(planner, monkeypatch):
+    return _ToldRuns(planner, monkeypatch)
+
+
+def test_the_comparison_arrives_on_the_list_and_nothing_moves(planner, told):
+    """AK-431, AK-432, AK-433."""
+    here = planner.current_vessel()
+    bar = planner.advisor_bar
+    bar.optimize_button.click()
+    _spin_until(lambda: bar.answer is not None)
+    answer_before = bar.answer
+    _spin_until(lambda: bar.comparing.state is advisorbar.Compared.DONE)
+
+    assert planner.current_vessel() == here
+    assert bar.answer is answer_before
+    best = planner.hero_vessels[-1]
+    assert _line_of(planner, best["id"])[0].startswith("BEST  ")
+    assert sum(bool(_line_of(planner, vessel["id"])[0])
+               for vessel in planner.hero_vessels) == 1
+    assert planner.compare_status.text().startswith(
+        f"Best of {len(planner.hero_vessels)} for ")
+    assert best["name"] in planner.compare_status.text()
+    assert not planner.compare_status.isHidden()
+    assert not planner.switch_button.isHidden()
+    assert planner.switch_button.nextInFocusChain() is planner.chalice_list, (
+        "AK-436: the button directly before the list")
+    assert told.calls == len(planner.hero_vessels), (
+        "the chosen vessel's question has to be a hit on its own answer")
+    assert "Compared: " in planner.chalice_list.item(
+        _row_of(planner, best["id"])).toolTip()
+    assert ", best of " in planner.chalice_list.item(
+        _row_of(planner, best["id"])).data(Qt.AccessibleTextRole)
+
+
+def test_a_click_shows_the_answer_of_that_vessel_without_a_run(planner, told):
+    """AK-435 (a), (c), and the status line follows the open row (AK-450)."""
+    _compared(planner)
+    calls = told.calls
+    other = _another_vessel(planner)
+    planner.chalice_list.setCurrentRow(_row_of(planner, other["id"]))
+
+    answer = planner.advisor_bar.answer
+    assert answer is not None
+    assert answer.suggestions[0].score.value == told.value_of[
+        run.vessel_slots(other, True)]
+    assert told.calls == calls
+    assert planner.advisor_bar.comparing.state is advisorbar.Compared.DONE
+    assert "more than this one" in planner.compare_status.text()
+    planner.chalice_list.setCurrentRow(_row_of(planner, planner.hero_vessels[-1]["id"]))
+    assert planner.compare_status.text().startswith("This is the best of ")
+    assert planner.switch_button.isHidden()
+
+
+def test_a_switch_without_holds_opens_the_best_with_its_answer(planner, told):
+    """AK-435 (b): two clicks, nothing to undo."""
+    _compared(planner)
+    assert planner.switch_button.toolTip() == (
+        "Opens this vessel with its suggestion.")
+    planner.switch_button.click()
+    best = planner.hero_vessels[-1]
+    assert planner.current_vessel()["id"] == best["id"]
+    assert planner.advisor_bar.answer.suggestions[0].score.value == told.value_of[
+        run.vessel_slots(best, True)]
+    assert not planner.advisor_bar.has_been_applied()
+
+
+def _another_vessel(planner):
+    """A vessel neither open nor the best of the list."""
+    return next(vessel for vessel in planner.hero_vessels[:-1]
+                if vessel != planner.current_vessel())
+
+
+def _hold_a_relic(planner):
+    """A relic held in the first slot, and the last vessel that takes it."""
+    card = planner.active_slots()[0]
+    copy = next(copy for copy in card._holdable() if copy.handle is not None)
+    relics.equip(card, copy)
+    card.hold_button.setChecked(True)
+    return card, copy
+
+
+def _a_vessel_that_takes(planner, copy):
+    return next(
+        vessel for vessel in reversed(planner.hero_vessels)
+        if vessel != planner.current_vessel() and candidates.place(
+            [copy], run.vessel_slots(vessel, True))[0])
+
+
+def _best_fitting(planner):
+    """Rows the holds do not fit rank last, so `BEST` is the last that fits."""
+    comparing = planner.advisor_bar.comparing
+    return comparing.ranked()[0].vessel_id
+
+
+def test_with_a_hold_a_click_opens_it_as_it_was_left_and_runs_nothing(planner,
+                                                                      told):
+    """AK-454."""
+    _card, copy = _hold_a_relic(planner)
+    _compared(planner)
+    calls = told.calls
+    target = _a_vessel_that_takes(planner, copy)
+    tip = planner.chalice_list.item(_row_of(planner, target["id"])).toolTip()
+    assert "Click opens it as you left it." in tip
+    assert "Compared with your 1 held relic placed in it." in tip
+
+    planner.chalice_list.setCurrentRow(_row_of(planner, target["id"]))
+
+    bar = planner.advisor_bar
+    assert bar.answer is None
+    assert bar.situation.state is advisorbar.State.NOTHING_YET
+    assert told.calls == calls
+    assert bar._controller._pending is None
+    assert planner.held_slot_indices() == frozenset()
+    assert bar.comparing.state is advisorbar.Compared.DONE
+
+
+def test_a_switch_moves_the_holds_and_rejections_and_undo_takes_all_of_it_back(
+        planner, told):
+    """AK-454, its acceptance case: the target's saved slots as they were."""
+    origin = planner.current_vessel()
+    card, copy = _hold_a_relic(planner)
+    roll = (7, (1,), ())
+    planner._rejects[planner._reject_key()] = {roll: "Rejected"}
+    holds_before = dict(planner._holds[planner._hold_key()])
+    _compared(planner)
+    calls = told.calls
+    target_id = _best_fitting(planner)
+    assert target_id != origin["id"]
+    target = next(vessel for vessel in planner.hero_vessels
+                  if vessel["id"] == target_id)
+    assert planner.switch_button.toolTip().startswith("Moves your held relics")
+    keys_there = relics.stored_keys(planner, target_id)
+
+    planner.switch_button.click()
+
+    bar = planner.advisor_bar
+    assert planner.current_vessel()["id"] == target_id
+    assert told.calls == calls, "the row has to be the suggestion, not a new run"
+    assert bar.answer.suggestions[0].score.value == told.value_of[
+        run.vessel_slots(target, True)]
+    assert bar.has_been_applied()
+    assert bar.status.accessibleName() == (
+        "Applied. Undo puts your slots back as they were.")
+    index, = planner.held_slot_indices()
+    assert planner.active_slots()[index].current_relic().handle == copy.handle
+    assert planner.rejected_rolls() == frozenset({roll})
+    assert relics.stored_keys(planner, target_id) != keys_there
+    assert not planner.rejected_list.isHidden()
+
+    planner.undo_apply()
+
+    assert bar.answer is None
+    assert planner.held_slot_indices() == frozenset()
+    assert planner.rejected_rolls() == frozenset()
+    assert relics.stored_keys(planner, target_id) == keys_there
+    planner.chalice_list.setCurrentRow(_row_of(planner, origin["id"]))
+    assert planner._holds[planner._hold_key()] == holds_before
+    assert planner.rejected_rolls() == frozenset({roll})
+    assert planner.active_slots()[0].current_relic().handle == copy.handle
+    assert card.hold_button.isChecked()
+
+
+def test_a_switch_brings_the_hand_the_row_was_compared_in(planner, told):
+    """AK-435: a vessel's stored hand would otherwise be a miss."""
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    planner.switch_button.click()
+    assert planner.advisor_bar.answer is not None
+    assert planner.stat_sheet.hand_switch.isChecked()
+    assert planner.current_vessel() == planner.hero_vessels[-1]
+
+
+def test_a_click_in_the_other_hand_is_not_out_of_date_but_a_miss(planner, told):
+    """AK-434: the vessel brought its hand back, the player changed nothing."""
+    planner.stat_sheet.hand_switch.setChecked(True)
+    _compared(planner)
+    planner.chalice_list.setCurrentRow(
+        _row_of(planner, _another_vessel(planner)["id"]))
+    assert not planner.stat_sheet.hand_switch.isChecked()
+    assert planner.advisor_bar.comparing.state is advisorbar.Compared.DONE
+    assert planner.advisor_bar.answer is None
+
+
+@pytest.mark.parametrize("what_changes", [
+    lambda planner: planner.active_slots()[0].hold_button.setChecked(True),
+    lambda planner: planner.stat_sheet.hand_switch.click(),
+    lambda planner: planner.level_slider.setValue(
+        14 if planner.level_slider.value() == 15 else 15),
+], ids=["hold", "hand", "level"])
+def test_what_outdates_it_at_the_window(planner, told, what_changes):
+    """AK-434: figures stay, `BEST` goes, and the sentence says so."""
+    _compared(planner)
+    what_changes(planner)
+    assert planner.compare_status.text() == (
+        "Out of date — use Optimize again to compare.")
+    assert planner.switch_button.isHidden()
+    lines = [_line_of(planner, vessel["id"]) for vessel in planner.hero_vessels]
+    assert all(line[0] == "" and line[1].isdigit() for line in lines)
+
+
+def test_cancel_takes_the_comparison_off_the_list(planner, told):
+    """AK-453."""
+    bar = planner.advisor_bar
+    bar.optimize_button.click()
+    assert planner.compare_status.text().endswith("…")
+    assert _line_of(planner, planner.hero_vessels[0]["id"]) == ("", "…")
+    bar._controller.cancel()
+    assert bar.comparing is None
+    assert planner.compare_status.isHidden()
+    assert _line_of(planner, planner.hero_vessels[0]["id"]) is None
+
+
+def test_a_row_is_drawn_with_room_for_its_second_line(planner, told):
+    """AK-432: the height of the row; both lines drawn inside it, none lost."""
+    _compared(planner)
+    delegate = planner.chalice_list.itemDelegate()
+    index = planner.chalice_list.model().index(_row_of(
+        planner, planner.hero_vessels[-1]["id"]), 0)
+    assert isinstance(delegate, advisorbar.VesselRowDelegate)
+    assert (planner.chalice_list.sizeHintForRow(index.row())
+            >= advisorbar.VESSEL_ROW_HEIGHT)
+    assert not planner.chalice_list.grab().isNull()

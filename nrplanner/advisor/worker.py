@@ -338,6 +338,16 @@ class AdvisorController(QObject):
         self._interrupt_the_running_worker()
         return known
 
+    def known_answer(self, request: types.AdvisorRequest, inventory,
+                     ctx: types.GoalContext) -> object | None:
+        """The answer if it is already known, and on a miss nothing at all.
+
+        Not `ask_and_answer_if_known`, which asks on a miss: opening a vessel
+        starts no run, whatever the comparison holds (AK-435, AK-454).
+        """
+        return self._cache.get(
+            self._question_from(request, inventory, ctx).request)
+
     def _question_from(self, request: types.AdvisorRequest, inventory,
                        ctx: types.GoalContext) -> Question:
         """This asking, whole: the two fields only this object can fill in.

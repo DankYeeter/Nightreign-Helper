@@ -2242,3 +2242,355 @@ def test_what_stops_the_comparison(comparing_bar, what_happens, expected):
     """AD-062.4; the last two are not optional (AD-006.7)."""
     what_happens(comparing_bar)
     assert comparing_bar.comparison.calls[0] == expected
+
+
+# -- what the comparison says (AK-432, AK-449 to AK-453, AK-463 to AK-465) -----
+
+NAMES = {1: "Urn", 2: "Chalice", 3: "Goblet", 4: "Grail"}
+
+
+def _comparing(*rows, state=advisorbar.Compared.DONE, vessel_ids=(1, 2, 3, 4),
+               held=0, carries=False) -> advisorbar.Comparing:
+    return advisorbar.Comparing(
+        goal_label="Maximise damage", other_label="Minimise damage taken",
+        vessel_ids=vessel_ids, asked_vessel=1, held_relics=held,
+        carries=carries, signature=(),
+        rows={row.vessel_id: row for row in rows}, state=state)
+
+
+def _row(vessel_id, value, other=1.0, figure=None, **kwargs) -> types.VesselRow:
+    return types.VesselRow(vessel_id, figure or f"Attack rating {int(value)}",
+                           value, other, **kwargs)
+
+
+def _status(*rows, chosen=1, worn=None):
+    return advisorbar.comparison_status(_comparing(*rows), chosen, worn, NAMES)
+
+
+def test_the_chosen_vessel_being_the_best_offers_nothing():
+    """AK-450 (1)."""
+    assert _status(_row(1, 120), _row(2, 100), _row(3, 90), _row(4, 80)) == (
+        "This is the best of 4 vessels for Maximise damage: Attack rating 120.",
+        None)
+
+
+def test_a_better_vessel_is_named_with_the_difference():
+    """AK-450 (2): also where it meets more favourites besides (AK-464)."""
+    rows = (_row(1, 100, required_left_out=(5,)), _row(2, 118), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows) == (
+        "Best of 4 for Maximise damage: Chalice (Attack rating 118, 18 more "
+        "than this one).", 2)
+
+
+def test_the_same_value_with_more_favourites_says_so():
+    """AK-464 (3)."""
+    rows = (_row(1, 100, pins_left_out=("Urn",)), _row(2, 100), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows) == (
+        "Best of 4 for Maximise damage: Chalice (Attack rating 100, same as "
+        "this one, but it meets more of your favourites).", 2)
+
+
+def test_the_same_value_and_favourites_is_decided_by_the_other_direction():
+    """AK-464 (3b): neither (3) nor (5)."""
+    rows = (_row(1, 100, other=5.0), _row(2, 100, other=9.0), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows) == (
+        "Best of 4 for Maximise damage: Chalice (Attack rating 100, same as "
+        "this one, but better for Minimise damage taken).", 2)
+
+
+def test_a_smaller_value_is_explained_by_the_favourites():
+    """AK-464 (4); nowhere the word "more" for the figure."""
+    rows = (_row(1, 118, required_left_out=(5,)), _row(2, 100), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows) == (
+        "Best of 4 for Maximise damage: Chalice (Attack rating 100, 18 less "
+        "than this one, but it meets more of your favourites).", 2)
+
+
+@pytest.mark.parametrize("best, here, clause", [
+    (100.4, 100.1, ""),
+    (100.1, 100.4, ", but it meets more of your favourites"),
+], ids=["higher", "lower"])
+def test_a_difference_that_reads_zero_is_left_out(best, here, clause):
+    """AK-449."""
+    left_out = {"required_left_out": (5,)} if best < here else {}
+    rows = (_row(1, here, **left_out), _row(2, best), _row(3, 1), _row(4, 1))
+    assert _status(*rows)[0] == (
+        f"Best of 4 for Maximise damage: Chalice (Attack rating 100{clause}).")
+
+
+def test_a_multiplier_differs_in_two_places():
+    """AK-449: the form of the figure."""
+    rows = (_row(1, 1.2, figure="Attack multipliers ×1.20"),
+            _row(2, 1.42, figure="Attack multipliers ×1.42"), _row(3, 0.0),
+            _row(4, 0.0))
+    assert "(Attack multipliers ×1.42, 0.22 more than this one)" in _status(*rows)[0]
+    assert advisorbar.vessel_line(_comparing(*rows), 2) == ("BEST  ×1.42", "")
+
+
+def test_a_tie_needs_every_key_of_the_rank_level():
+    """AK-464 (5): with the chosen one among them, no button."""
+    rows = (_row(1, 100), _row(2, 100), _row(3, 90), _row(4, 80))
+    assert _status(*rows) == (
+        "2 vessels tie for best at Attack rating 100: Urn, Chalice", None)
+
+
+def test_a_tie_without_the_chosen_goes_to_the_worn_then_the_first():
+    """AK-432."""
+    rows = (_row(1, 80), _row(2, 100), _row(3, 100), _row(4, 90))
+    assert _status(*rows, worn=3)[1] == 3
+    assert _status(*rows, worn=4)[1] == 2
+
+
+def test_three_names_of_a_tie_are_cut_and_all_of_them_are_one_sentence():
+    rows = (_row(1, 100), _row(2, 100), _row(3, 100), _row(4, 80))
+    assert _status(*rows)[0] == (
+        "3 vessels tie for best at Attack rating 100: Urn, Chalice …and 1 more")
+    rows = (_row(1, 100), _row(2, 100), _row(3, 100), _row(4, 100))
+    assert _status(*rows) == ("All 4 vessels tie at Attack rating 100.", None)
+
+
+def test_an_unfit_vessel_opened_compares_with_no_figure_of_its_own():
+    rows = (_row(1, 100), types.VesselRow(2, unfit_holds=("Urn",)), _row(3, 90),
+            _row(4, 80))
+    assert _status(*rows, chosen=2) == (
+        "Best of 4 for Maximise damage: Urn (Attack rating 100).", 1)
+
+
+@pytest.mark.parametrize("state, reason, line", [
+    (advisorbar.Compared.WAITING, "", "Comparing your vessels for Maximise damage…"),
+    (advisorbar.Compared.RUNNING, "",
+     "Comparing your vessels for Maximise damage… 1 of 4"),
+    (advisorbar.Compared.OUTDATED, "",
+     "Out of date — use Optimize again to compare."),
+    (advisorbar.Compared.FAILED, "It broke",
+     "Could not compare the vessels — It broke."),
+])
+def test_the_states_around_the_result(state, reason, line):
+    comparing = _comparing(_row(1, 100), state=state)
+    comparing.reason = reason
+    assert advisorbar.comparison_status(comparing, 1, None, NAMES) == (line, None)
+
+
+def test_best_waits_for_the_last_row():
+    """AK-433: open rows show dots, and no mark flickers on the way."""
+    running = _comparing(_row(1, 100), state=advisorbar.Compared.RUNNING)
+    assert advisorbar.vessel_line(running, 1) == ("", "100")
+    assert advisorbar.vessel_line(running, 2) == ("", "…")
+    done = _comparing(_row(1, 100), _row(2, 90))
+    assert advisorbar.vessel_line(done, 1) == ("BEST  100", "")
+    assert advisorbar.vessel_line(done, 2) == ("", "90")
+
+
+def test_no_comparison_no_line_and_outdated_keeps_the_figures_without_best():
+    """AK-453, AK-432."""
+    assert advisorbar.vessel_line(None, 1) is None
+    outdated = _comparing(_row(1, 100), state=advisorbar.Compared.OUTDATED)
+    assert advisorbar.vessel_line(outdated, 1) == ("", "100")
+    assert advisorbar.vessel_line(outdated, 2) is None
+
+
+def test_missing_favourites_are_on_the_line_even_on_best():
+    """AK-452, AK-465: effects and stars counted together; `BEST` is apart."""
+    one = _row(1, 100, pins_left_out=("Urn",))
+    two = _row(2, 90, required_left_out=(5,), pins_left_out=("Urn",))
+    comparing = _comparing(one, two)
+    assert advisorbar.vessel_line(comparing, 1) == (
+        "BEST  100", "  ·  1 favourite missing")
+    assert advisorbar.vessel_line(comparing, 2) == (
+        "", "90  ·  2 favourites missing")
+
+
+def test_the_row_of_a_vessel_that_cannot_take_the_holds():
+    """AK-451: no figure, never `BEST`, a tooltip and a spoken form of its own."""
+    unfit = types.VesselRow(2, unfit_holds=("A", "B", "C"))
+    comparing = _comparing(_row(1, 100), unfit)
+    assert advisorbar.vessel_line(comparing, 2) == (
+        "", "Your held relics do not fit")
+    assert advisorbar.vessel_compared_lines(comparing, 2, str) == [
+        "Not compared: A, B …and 1 more would not fit any slot of this vessel."]
+    assert advisorbar.vessel_accessible_name(comparing, 2, "Chalice") == (
+        "Chalice, your held relics do not fit, not ranked")
+
+
+def test_the_tooltip_of_a_row_names_rank_misses_and_what_travelled():
+    """AK-432, AK-452, AK-454: equal figures, equal rank."""
+    rows = (_row(1, 100), _row(2, 100),
+            _row(3, 90, required_left_out=(5, 6), pins_left_out=("Urn",)))
+    comparing = _comparing(*rows, vessel_ids=(1, 2, 3), held=2, carries=True)
+    assert advisorbar.vessel_compared_lines(comparing, 1, str) == [
+        "Compared: Attack rating 100 for Maximise damage — rank 1 of 3."]
+    assert advisorbar.vessel_compared_lines(comparing, 3, lambda eid: f"E{eid}") == [
+        "Compared: Attack rating 90 for Maximise damage — rank 3 of 3.",
+        "Misses: E5, E6, Urn.",
+        "Compared with your 2 held relics placed in it.",
+        "Click opens it as you left it. Switch to it brings your held relics "
+        "and rejections along."]
+    assert advisorbar.vessel_compared_lines(None, 1, str) == []
+
+
+def test_misses_are_cut_after_four_names():
+    row = _row(1, 90, required_left_out=(1, 2, 3, 4, 5))
+    assert advisorbar.vessel_compared_lines(
+        _comparing(row), 1, str)[1] == "Misses: 1, 2, 3, 4 …and 1 more."
+
+
+def test_what_a_screen_reader_says_of_a_row():
+    """AK-436."""
+    comparing = _comparing(_row(1, 100), _row(2, 90))
+    spoken = advisorbar.vessel_accessible_name
+    assert spoken(comparing, 1, "Urn") == "Urn, Attack rating 100, best of 4"
+    assert spoken(comparing, 2, "Urn") == "Urn, Attack rating 90, rank 2 of 4"
+    assert spoken(None, 2, "Urn") == "Urn"
+
+
+def _answered(comparing_bar):
+    comparing_bar._ask()
+    comparing_bar._controller.answers(_an_answer())
+    return comparing_bar.comparing
+
+
+def test_the_comparison_runs_through_its_states(comparing_bar):
+    """AK-453: dots from the start of the run, figures as they come."""
+    comparing_bar._ask()
+    assert comparing_bar.comparing.state is advisorbar.Compared.WAITING
+    comparing_bar._on_ready(_an_answer())
+    assert comparing_bar.comparing.state is advisorbar.Compared.RUNNING
+    comparing_bar.comparison.row_ready.emit(_row(8, 100))
+    assert list(comparing_bar.comparing.rows) == [8]
+    comparing_bar.comparison.finished.emit(())
+    assert comparing_bar.comparing.state is advisorbar.Compared.DONE
+
+
+def test_a_new_run_shows_no_old_figure(comparing_bar):
+    """AK-453."""
+    comparing = _answered(comparing_bar)
+    comparing_bar.comparison.row_ready.emit(_row(8, 100))
+    comparing_bar.ask_again()
+    assert comparing_bar.comparing is not comparing
+    assert comparing_bar.comparing.rows == {}
+
+
+def test_cancel_leaves_a_list_without_a_comparison(comparing_bar):
+    """AK-453: `Cancel` of the suggestion, no `Comparison stopped.`."""
+    comparing_bar._ask()
+    comparing_bar._on_started()
+    comparing_bar._controller.running = True
+    comparing_bar._optimize_or_cancel()
+    assert comparing_bar.comparing is None
+
+
+def test_a_run_that_failed_leaves_a_list_without_a_comparison(comparing_bar):
+    comparing_bar._ask()
+    comparing_bar._on_failed("no")
+    assert comparing_bar.comparing is None
+
+
+def test_a_failed_comparison_says_why(comparing_bar):
+    _answered(comparing_bar)
+    comparing_bar.comparison.failed.emit("It broke.")
+    comparing = comparing_bar.comparing
+    assert comparing.state is advisorbar.Compared.FAILED
+    assert comparing.reason == "It broke"
+
+
+def _changed(asking, **fields):
+    return dataclasses.replace(asking, request=dataclasses.replace(
+        asking.request, **fields))
+
+
+@pytest.mark.parametrize("change", [
+    lambda asked: _changed(asked, level=14),
+    lambda asked: _changed(asked, goal_id="min_damage_taken"),
+    lambda asked: _changed(asked, hero_id=2),
+    lambda asked: _changed(asked, hit_with="Sorceries"),
+    lambda asked: dataclasses.replace(asked, deep=False),
+    lambda asked: _changed(asked, problem=dataclasses.replace(
+        asked.request.problem, excluded=frozenset({1}))),
+    lambda asked: _changed(asked, problem=dataclasses.replace(
+        asked.request.problem, pinned=((1, (), ()),))),
+], ids=["level", "goal", "hero", "hit_with", "deep", "avoid", "star"])
+def test_what_makes_the_comparison_out_of_date(qapp, change):
+    """AK-434, read from one seam (AD-062.8). The figures stay."""
+    asked = {"value": dataclasses.replace(
+        _an_asking(), vessels=FOUR_VESSELS, vessel_id=8, deep=True)}
+    widget = advisorbar.AdvisorBar(lambda goal_id: asked["value"],
+                                   controller=_Controller(),
+                                   comparison=_Comparison())
+    try:
+        _answered(widget)
+        widget.comparison.row_ready.emit(_row(8, 100))
+        asked["value"] = change(asked["value"])
+        widget.the_build_changed()
+        assert widget.comparing.state is advisorbar.Compared.OUTDATED
+        assert widget.comparison.calls[-1] == "cancel"
+        assert list(widget.comparing.rows) == [8]
+    finally:
+        widget.deleteLater()
+
+
+@pytest.mark.parametrize("change", [
+    lambda asked: dataclasses.replace(asked, vessel_id=9),
+    lambda asked: _changed(asked, two_handed=True),
+    lambda asked: _changed(asked, problem=dataclasses.replace(
+        asked.request.problem, slots=asked.request.problem.slots[:1])),
+    lambda asked: _changed(asked, problem=dataclasses.replace(
+        asked.request.problem, held=(types.HeldSlot(0),),
+        rejected=frozenset({(1, (), ())}))),
+], ids=["vessel", "stored hand", "slots", "another vessel's holds"])
+def test_what_a_change_of_vessel_brings_does_not_outdate_it(qapp, change):
+    """AK-434; the holds of the open vessel say so themselves (`_hold_changed`)."""
+    asked = {"value": dataclasses.replace(
+        _an_asking(), vessels=FOUR_VESSELS, vessel_id=8, deep=True)}
+    widget = advisorbar.AdvisorBar(lambda goal_id: asked["value"],
+                                   controller=_Controller(),
+                                   comparison=_Comparison())
+    try:
+        _answered(widget)
+        asked["value"] = change(asked["value"])
+        widget.the_build_changed()
+        assert widget.comparing.state is advisorbar.Compared.RUNNING
+    finally:
+        widget.deleteLater()
+
+
+def test_the_data_changing_outdates_the_comparison(comparing_bar):
+    """AK-434: the save read again."""
+    _answered(comparing_bar)
+    comparing_bar.the_data_is_changing()
+    assert comparing_bar.comparing.state is advisorbar.Compared.OUTDATED
+    assert "data" in comparing_bar.comparison.calls
+
+
+def test_an_answer_the_comparison_knows_is_drawn_without_a_run(comparing_bar):
+    """AK-435."""
+    known = _an_answer(filled=2)
+    comparing_bar._controller.known_answer = lambda *_: known
+    assert comparing_bar.show_the_answer_if_known() is False, "nothing compared"
+    _answered(comparing_bar)
+    comparing_bar._forget_the_answer()
+    asked_before = len(comparing_bar._controller.asked)
+    calls_before = list(comparing_bar.comparison.calls)
+
+    assert comparing_bar.show_the_answer_if_known() is True
+    assert comparing_bar.answer is known
+    assert len(comparing_bar._controller.asked) == asked_before
+    assert comparing_bar.comparison.calls == calls_before, "AD-062.3"
+
+
+def test_an_unknown_answer_leaves_the_row_alone(comparing_bar):
+    comparing_bar._controller.known_answer = lambda *_: None
+    _answered(comparing_bar)
+    comparing_bar._forget_the_answer()
+    assert comparing_bar.show_the_answer_if_known() is False
+    assert comparing_bar.answer is None
+
+
+def test_an_outdated_comparison_answers_for_no_vessel(comparing_bar):
+    comparing_bar._controller.known_answer = lambda *_: _an_answer()
+    _answered(comparing_bar)
+    comparing_bar.the_comparison_is_out_of_date()
+    assert comparing_bar.show_the_answer_if_known() is False

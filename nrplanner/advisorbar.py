@@ -43,8 +43,10 @@ import enum
 import html
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QFontMetrics
+from PySide6.QtGui import QColor, QFont, QFontMetrics
 from PySide6.QtWidgets import (QBoxLayout, QComboBox, QFrame, QHBoxLayout,
+                               QStyle, QStyledItemDelegate,
+                               QStyleOptionViewItem,
                                QLabel, QProgressBar, QPushButton, QScrollArea,
                                QSizePolicy, QVBoxLayout, QWidget)
 
@@ -54,7 +56,7 @@ from .advisor import goals as advisor_goals
 from .advisor import run as advisor_run
 from .advisor import types
 from .advisor.worker import AdvisorController, VesselComparison
-from .theme import SLOT_COLOURS
+from .theme import ACCENT, MUTED, SLOT_COLOURS
 
 #: The warning line's colour: the theme's one yellow, the Yellow slot's
 #: (user decision 28.10.2026, "Gelb mit ⚠"; no colour of its own).
@@ -473,6 +475,261 @@ class Asking:
     vessels: tuple = ()
     vessel_id: int | None = None
     deep: bool = False
+
+
+class Compared(enum.Enum):
+    """Where the vessel comparison stands (AK-432, AK-453)."""
+
+    WAITING = "the suggestion is not there yet"
+    RUNNING = "the rows are filling"
+    DONE = "every row is there"
+    OUTDATED = "the question has changed since"
+    FAILED = "a vessel could not be compared"
+
+
+@dataclasses.dataclass
+class Comparing:
+    """What the vessel list says about the comparison, whichever row is open."""
+
+    goal_label: str
+    other_label: str
+    vessel_ids: tuple[int, ...]
+    #: The vessel asked from. Its holds and rejections travelled to the others.
+    asked_vessel: int
+    held_relics: int
+    carries: bool
+    #: AK-434 reads this: what may not change for the rows to go on being true.
+    signature: tuple
+    questions: dict[int, types.AdvisorRequest] = dataclasses.field(
+        default_factory=dict)
+    rows: dict[int, types.VesselRow] = dataclasses.field(default_factory=dict)
+    state: Compared = Compared.WAITING
+    reason: str = ""
+
+    def ranked(self) -> tuple[types.VesselRow, ...]:
+        return advisor_run.ranked(tuple(self.rows.values()), self.vessel_ids)
+
+    def is_best(self, row: types.VesselRow) -> bool:
+        return (not row.unfit_holds and advisor_run.rank_key(row)
+                == advisor_run.rank_key(self.ranked()[0]))
+
+
+def comparison_signature(asking: Asking) -> tuple:
+    """The question without what a change of vessel changes (AD-062.8).
+
+    The hand is out too: a vessel brings its stored hand back, and a player's
+    own click on the switch says so itself.
+    """
+    request = asking.request
+    return asking.deep, dataclasses.replace(
+        request, two_handed=False, generation=0, inventory_fingerprint="",
+        problem=dataclasses.replace(request.problem, slots=(), held=(),
+                                    rejected=frozenset()))
+
+
+def _number_of(figure: str) -> str:
+    """AK-449 `{number}`: the part of a figure the narrow row has room for."""
+    last = figure.rsplit(" ", 1)[-1]
+    return last if any(letter.isdigit() for letter in last) else "—"
+
+
+def _difference(best: types.VesselRow, here: types.VesselRow) -> str:
+    """AK-449 `{difference}`, or empty where it would read `0`."""
+    gap = abs(best.value - here.value)
+    if "×" in _number_of(best.figure):
+        said = f"{gap:.2f}"
+        return "" if float(said) == 0 else said
+    whole = damage.displayed(gap)
+    return str(whole) if whole else ""
+
+
+def _names_cut(names, most: int) -> str:
+    """At most so many names, then `…and {n} more` (AK-432, AK-451, AK-452)."""
+    shown = ", ".join(names[:most])
+    return (f"{shown} …and {len(names) - most} more" if len(names) > most
+            else shown)
+
+
+def comparison_status(comparing: Comparing, chosen_id: int,
+                      worn_id: int | None, names) -> tuple[str, int | None]:
+    """The status line over the list and where `Switch to it` goes, if it is
+    offered (AK-432, AK-450, AK-453, AK-464)."""
+    goal = comparing.goal_label
+    total = len(comparing.vessel_ids)
+    if comparing.state is Compared.OUTDATED:
+        return "Out of date — use Optimize again to compare.", None
+    if comparing.state is Compared.FAILED:
+        return f"Could not compare the vessels — {comparing.reason}.", None
+    if comparing.state is Compared.WAITING:
+        return f"Comparing your vessels for {goal}…", None
+    if comparing.state is Compared.RUNNING:
+        return (f"Comparing your vessels for {goal}… "
+                f"{len(comparing.rows)} of {total}"), None
+
+    rows = comparing.ranked()
+    best, here = rows[0], comparing.rows[chosen_id]
+    tied = [row.vessel_id for row in rows if comparing.is_best(row)]
+    if len(tied) > 1:
+        line = (f"All {total} vessels tie at {best.figure}." if len(tied) == total
+                else f"{len(tied)} vessels tie for best at {best.figure}: "
+                     + _names_cut([names[vessel] for vessel in tied], 2))
+        if chosen_id in tied:
+            return line, None
+        return line, worn_id if worn_id in tied else tied[0]
+    if best.vessel_id == chosen_id:
+        return (f"This is the best of {total} vessels for {goal}: "
+                f"{best.figure}."), None
+
+    gap = _difference(best, here)
+    if here.unfit_holds:
+        clause = ""
+    elif best.value > here.value:
+        clause = f", {gap} more than this one" if gap else ""
+    elif best.value == here.value:
+        clause = (", same as this one, but it meets more of your favourites"
+                  if advisor_run.rank_key(best)[:3] != advisor_run.rank_key(here)[:3]
+                  else f", same as this one, but better for {comparing.other_label}")
+    else:
+        clause = ((f", {gap} less than this one" if gap else "")
+                  + ", but it meets more of your favourites")
+    return (f"Best of {total} for {goal}: {names[best.vessel_id]} "
+            f"({best.figure}{clause})."), best.vessel_id
+
+
+def vessel_line(comparing: Comparing | None,
+                vessel_id: int) -> tuple[str, str] | None:
+    """The second text line of a row, as (`ACCENT` part, `MUTED` part), or
+    `None` where the row has none (AK-433, AK-451, AK-452, AK-465)."""
+    if comparing is None:
+        return None
+    row = comparing.rows.get(vessel_id)
+    if row is None:
+        return (("", "…") if comparing.state in (Compared.WAITING,
+                                                 Compared.RUNNING) else None)
+    if row.unfit_holds:
+        return "", "Your held relics do not fit"
+    number = _number_of(row.figure)
+    missing = len(row.required_left_out) + len(row.pins_left_out)
+    if missing:
+        number_rest = (f"{CLAUSES}{missing} "
+                       f"favourite{'' if missing == 1 else 's'} missing")
+    else:
+        number_rest = ""
+    if comparing.state is Compared.DONE and comparing.is_best(row):
+        return f"BEST  {number}", number_rest
+    return "", number + number_rest
+
+
+def _rank_of(comparing: Comparing, row: types.VesselRow) -> int:
+    """Equal figures, equal rank (AK-432): one more than those strictly ahead."""
+    return 1 + sum(advisor_run.rank_key(other) < advisor_run.rank_key(row)
+                   for other in comparing.rows.values())
+
+
+def vessel_compared_lines(comparing: Comparing | None, vessel_id: int,
+                          effect_name) -> list[str]:
+    """What the tooltip of a row adds before `Equipped in game` (AK-451,
+    AK-452, AK-454)."""
+    row = None if comparing is None else comparing.rows.get(vessel_id)
+    if row is None:
+        return []
+    if row.unfit_holds:
+        return [f"Not compared: {_names_cut(row.unfit_holds, 2)} would not fit "
+                f"any slot of this vessel."]
+    lines = []
+    if comparing.state is Compared.DONE:
+        lines.append(f"Compared: {row.figure} for {comparing.goal_label} — rank "
+                     f"{_rank_of(comparing, row)} of {len(comparing.vessel_ids)}.")
+    missing = [*map(effect_name, row.required_left_out), *row.pins_left_out]
+    if missing:
+        lines.append(f"Misses: {_names_cut(missing, 4)}.")
+    if vessel_id != comparing.asked_vessel:
+        if comparing.held_relics:
+            count = comparing.held_relics
+            lines.append(f"Compared with your {count} held "
+                         f"relic{'' if count == 1 else 's'} placed in it.")
+        if comparing.carries:
+            lines.append("Click opens it as you left it. Switch to it brings "
+                         "your held relics and rejections along.")
+    return lines
+
+
+def vessel_accessible_name(comparing: Comparing | None, vessel_id: int,
+                           name: str) -> str:
+    """AK-436, AK-451: what a screen reader says of a row."""
+    row = None if comparing is None else comparing.rows.get(vessel_id)
+    if row is None:
+        return name
+    if row.unfit_holds:
+        return f"{name}, your held relics do not fit, not ranked"
+    if comparing.state is not Compared.DONE:
+        return f"{name}, {row.figure}"
+    total = len(comparing.vessel_ids)
+    return (f"{name}, {row.figure}, best of {total}" if comparing.is_best(row)
+            else f"{name}, {row.figure}, rank {_rank_of(comparing, row)} of {total}")
+
+
+#: The data role a vessel row's second text line travels in.
+VESSEL_LINE_ROLE = Qt.UserRole + 1
+#: AK-432: room for the second line, one height whether it is drawn or not, so
+#: the list does not jump when a comparison starts.
+VESSEL_ROW_HEIGHT = 38
+#: AK-432: the second line and the status line.
+COMPARE_POINT_PX = 11
+
+
+class VesselRowDelegate(QStyledItemDelegate):
+    """A vessel row with a second text line under its name (AK-432).
+
+    On the open row the highlight is `ACCENT` itself, so there both lines take
+    the highlighted text colour; the word `BEST` says it, not the colour.
+    """
+
+    def sizeHint(self, option, index):  # noqa: N802 - Qt naming
+        size = super().sizeHint(option, index)
+        if index.data(Qt.UserRole) is not None:
+            size.setHeight(max(size.height(), VESSEL_ROW_HEIGHT))
+        return size
+
+    def paint(self, painter, option, index) -> None:
+        line = index.data(VESSEL_LINE_ROLE)
+        if line is None:
+            super().paint(painter, option, index)
+            return
+        item = QStyleOptionViewItem(option)
+        self.initStyleOption(item, index)
+        style = item.widget.style()
+        margin = style.pixelMetric(QStyle.PM_FocusFrameHMargin, item,
+                                   item.widget) + 1
+        area = style.subElementRect(QStyle.SE_ItemViewItemText, item,
+                                    item.widget).adjusted(margin, 0, -margin, 0)
+        name, item.text = item.text, ""
+        style.drawControl(QStyle.CE_ItemViewItem, item, painter, item.widget)
+
+        selected = bool(item.state & QStyle.State_Selected)
+        marked = item.palette.highlightedText().color()
+        painter.save()
+        painter.setPen(marked if selected else item.palette.text().color())
+        painter.setFont(item.font)
+        top = area.adjusted(0, 0, 0, -area.height() // 2)
+        painter.drawText(top, Qt.AlignLeft | Qt.AlignBottom,
+                         item.fontMetrics.elidedText(name, Qt.ElideRight,
+                                                     area.width()))
+        small = QFont(item.font)
+        small.setPixelSize(COMPARE_POINT_PX)
+        painter.setFont(small)
+        metrics = QFontMetrics(small)
+        below = area.adjusted(0, area.height() // 2, 0, 0)
+        accent, muted = line
+        lead = metrics.horizontalAdvance(accent)
+        painter.setPen(marked if selected else QColor(ACCENT))
+        painter.drawText(below, Qt.AlignLeft | Qt.AlignTop, accent)
+        painter.setPen(marked if selected else QColor(MUTED))
+        painter.drawText(below.adjusted(lead, 0, 0, 0),
+                         Qt.AlignLeft | Qt.AlignTop,
+                         metrics.elidedText(muted, Qt.ElideRight,
+                                            max(0, below.width() - lead)))
+        painter.restore()
 
 
 def held_slot(index: int, card) -> types.HeldSlot:
@@ -1012,6 +1269,8 @@ class AdvisorBar(QWidget):
     #: AK-302: the player asked for the effect filter window. The window
     #: opens it, because the window knows what the player owns.
     filters_requested = Signal()
+    #: AK-432: `comparing` has changed, so the vessel list says something else.
+    comparison_changed = Signal()
 
     def __init__(self, asking, parent: QWidget | None = None, *,
                  controller: AdvisorController | None = None,
@@ -1029,6 +1288,11 @@ class AdvisorBar(QWidget):
         #: and so is a vessel the player then opens (AK-435).
         self.comparison = (VesselComparison(cache, self)
                            if comparison is None else comparison)
+        self.comparison.row_ready.connect(self._on_comparison_row)
+        self.comparison.finished.connect(self._on_comparison_finished)
+        self.comparison.failed.connect(self._on_comparison_failed)
+        #: What the vessel list draws; `None` is a list without a comparison.
+        self.comparing: Comparing | None = None
         self._situation = Situation(State.NOTHING_YET)
         self._answer = None
         #: AK-425, AK-426, AK-429: what a run asked for from the block says
@@ -1329,6 +1593,94 @@ class AdvisorBar(QWidget):
         self._stop_shows = None
         self._forget_the_answer()
         self._show(self._resting())
+        self._check_the_comparison()
+
+    def _check_the_comparison(self) -> None:
+        """AK-434, one seam instead of a call at every cause (AD-062.8)."""
+        comparing = self.comparing
+        if comparing is None or comparing.state not in (Compared.RUNNING,
+                                                        Compared.DONE):
+            return
+        asking = self._asking(self.goal_id())
+        if (asking is None
+                or comparison_signature(asking) != comparing.signature):
+            self.the_comparison_is_out_of_date()
+
+    def the_comparison_is_out_of_date(self) -> None:
+        """The figures stay, without `BEST` (AK-432, AK-434)."""
+        if self.comparing is None:
+            return
+        self.comparison.cancel()
+        self.comparing.state = Compared.OUTDATED
+        self.comparison_changed.emit()
+
+    def show_the_answer_if_known(self) -> bool:
+        """The comparison already answered for the vessel now open (AK-435).
+
+        Draws it, starts no run and compares nothing anew (AD-062.3, .7). With
+        holds or rejections here the question differs and it is simply a miss
+        (AK-454).
+        """
+        comparing = self.comparing
+        if comparing is None or comparing.state not in (Compared.RUNNING,
+                                                        Compared.DONE):
+            return False
+        asking = self._asking(self.goal_id())
+        known = None if asking is None else self._controller.known_answer(
+            asking.request, asking.inventory, asking.ctx)
+        if known is None:
+            return False
+        self._asked = asking
+        self._stopped_note = self._done_note = self._done_tip = ""
+        self._draw_the_answer(known)
+        return True
+
+    def comparison_knows(self, vessel_id: int) -> bool:
+        """Would that vessel's row answer at once, once its holds are there?"""
+        asked = self._asked
+        request = (None if self.comparing is None
+                   else self.comparing.questions.get(vessel_id))
+        return (request is not None and asked is not None
+                and self._controller.known_answer(
+                    request, asked.inventory, asked.ctx) is not None)
+
+    def _the_comparison_begins(self, asking) -> None:
+        """AK-453: from the start of a run no old figure stands."""
+        self.comparison.cancel()
+        self.comparing = None
+        if asking is not None and asking.vessels:
+            request = asking.request
+            other = advisor_goals.OTHER_GOAL[request.goal_id]
+            held_relics = len(types.held_relics(request.problem))
+            self.comparing = Comparing(
+                goal_label=self._goal_label(),
+                other_label=self.goal_box.itemText(
+                    self.goal_box.findData(other)),
+                vessel_ids=tuple(vessel["id"] for vessel in asking.vessels),
+                asked_vessel=asking.vessel_id,
+                held_relics=held_relics,
+                carries=bool(held_relics or request.problem.rejected),
+                signature=comparison_signature(asking))
+        self.comparison_changed.emit()
+
+    def _no_comparison(self) -> None:
+        """AK-453: the suggestion never came, so nothing was compared."""
+        self.comparison.cancel()
+        self.comparing = None
+        self.comparison_changed.emit()
+
+    def _on_comparison_row(self, row) -> None:
+        self.comparing.rows[row.vessel_id] = row
+        self.comparison_changed.emit()
+
+    def _on_comparison_finished(self, _rows) -> None:
+        self.comparing.state = Compared.DONE
+        self.comparison_changed.emit()
+
+    def _on_comparison_failed(self, reason: str) -> None:
+        self.comparing.state = Compared.FAILED
+        self.comparing.reason = reason.rstrip(". ")
+        self.comparison_changed.emit()
 
     def the_data_is_changing(self) -> None:
         """Called before the save or the dataset is read again (AD-006.7).
@@ -1340,6 +1692,7 @@ class AdvisorBar(QWidget):
         self._forget_the_answer()
         self._controller.before_the_data_changes()
         self.comparison.before_the_data_changes()
+        self.the_comparison_is_out_of_date()
 
     def shutdown(self) -> None:
         """The window is closing: stop the runs and wait for the threads."""
@@ -1482,8 +1835,8 @@ class AdvisorBar(QWidget):
         self._ask()
 
     def _ask(self) -> None:
-        self.comparison.cancel()
         asking = self._asking(self.goal_id())
+        self._the_comparison_begins(asking)
         if asking is None:
             self._show(self._no_save())
             return
@@ -1501,8 +1854,8 @@ class AdvisorBar(QWidget):
         meanwhile, so nothing can overtake this (AK-424). The state changes at
         once because the window reads it to lock the block.
         """
-        self.comparison.cancel()
         asking = self._asking(self.goal_id())
+        self._the_comparison_begins(asking)
         if asking is None:
             self._forget_the_answer()
             self._show(self._no_save())
@@ -1592,12 +1945,16 @@ class AdvisorBar(QWidget):
         (AD-062.3).
         """
         self._draw_the_answer(result)
-        asked = self._asked
-        if asked is not None and asked.vessels:
-            self.comparison.start(
-                advisor_run.vessel_questions(asked.request, asked.vessels,
-                                             asked.vessel_id, asked.deep),
-                asked.inventory, asked.ctx)
+        comparing, asked = self.comparing, self._asked
+        if comparing is None or comparing.state is not Compared.WAITING:
+            return
+        questions = advisor_run.vessel_questions(
+            asked.request, asked.vessels, asked.vessel_id, asked.deep)
+        comparing.questions = {question.vessel_id: question.request
+                               for question in questions if question.request}
+        comparing.state = Compared.RUNNING
+        self.comparison_changed.emit()
+        self.comparison.start(questions, asked.inventory, asked.ctx)
 
     def _draw_the_answer(self, result) -> None:
         self._stop_the_clocks()
@@ -1644,6 +2001,7 @@ class AdvisorBar(QWidget):
         """
         self._stop_the_clocks()
         self._forget_the_answer()
+        self._no_comparison()
         self._show(Situation(State.FAILED, reason=reason.rstrip(". ")))
 
     def _on_stopped(self) -> None:
@@ -1652,6 +2010,7 @@ class AdvisorBar(QWidget):
         situation = self._stop_shows or Situation(State.STOPPED)
         self._stop_shows = None
         self._forget_the_answer()
+        self._no_comparison()
         self._show(situation)
 
     # -- drawing ------------------------------------------------------------
