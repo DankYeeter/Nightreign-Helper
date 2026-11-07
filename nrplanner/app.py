@@ -3232,7 +3232,11 @@ class Planner(QMainWindow):
         rejects.pop(roll, None)
         if not rejects:
             self._rejects.pop(key, None)
+        pressed_here = self.rejected_list.isAncestorOf(self.focusWidget())
         self._show_the_rejects()
+        if pressed_here:
+            (self.rejected_list.fold if rejects
+             else self.advisor_bar.optimize_button).setFocus()
         if self.advisor_bar.answer is None:
             self.advisor_bar.the_build_changed()
             self.advisor_bar.the_comparison_is_out_of_date()

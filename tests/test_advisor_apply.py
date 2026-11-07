@@ -708,6 +708,27 @@ def test_a_mark_set_in_the_filter_window_starts_no_run(planner, monkeypatch):
         planner.effect_filters.mark(effect_id, None)
 
 
+def test_suggest_again_keeps_the_focus_in_the_bar(planner):
+    """Its button goes with its row; the last one used to leave the focus on
+    the tab bar."""
+    rolls = (7, (1,), ()), (8, (2,), ())
+    planner._rejects[planner._reject_key()] = dict.fromkeys(rolls, "Rejected")
+    planner._show_the_rejects()
+    planner.rejected_list.fold.setChecked(True)
+
+    def press_the_first():
+        again = next(button for button
+                     in planner.rejected_list.findChildren(QPushButton)
+                     if button.text() == "Suggest again")
+        again.setFocus()
+        again.click()
+
+    press_the_first()
+    assert planner.focusWidget() is planner.rejected_list.fold
+    press_the_first()
+    assert planner.focusWidget() is planner.advisor_bar.optimize_button
+
+
 def test_the_new_answer_unlocks_the_block_and_takes_the_focus(planner,
                                                               monkeypatch):
     """AK-426: back on the first X of the same slot, or on `Optimize`."""
