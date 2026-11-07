@@ -221,5 +221,6 @@ starts there.
   its own limit (Night Invaders 4, evergaol prisoners and Sorcerer's Rises 7,
   great enemies 10; read from the game's event scripts, not tried in play).
   In a narrow window the vessel list no longer scrolls sideways. **The data
-  cache and the icon pack are rebuilt once on first start.** Saved builds and
+  cache and the icon pack are rebuilt once on first start (about 75 seconds
+  here, the window shows no progress meanwhile).** Saved builds and
   favourites are kept.

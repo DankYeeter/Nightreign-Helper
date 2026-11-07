@@ -1237,3 +1237,45 @@ Die vorherige `dist/`-Datei (6.11., 59.256.833 B) ist ersetzt.
 "Nightreign Helper 1.21.0". Beide Prozesse beendet, Schluessel
 `HKCU:\Software\DankYeeterT-336j` per Literalpfad geloescht, Scratch geloescht.
 Ungeprueft: Aktion, Update-Pfad, Zweitstart (kein Ausloeser).
+
+## 1.21.0 (build+notes+clean-room, T-341c, Abzug fuer den Nutzer) - 2026-11-07
+
+Kein Veroeffentlichen, kein Tag, kein Push. `AUFLAGEN.md` gelesen: keine rote
+Auflage offen (A-010 zurueckgestellt, A-020 erfuellt, A-025 entschieden).
+
+**Notes:** `__version__` bleibt 1.21.0. CHANGELOG `[Unreleased]` (Symbole,
+Slot-Bilder, Balanced, Stapel-Regeln, zwei Fixes) in `[1.21.0] - 2026-11-07`
+eingearbeitet, `[Unreleased]` leer; `RELEASE_BODY.md` Eintrag 1.21.0 nachgezogen
+(Cache-Satz "nicht neu gebaut" war falsch geworden). Notes-Commit `bb7f2cc`.
+
+**Build:** aus `bb7f2cc`, Arbeitsbaum vor und nach dem Bau sauber. `.venv`,
+Python 3.12.10, PyInstaller 6.21.0 (Hooks 2026.7), kein `upx` (0 Treffer
+`UPX!` in der EXE). Befehl wie 1.20.0 (`PYTHONHASHSEED=0
+SOURCE_DATE_EPOCH=1761600000`, `--noconfirm --clean --log-level WARN`), 81 s und
+75 s, keine Warnung. Zwei Laeufe **bitgleich**.
+Artefakt `<Hauptbaum>\dist\NightreignHelper.exe`: 59.320.923 Bytes, SHA-256
+`add8ecd95bc0636f7efcce73a8f2692562f1b9b6eb08d2514aa3ce4b014a1f48`. Ersetzt die
+Datei vom 18:15 (59.300.781 B, `c5aa2e89...`); vorher 0 Prozesse.
+
+**clean-room (Update v1.20.1 -> neu):** Isolierung wie bisher nur Umlenkung
+(`DankYeeterT-341c`, `LOCALAPPDATA`, `APPDATA` auf Scratch), gleiches Konto,
+`PATH` unveraendert. Alt: `NightreignHelper.exe` aus Release `v1.20.1`
+(SHA-256 gegen die `.sha256` des Releases bestaetigt) mit Cache aus
+`NightreignHelper-Testabzug-v19` (1027 Dateien, 23.470.299 B; der
+Hauptabzug ist seit T-340 v20/v5, `CLAUDE.md` nennt ihn noch v19).
+1. Alt gestartet, Build `CleanroomT341c1` per Save angelegt (Registry
+   `builds\1`, `__schema` 3): bestanden.
+2. Neue EXE ueber die alte kopiert, gestartet: Titel ohne Version, Daten neu
+   nach 39,9 s, Symbole fertig 72,8 s, Titel "Nightreign Helper 1.21.0" bei
+   ca. 75 s (Prozessstart 23:38:14); `extract_version` 20, Cache danach 1545
+   Dateien, 27.006.981 B (= heutiger Testabzug): bestanden. Kein Fortschritt im Fenster.
+3. Bildnachweis (PrintWindow, nicht im Repo): Slot-Bilder in Gefaessliste und
+   Slot-Leiste, Waffen-/Schadenssymbol, Effekt-Symbole auf dem Effects-Tab
+   sichtbar: bestanden. Build `CleanroomT341c1` nach dem Update gewaehlt: bestanden.
+4. Zweitstart: Titel nach 4,5 s, kein Neubau, Build weiter gewaehlt: bestanden
+   (kein echter Neustart des Rechners).
+5. Aufraeumen: Prozesse 0, Schluessel `DankYeeterT-341c` per Literalpfad
+   geloescht, Scratch geloescht. `HKCU\Software\DankYeeter` nicht angefasst.
+Ungeprueft: Favoriten/Builds in alter Fassung mit Inhalt (nur ein leerer
+Build), Win10, Fremdrechner ohne Entwicklungswerkzeuge, echte Nutzerdaten
+(309 Relikte, 110 Builds).
