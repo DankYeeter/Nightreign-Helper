@@ -342,6 +342,22 @@ def test_undo_puts_a_slot_that_was_empty_back_to_empty(planner):
     assert keys_of(planner) == before
 
 
+def test_undo_on_a_vessel_that_was_empty_leaves_no_build_stored(planner):
+    """AK-15 for what is stored: applying wrote a build, and nothing else
+    would take it away again, because an empty build is not written."""
+    planner.reset_chalice()
+    hero_id, vessel_id = planner.current_hero()["id"], planner.current_vessel()["id"]
+    chalices.clear(hero_id, vessel_id)
+    assert not any(keys_of(planner))
+    a_live_answer(planner, an_answer_for(two_offers(planner)))
+
+    planner.apply_all()
+    assert any(chalices.load(hero_id, vessel_id)[2])
+    planner.undo_apply()
+
+    assert not any(chalices.load(hero_id, vessel_id)[2])
+
+
 def test_undo_puts_a_custom_relic_back_where_it_was(planner):
     """AK-15, second shape: a relic nobody owns and no list can offer.
 

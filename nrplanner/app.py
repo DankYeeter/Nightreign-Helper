@@ -3436,11 +3436,6 @@ class Planner(QMainWindow):
                 self._set_or_drop(store, key, value)
         self._slots_before_applying = None
         self._put_these_keys_in_the_slots(before)
-        # An empty build is not written over a stored one (`_store_chalice`),
-        # and this one was empty before the switch.
-        if not any(before):
-            chalices.clear(self.current_hero()["id"],
-                           self.current_vessel()["id"])
         self._show_the_rejects()
         self.advisor_bar.the_build_changed()
 
@@ -3469,6 +3464,11 @@ class Planner(QMainWindow):
             self._settle_slots()
             self.recompute()
             self._store_chalice()
+        # An empty build is not written over a stored one (`_store_chalice`),
+        # and undoing an applying onto an empty vessel has to take it away.
+        vessel = self.current_vessel()
+        if vessel and not any(keys):
+            chalices.clear(self.current_hero()["id"], vessel["id"])
 
     def show_the_suggestion(self, result) -> None:
         """Put the living answer on the slot cards, or take it off them.
