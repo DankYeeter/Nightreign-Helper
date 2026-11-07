@@ -563,15 +563,35 @@ def _shown(figure: str) -> float | None:
     return float(number) if number[0].isdigit() else None
 
 
-def _with_its_base(row: types.VesselRow) -> str:
-    """`GOAL.md` A28: `AR 90 (+61 %)`, against the row's figure with no relics.
-    Of the numbers on screen, so that the reader's own sum comes out; a base of
-    nothing has no percentage."""
-    said = _number_with_unit(row.figure)
-    now, base = _shown(row.figure), _shown(row.base_figure)
+def _change(figure: str, base_figure: str) -> str:
+    """`+61 %`, of the numbers on screen, so that the reader's own sum comes
+    out; a base of nothing has no percentage."""
+    now, base = _shown(figure), _shown(base_figure)
     if now is None or not base:
-        return said
-    return f"{said} ({round((now / base - 1) * 100):+d} %)"
+        return ""
+    return f"{round((now / base - 1) * 100):+d} %"
+
+
+def _both_with_their_base(row: types.VesselRow) -> str:
+    """AK-478, a figure of `goals.BALANCED`: `AR +89 % / Defense +31 %`. The
+    word of the first half is what the armament's figure is called (a staff
+    has no AR); `Damage` for a figure with no word of its own, the bare `×`."""
+    damage_figure, _, survival = row.figure.partition(types.FIGURES_JOIN)
+    damage_base, _, survival_base = row.base_figure.partition(types.FIGURES_JOIN)
+    word = _number_with_unit(damage_figure).removesuffix(
+        _number_of(damage_figure)).strip() or "Damage"
+    return (f"{word} {_change(damage_figure, damage_base) or '—'}"
+            f"{types.FIGURES_JOIN}"
+            f"Defense {_change(survival, survival_base) or '—'}")
+
+
+def _with_its_base(row: types.VesselRow) -> str:
+    """`GOAL.md` A28: `AR 90 (+61 %)`, against the row's figure with no relics."""
+    if types.FIGURES_JOIN in row.figure:
+        return _both_with_their_base(row)
+    said = _number_with_unit(row.figure)
+    change = _change(row.figure, row.base_figure)
+    return f"{said} ({change})" if change else said
 
 
 def comparison_base(comparing: Comparing) -> str:
@@ -588,7 +608,10 @@ def _without_relics(base_figure: str) -> str:
 
 def _difference(best: types.VesselRow, here: types.VesselRow) -> str:
     """AK-449 `{difference}`, or empty where it would read `0`: of the numbers
-    on screen, so that `118` beside `113` reads `5` (QA-333)."""
+    on screen, so that `118` beside `113` reads `5` (QA-333). Empty for two
+    figures at once (AK-478): the row is ranked on a product nobody can read."""
+    if types.FIGURES_JOIN in best.figure:
+        return ""
     gap = abs((_shown(best.figure) or 0.0) - (_shown(here.figure) or 0.0))
     if "×" in _number_of(best.figure):
         said = f"{gap:.2f}"

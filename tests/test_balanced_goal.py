@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import dataclasses
 
-from nrplanner import model, relicpicker
+from nrplanner import advisorbar, model, relicpicker
 from nrplanner.advisor import explain, goals, run, types
 from nrplanner.advisor.evaluate import evaluate
 
@@ -106,6 +106,64 @@ def test_a_card_says_it_as_a_percentage_of_the_base():
     assert ranking.text_of(20000.0, BALANCED.id) == "+10.0 %"
     assert ranking.text_of(-20000.0, BALANCED.id) == "-10.0 %"
     assert ranking.text_of(0.0, BALANCED.id) == relicpicker.NO_CHANGE
+
+
+# -- the vessel list (AK-478) ------------------------------------------------
+
+def _row(vessel_id, value, figure, base=("Attack rating 158 / Effective HP 1200")):
+    return types.VesselRow(vessel_id=vessel_id, figure=figure, value=value,
+                           base_figure=base)
+
+
+def _comparing(*rows):
+    return advisorbar.Comparing(
+        goal_label="Balanced", other_label="Maximise damage",
+        vessel_ids=tuple(row.vessel_id for row in rows), asked_vessel=1,
+        held_relics=0, carries=False, signature=(),
+        rows={row.vessel_id: row for row in rows},
+        state=advisorbar.Compared.DONE)
+
+
+def test_a_vessel_row_leads_with_both_percentages_and_sorts_by_the_value():
+    """The higher product is best though its attack rating is lower."""
+    sharp = _row(1, 299.0 * 1300, "Attack rating 299 / Effective HP 1300")
+    even = _row(2, 261.0 * 1602, "Attack rating 261 / Effective HP 1602")
+    comparing = _comparing(sharp, even)
+    assert comparing.ranked()[0] is even
+    assert advisorbar.vessel_line(comparing, 2) == (
+        "BEST  AR +65 % / Defense +34 %", "")
+    assert advisorbar.vessel_line(comparing, 1) == (
+        "", "AR +89 % / Defense +8 %")
+
+
+def test_a_loss_keeps_its_sign_and_the_status_line_names_no_gap():
+    """A gap in a product is no number; a negative percentage stands signed."""
+    best = _row(1, 261.0 * 1602, "Attack rating 261 / Effective HP 1602")
+    here = _row(2, 150.0 * 1100, "Attack rating 150 / Effective HP 1100")
+    comparing = _comparing(best, here)
+    assert advisorbar.vessel_line(comparing, 2) == (
+        "", "AR -5 % / Defense -8 %")
+    line, target = advisorbar.comparison_status(
+        comparing, 2, None, {1: "Urn", 2: "Goblet"})
+    assert line == ("Best of 2 for Balanced: Urn — AR +65 % / Defense +34 %.")
+    assert target == 1
+
+
+def test_a_staff_says_its_own_word_and_a_bare_multiplier_says_damage():
+    staff = types.VesselRow(
+        vessel_id=1, value=1.0, figure="Spell power 120 / Effective HP 1300",
+        base_figure="Spell power 100 / Effective HP 1300")
+    assert advisorbar._with_its_base(staff) == "Spell +20 % / Defense +0 %"
+    bare = types.VesselRow(
+        vessel_id=1, value=1.0, figure="Attack multipliers ×1.20 / Effective HP 1300",
+        base_figure="Attack multipliers ×1.00 / Effective HP 1300")
+    assert advisorbar._with_its_base(bare) == "Damage +20 % / Defense +0 %"
+
+
+def test_the_other_directions_keep_their_line():
+    row = types.VesselRow(vessel_id=1, value=90.0, figure="Attack rating 90",
+                          base_figure="Attack rating 56")
+    assert advisorbar._with_its_base(row) == "AR 90 (+61 %)"
 
 
 def test_the_control_words_come_from_the_registry():

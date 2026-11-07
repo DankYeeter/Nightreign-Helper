@@ -9792,7 +9792,7 @@ Drehfeld; ein Hinweistext im Fehlerfall ausser der roten Schrift.
 
 #### Nachtrag T-338 (developer), 2026-11-07 — Waffen-Icon in der Kachel, AK-474 (nur nachgetragen)
 
-*Naechste freie AK: AK-478.*
+*Naechste freie AK: AK-479.*
 
 #### Nachtrag T-339 (developer), 2026-11-07 — Stack-Effekte, Grenzen, Ziel `Balanced` (nur nachgetragen)
 
@@ -9816,6 +9816,13 @@ Akzeptanz: `5` im Feld von 7060200 ist rot und zaehlt als leer, `4` gilt; ×1000
 Regler, keine Schwelle (Nutzer 07.11.2026). `Hit with` und `Damage type` bleiben unter ihr verborgen
 (AK-337) und wirken nicht; im `Why` sagt eine Attributzeile unter ihr keinen Betrag, weil ein Produkt
 keinen lesbaren Abstand hat. Tiebreak im Gefaessvergleich ist die Schadenszahl (`OTHER_GOAL`).
+
+**AK-478 Gefaessliste unter `Balanced`.** Die Zahl vorne in Zeile und Statuszeile lautet
+`AR +89 % / Defense +31 %` (Gewinn der jeweiligen Zahl gegen dasselbe Gefaess ohne Relikte, gerechnet
+wie das Prozent aus A28, ein Verlust mit Vorzeichen), statt `AR` das Wort der Zahl (`Spell`) oder
+`Damage` beim blossen `×`. "Best of ..." und `BEST` richten sich nach dem Produkt; die Klausel `{gap}
+more than this one` entfaellt, weil ein Produkt keinen lesbaren Abstand hat. Tooltip und Vorlesename
+nennen beide Zahlen. Die anderen Richtungen bleiben unveraendert.
 
 **AK-474 Symbol der Waffe in der Kachel `Weapon damage`.** Eine belegte `WeaponTile` zeigt das
 Symbol der Waffe (`icons.item_icon(weapon["icon"])`, 28 x 28 logisch wie in der Waehleliste des

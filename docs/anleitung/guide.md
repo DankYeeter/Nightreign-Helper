@@ -113,7 +113,9 @@ The same run also compares your vessels (see *Comparing vessels* below).
 **Balanced** looks for damage and survival at once: it ranks by attack rating
 times effective HP, so one percent more of either counts the same, and there is
 nothing to set; from its suggestion you adjust by hand. It always reads the
-whole armament.
+whole armament. In the vessel list each vessel then says both gains against the
+same vessel with no relics, for example `AR +89 % / Defense +31 %`, and the best
+vessel is the one with the highest product.
 **Maximise damage**, **Balanced**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count
