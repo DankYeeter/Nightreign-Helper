@@ -24,7 +24,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau - siehe Pflichtlektuere unten.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.123.168 Byte (56,38 MiB) |
 | **SHA-256** | `1C8B4FF52286928B7FC795CC65597BF7F0A65ED40C987C7FE63D0E9E2BB4DC88` (64 Zeichen, `certutil -hashfile … SHA256`) |
 | **Commit** | `2907a66205bc8d7f09712080a588ce6bae7b49a3` ("chore(release): Version 1.12.3"), Branch `docs/audit-and-advisor-design` |
@@ -131,13 +131,13 @@ Keine neuen Befunde im Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.123.168 Byte (56,38 MiB)
 - **SHA-256:** `1C8B4FF52286928B7FC795CC65597BF7F0A65ED40C987C7FE63D0E9E2BB4DC88`
 - **Versionsressource:** 1.12.3 (aus `nrplanner/__init__.py`, ungeprueft am
   Fenstertitel - kein Rauchtest in diesem Lauf)
 - **Fuer den clean-room-Vergleich:** Vorversion 1.12.2 liegt gesichert unter
-  `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\1102cb1a-733e-4319-a4c2-e819573c0f84\scratchpad\artefakte\NightreignHelper-1.12.2.exe`,
+  `%TEMP%\claude\<Projekt>\1102cb1a-733e-4319-a4c2-e819573c0f84\scratchpad\artefakte\NightreignHelper-1.12.2.exe`,
   SHA-256 `7279528507491809616beab5f498ce4d03153c907d8d18c54f92bb4fed67abcf`
   in diesem Lauf gegengeprueft (Sicherungskopie und Original identisch) -
   fuer einen Update-Pfad-Test (alte Version installieren/Daten erzeugen,

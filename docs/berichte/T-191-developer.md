@@ -94,7 +94,7 @@ meiner Aenderung, inhaltlich identisch mit Commit `6f369a7`.
 
 | | |
 |---|---|
-| Datensatz | `C:\Users\Daniel\AppData\Local\NightreignHelper\nightreign_data.json`, `data_version` **10350000**, 8 387 819 Bytes |
+| Datensatz | `%LOCALAPPDATA%\NightreignHelper\nightreign_data.json`, `data_version` **10350000**, 8 387 819 Bytes |
 | Spielstand | der des Nutzers, **nur lesend** ueber `inventory.load`, **312** Kopien |
 | Grundgesamtheit | **210** Kandidaten an einem freien **weissen** Slot, nichts gehalten, Grundzustand leer |
 | Nightfarer | Wylder, Level **15** (`advisor_cases.LEVEL`) |

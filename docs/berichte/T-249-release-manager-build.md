@@ -14,7 +14,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau - siehe Pflichtlektuere unten.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.089.432 Byte (56,36 MiB) |
 | **SHA-256** | `DFDEADC42475707241B6764904E7A791A536FB25B65494460F2CEA560676A558` (64 Zeichen, `sha256sum` und `certutil -hashfile … SHA256` stimmen ueberein) |
 | **Commit** | `dde2efcb16f1d8cd5b81b2ff9374531f4f13175a` ("chore(release): Version auf 1.10.1 angehoben"), Branch `docs/audit-and-advisor-design` |
@@ -82,7 +82,7 @@ Keine neuen Befunde im Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.089.432 Byte (56,36 MiB)
 - **SHA-256:** `DFDEADC42475707241B6764904E7A791A536FB25B65494460F2CEA560676A558`
 - **Versionsressource:** 1.10.1 (aus `nrplanner/__init__.py`, ungeprueft am Fenstertitel - kein Rauchtest in diesem Lauf, Auftrag verlangt ihn nicht)

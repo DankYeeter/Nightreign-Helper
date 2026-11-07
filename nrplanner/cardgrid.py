@@ -80,8 +80,14 @@ class CardGrid(QWidget):
         self._grid = QGridLayout(self)
         self._grid.setSpacing(SPACING)
         self._grid.setContentsMargins(*margins)
+        # Left only. Packed upwards by an empty last row that takes the spare
+        # height (`_pack_rows`), not by AlignTop: Qt drops AlignTop when a card
+        # stretches, and otherwise lays the rows out at their size hint rather
+        # than their height for the width -- four relics stood 560 px tall for
+        # 226 px of content, or lost the rule under their name (1.19.0 user
+        # test).
         if not stretch:
-            self._grid.setAlignment(Qt.AlignTop | Qt.AlignLeft)
+            self._grid.setAlignment(Qt.AlignLeft)
         self._apply(columns_for(self._usable(self.width()), card_width))
 
     # -- geometry ---------------------------------------------------------
@@ -118,6 +124,7 @@ class CardGrid(QWidget):
         for column in range(self._grid.columnCount()):
             self._grid.setColumnStretch(
                 column, 1 if (self._stretch and column < columns) else 0)
+        self._pack_rows()
 
     def extend(self, cards: list[QWidget]) -> None:
         """Place `cards` after the ones already here, in the current columns.
@@ -132,6 +139,19 @@ class CardGrid(QWidget):
             self._cards.append(card)
             self._grid.addWidget(card, index // self._columns,
                                  index % self._columns)
+        self._pack_rows()
+
+    def _pack_rows(self) -> None:
+        """Give the spare height to the empty row under the last card.
+
+        Every row stretch is reset first: a reflow or `extend` moves the last
+        row, and a stretch left on an earlier one would pull cards apart.
+        """
+        if self._stretch:
+            return
+        for row in range(self._grid.rowCount()):
+            self._grid.setRowStretch(row, 0)
+        self._grid.setRowStretch(-(-len(self._cards) // self._columns), 1)
 
     # -- for tests and callers -------------------------------------------
     @property

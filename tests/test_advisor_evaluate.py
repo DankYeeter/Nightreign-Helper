@@ -224,6 +224,13 @@ CONTEXT_REACHES_COMPUTE = {
     # Joins `declared` for one armament type per build, the goal's pick
     # (AD-036.6, QA-299): `tests/test_one_armament_count_type.py`.
     "assumed_armament_counts": "declared",
+    # Joins `declared` where a relic of the build inflicts the ailment
+    # (01.11.2026): `tests/test_ailment_conditions.py`.
+    "awaiting_ailment": "declared",
+    # Joins `declared` unless a relic of the build swaps the art or spell
+    # they rest on (QA-322): `tests/test_ailment_conditions.py`.
+    "pick_ailment": "declared",
+    "pick_swap": "declared",
     # The weighting is the goal's business and never the model's: it decides
     # how a figure is averaged after the build exists (AD-004, OF-3).
     "weighting": None,

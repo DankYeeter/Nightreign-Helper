@@ -44,7 +44,7 @@ Offen:
     Prosa-Erwaehnungen der Woerter "Secrets"/"tokenize" in Berichten und
     Skript-Snippets (QA-Doku, Hook-Kommentar) — keine tatsaechlichen
     Zugangsdaten.
-  - Testabzug: `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
+  - Testabzug: `<ClaudeCode>\NightreignHelper-Testabzug`
     ist heute neu entstanden (~8,5 MB in diesem Snapshot, laut Auftrag ~20 MB
     gesamt) und liegt ausserhalb des Projektbaums (`Desktop\ClaudeCode\`, nicht
     unter `Nightreign-Helper\`). Er taucht in keinem der 14 Commits auf —

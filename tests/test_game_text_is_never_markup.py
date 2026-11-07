@@ -113,6 +113,18 @@ def test_a_nightfarer_name_in_the_favourite_menu_is_offered_as_text(
     assert "&lt;b&gt;Gladius&lt;/b&gt;" in tip
 
 
+def test_a_curse_on_the_stat_sheet_is_shown_as_text(planner, monkeypatch):
+    """Curse name, its caption and the relic carrying it are text (SEC-054)."""
+    real = next(iter(planner.effects.values()))
+    curse = {**real, "name": HOSTILE_NAME, "info": HOSTILE_NAME}
+    monkeypatch.setattr(planner, "selected_curses",
+                        lambda: [(HOSTILE_NAME, curse)])
+    planner.recompute()
+    text = planner.stat_sheet.curse_label.text()
+    assert "<b>Gladius</b>" not in text
+    assert text.count("&lt;b&gt;Gladius&lt;/b&gt;") == 3
+
+
 def test_a_nightfarer_name_on_the_sidebar_tile_is_offered_as_text(qapp):
     """The sidebar portrait's tooltip names the Nightfarer as text (SEC-019)."""
     from nrplanner import app

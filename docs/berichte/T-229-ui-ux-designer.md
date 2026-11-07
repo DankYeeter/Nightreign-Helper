@@ -16,7 +16,7 @@ nicht ueber meine `APPDATA`-Umlenkung).
 STATUS: erledigt
 AUFTRAG: T-229c — Review der Oberflaeche nach A16/A30-A32 gegen UI_SPEC.md (AK-05, AK-51, AK-160, AK-182 bis AK-188, AK-194, AK-196, AK-212, AK-264 bis AK-268), am laufenden Programm, Stand 8ce5b3b/719c46d
 GELESEN: docs/tasks/T-229.md vollstaendig, CLAUDE.md, UI_SPEC.md (Kopf, Widerspruchsabschnitt Z84-137, AK-05/AK-51/AK-160/AK-182-AK-194/AK-196/AK-212/AK-264-AK-268 und Umfeld), DESIGN_REVIEW.md (Review 2026-09-12 vollstaendig), Agent-Memory (Testabzug, Messrezept), nrplanner/{app.py,advisorbar.py,relicpicker.py,firstrun.py,paths.py,favourites.py,gamepath.py}, nrdata/savefile.py (save_roots/find_saves), tests/advisor_row_at_the_window.py, tests/conftest.py (wait_for_the_save)
-GEÄNDERT: DESIGN_REVIEW.md (Review vom 2026-09-13 angehaengt, DR-022 bis DR-024), dieser Bericht. Keine Code-, Test- oder Spec-Aenderung. Scratchpad: C:\Users\Daniel\AppData\Local\Temp\claude\...\scratchpad\T-229\ui\ (Testabzug-Kopie, sechs Messskripte, Screenshots); design-review/2026-09-13/ (zehn PNG, Auswahl der Belege)
+GEÄNDERT: DESIGN_REVIEW.md (Review vom 2026-09-13 angehaengt, DR-022 bis DR-024), dieser Bericht. Keine Code-, Test- oder Spec-Aenderung. Scratchpad: %TEMP%\claude\...\scratchpad\T-229\ui\ (Testabzug-Kopie, sechs Messskripte, Screenshots); design-review/2026-09-13/ (zehn PNG, Auswahl der Belege)
 ANNAHMEN: (1) Kein Klon noetig — eingefrorener Stand, kein Schreibzugriff Dritter auf diesen Baum waehrend der Messung, im Rezept vorgesehene Ausnahme. (2) Realer Spielstand traegt 314 Kopien, nicht 312 (UI_SPEC/Auftragskopf) — als Hinweis an QA weitergereicht, nicht selbst nachgezaehlt (T-229a Punkt 6 ist dort). (3) AK-189s 21/22-Zeilen-Worst-Case wurde nicht am realen, laengsten Slot nachgebaut (Zeitbudget) — als Backlog-Punkt vermerkt, 4.14 hielt bei den real beobachteten (kuerzeren) Slotgruppen.
 NÄCHSTER: director (buendelt mit T-229a/T-229b zu einem Fixauftrag)
 BLOCKIERT DURCH: nichts
@@ -109,9 +109,9 @@ Keine neuen — DR-024 ist eine Anregung, kein Entscheidungsbedarf; die
 
 ## Pfade
 
-- `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\DESIGN_REVIEW.md`
+- `<Hauptbaum>\DESIGN_REVIEW.md`
   (Review vom 2026-09-13, DR-022 bis DR-024)
-- `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\design-review\2026-09-13\`
+- `<Hauptbaum>\design-review\2026-09-13\`
   (zehn Screenshots)
-- `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\944e515e-121f-4a1d-be61-0ce5bd032585\scratchpad\T-229\ui\`
+- `%TEMP%\claude\<Projekt>\944e515e-121f-4a1d-be61-0ce5bd032585\scratchpad\T-229\ui\`
   (Messskripte, vollstaendiger Screenshot-Satz)

@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QPointF, QSignalBlocker, Qt, Signal
+from PySide6.QtCore import QPointF, QSignalBlocker, QSize, Qt, Signal
 from PySide6.QtGui import (
-    QColor, QLinearGradient, QPainter, QPixmap, QPolygonF, QRadialGradient,
+    QColor, QGuiApplication, QIcon, QPainter, QPainterPath, QPixmap,
 )
 from PySide6.QtWidgets import (
     QComboBox, QFrame, QHBoxLayout, QLabel, QPushButton, QToolButton,
@@ -23,21 +23,22 @@ from PySide6.QtWidgets import (
 from nrdata.binary import NotWhatItClaims
 
 from . import (
-    advisorblock, chalices, effecttext, errortext, favourites, inventory,
-    model,
+    advisorblock, chalices, effecttext, errortext, favourites, iconpack,
+    inventory, model,
 )
 from .theme import ACCENT, BORDER, CURSE, DEBUFF, MUTED, PANEL, SLOT_COLOURS
 
 
-# The slot-colour gems, by relic colour. White ships none -- the game has
-# only four -- so it is drawn as a pale diamond to match.
-SLOT_GEMS = {
-    0: "MENU_MenuIcon_40480.png",
-    1: "MENU_MenuIcon_40481.png",
-    2: "MENU_MenuIcon_40483.png",   # Yellow
-    3: "MENU_MenuIcon_40482.png",   # Green
-}
+# The game's slot sprites by colour (Red, Blue, Yellow, Green, White): the
+# switch at `nightreign.exe` RVA 0x785560, see iconbuild's UI_SPRITES.
+SLOT_CELL = "MENU_In_bg_22.png"
+SLOT_LIGHTS = {colour: f"MENU_MenuIcon_{40240 + colour}.png"
+               for colour in range(5)}
+DEEP_SLOT_LIGHTS = {colour: f"MENU_MenuIcon_{40254 + colour}.png"
+                    for colour in range(5)}
 
+#: The small chip in a card's and a picker's header.
+HEADER_CHIP = 20
 
 # Drawn chips, keyed by what actually changes their pixels. Without this the
 # vessel list redrew every slot of every vessel on each hero switch -- eleven
@@ -46,104 +47,62 @@ SLOT_GEMS = {
 _CHIP_CACHE: dict[tuple, QPixmap] = {}
 
 
-def slot_chip(icons, colour: int, owned=None, size: int = 26):
-    """One relic slot, drawn the way the game presents it.
+def slot_chip(icons, colour: int, owned=None, size: int = 26,
+              deep: bool = False):
+    """One relic slot, drawn the way the game presents it (T-338, row F).
 
-    A dark cell, a coloured glow rising from its floor, the relic sitting in
-    it, and the colour gem in the corner. The gem matters precisely because a
-    filled slot hides most of the glow -- which is why the game puts it there
-    -- so it is drawn only when something is in the slot.
-
-    The glow is drawn rather than extracted: the sprite atlas carries the
-    gems and the relic art but no slot light, so this is the one piece with
-    no authentic source, and it is generated to sit under the real ones.
+    The game's cell, its light for this colour and this kind of slot, the
+    relic sitting in it, and the colour gem in the corner. The gem matters
+    precisely because a filled slot hides most of the light -- which is why
+    the game puts it there -- so it is drawn only when something is in the
+    slot. Without the sprites the cell keeps its colour as an outline.
     """
-    key = (colour, size, getattr(owned, "icon", None) if owned else None)
+    key = (colour, size, deep,
+           getattr(owned, "icon", None) if owned else None)
     cached = _CHIP_CACHE.get(key)
     if cached is not None:
         return cached
 
-    chip = QPixmap(size, size)
+    ratio = QGuiApplication.primaryScreen().devicePixelRatio()
+    chip = QPixmap(round(size * ratio), round(size * ratio))
     chip.fill(Qt.transparent)
-    tint = QColor(SLOT_COLOURS.get(colour, MUTED))
+    chip.setDevicePixelRatio(ratio)
     painter = QPainter(chip)
     painter.setRenderHint(QPainter.Antialiasing, True)
+    outline = QPainterPath()
+    outline.addRoundedRect(0, 0, size, size, 4, 4)
+    painter.fillPath(outline, QColor("#15161a"))
+    painter.setClipPath(outline)
 
-    painter.setPen(Qt.NoPen)
-    painter.setBrush(QColor("#15161a"))
-    painter.drawRoundedRect(0, 0, size - 1, size - 1, 4, 4)
+    def draw_whole(sprite: str, opacity: float = 1.0) -> bool:
+        art = icons.ui(sprite) if icons is not None else None
+        if art is None:
+            return False
+        painter.setOpacity(opacity)
+        painter.drawPixmap(0, 0, iconpack.sharp(art, size))
+        painter.setOpacity(1.0)
+        return True
 
-    # The light standing in the cell. The game renders this per frame -- it
-    # is in no sprite anywhere in the menu atlas, which was searched
-    # exhaustively -- so it is drawn.
-    #
-    # It is drawn small and scaled up, which is the whole trick: at a quarter
-    # size the shapes are a few pixels across, and the smooth upscale turns
-    # their edges into a gradient. Drawing at full size gives either a hard
-    # triangle or visible rings, both of which read as a drawn shape rather
-    # than as light -- each was tried and looked it.
-    lit = 1.0 if owned is None else 0.5
-    small = max(8, size // 4)
-    layer = QPixmap(small, small)
-    layer.fill(Qt.transparent)
-    lp = QPainter(layer)
-    lp.setRenderHint(QPainter.Antialiasing, True)
-    lp.setPen(Qt.NoPen)
-
-    cone = QLinearGradient(0, small * 0.88, 0, small * 0.18)
-    base = QColor(tint).lighter(140); base.setAlpha(int(230 * lit))
-    tip = QColor(tint); tip.setAlpha(0)
-    cone.setColorAt(0.0, base)
-    cone.setColorAt(1.0, tip)
-    lp.setBrush(cone)
-    lp.drawPolygon(QPolygonF([
-        QPointF(small * 0.5, small * 0.12),
-        QPointF(small * 0.88, small * 0.88),
-        QPointF(small * 0.12, small * 0.88),
-    ]))
-
-    pool = QRadialGradient(small / 2, small * 0.82, small * 0.5)
-    hot = QColor(tint).lighter(170); hot.setAlpha(int(245 * lit))
-    pool.setColorAt(0.0, hot)
-    rim = QColor(tint); rim.setAlpha(0)
-    pool.setColorAt(1.0, rim)
-    lp.setBrush(pool)
-    lp.drawEllipse(QPointF(small / 2, small * 0.82),
-                   small * 0.46, small * 0.20)
-    lp.end()
-
-    painter.setClipRect(1, 1, size - 2, size - 2)
-    painter.drawPixmap(0, 0, layer.scaled(size, size, Qt.IgnoreAspectRatio,
-                                          Qt.SmoothTransformation))
+    draw_whole(SLOT_CELL)
+    light = (DEEP_SLOT_LIGHTS if deep else SLOT_LIGHTS).get(colour)
+    lit = draw_whole(light, 1.0 if owned is None else 0.5) if light else False
     painter.setClipping(False)
+    if not lit:
+        painter.setPen(QColor(SLOT_COLOURS.get(colour, MUTED)))
+        painter.drawPath(outline)
 
     if owned is not None and icons is not None:
         art = icons.item(getattr(owned, "icon", None))
         if art is not None:
-            inner = int(size * 0.78)
-            art = art.scaled(inner, inner, Qt.KeepAspectRatio,
-                             Qt.SmoothTransformation)
-            painter.drawPixmap((size - art.width()) // 2,
-                               (size - art.height()) // 2 - 1, art)
-        gem = icons.ui(SLOT_GEMS[colour]) if colour in SLOT_GEMS else None
-        pip = max(7, size // 3)
-        if gem is not None and not gem.isNull():
-            gem = gem.scaled(pip, pip, Qt.KeepAspectRatio,
-                             Qt.SmoothTransformation)
-            painter.drawPixmap(size - pip - 1, size - pip - 1, gem)
-        else:
-            # White has no gem of its own; a plain diamond stands in for it.
-            painter.save()
-            painter.translate(size - pip / 2 - 2, size - pip / 2 - 2)
-            painter.rotate(45)
-            painter.setBrush(tint)
-            painter.setPen(QColor("#00000060"))
-            painter.drawRect(-pip // 3, -pip // 3, 2 * pip // 3, 2 * pip // 3)
-            painter.restore()
-
-    painter.setBrush(Qt.NoBrush)
-    painter.setPen(QColor("#00000070"))
-    painter.drawRoundedRect(0, 0, size - 1, size - 1, 4, 4)
+            art = iconpack.sharp(art, int(size * 0.78))
+            drawn = art.deviceIndependentSize()
+            painter.drawPixmap(QPointF((size - drawn.width()) / 2,
+                                       (size - drawn.height()) / 2 - 1), art)
+        gem = icons.ui(iconpack.GEM_SPRITES.get(colour))
+        if gem is not None:
+            pip = max(7, size // 3)
+            painter.drawPixmap(size - pip - 1, size - pip - 1,
+                               iconpack.sharp(gem, pip))
     painter.end()
     _CHIP_CACHE[key] = chip
     return chip
@@ -288,7 +247,8 @@ class RelicSlot(QFrame):
         self.hold_button.toggled.connect(self._hold_toggled)
         header.addWidget(self.hold_button)
         self.chip = QLabel()
-        self.chip.setFixedSize(14, 14)
+        self.chip.setFixedSize(HEADER_CHIP, HEADER_CHIP)
+        self.chip.setStyleSheet("border: none; background: transparent;")
         header.addWidget(self.chip)
         layout.addLayout(header)
 
@@ -302,6 +262,7 @@ class RelicSlot(QFrame):
 
         self.choose_button = QPushButton("Empty slot")
         self.choose_button.setStyleSheet("text-align: left; padding: 6px 8px;")
+        self.choose_button.setIconSize(QSize(HEADER_CHIP, HEADER_CHIP))
         self.choose_button.clicked.connect(self._open_picker)
         layout.addWidget(self.choose_button)
 
@@ -314,7 +275,7 @@ class RelicSlot(QFrame):
         # a suggestion for this slot belongs where the slot is (`UI_SPEC`
         # §3.2). Built here and hidden rather than created on demand, so that
         # an answer arriving does not change the card's layout order.
-        self.suggestion = advisorblock.SuggestionBlock()
+        self.suggestion = advisorblock.SuggestionBlock(icons=icons)
         layout.addWidget(self.suggestion)
 
         # Last, because it draws the card: the caption of the hold button and
@@ -399,6 +360,9 @@ class RelicSlot(QFrame):
         self._forget_a_spent_reason()
         item = self.relic_box.currentData()
         self.choose_button.setText(item.name if item is not None else "Empty slot")
+        symbol = (self.icons.item_icon(getattr(item, "icon", None))
+                  if self.icons is not None else None)
+        self.choose_button.setIcon(symbol or QIcon())
         # Shut for as long as the read is out, in both situations (AK-223):
         # at the start it would open on nothing, and on a `Rescan` the stock
         # under its cards is replaced while it stands.
@@ -434,7 +398,11 @@ class RelicSlot(QFrame):
             eff = self.effect_by_id.get(eid)
             # Game text goes into rich text as text, never as markup (SEC-021).
             name = html.escape(effecttext.name(eff) if eff else f"<{eid}>")
-            mark = "" if not eff or eff["stacks"] else "  ⚠"
+            tag = (iconpack.inline(self.icons, "status", eff.get("icon"))
+                   if eff else "")
+            mark = ("" if not eff or (eff["stacks"]
+                                      and not model.accumulates(eff))
+                    else "  ⚠")
             colour = DEBUFF if eff and eff.get("is_curse") else "#cfcfcf"
             # An effect belonging to another Nightfarer is doing nothing at
             # all here. Say so on the slot rather than letting it sit among
@@ -442,11 +410,11 @@ class RelicSlot(QFrame):
             if eff is not None and not effecttext.works_for(eff, self.hero_name):
                 who = html.escape(effecttext.owner(eff)) or "another Nightfarer"
                 lines.append(
-                    f"<div style='color:{CURSE}'>&bull; <s>{name}</s>"
+                    f"<div style='color:{CURSE}'>&bull; {tag}<s>{name}</s>"
                     f" — not working ({who} only)</div>"
                 )
                 continue
-            lines.append(f"<div style='color:{colour}'>&bull; {name}{mark}</div>")
+            lines.append(f"<div style='color:{colour}'>&bull; {tag}{name}{mark}</div>")
         if not lines:
             lines = ["<div style='color:#8a8a8a'>no rolled effects</div>"]
         lines.extend(self.curse_lines(item))
@@ -468,7 +436,9 @@ class RelicSlot(QFrame):
             for cid in curse_ids:
                 eff = self.effect_by_id.get(cid)
                 name = html.escape(effecttext.name(eff) if eff else f"<{cid}>")
-                out.append(f"<div style='color:{CURSE}'>✦ {name}</div>")
+                tag = (iconpack.inline(self.icons, "status", eff.get("icon"))
+                       if eff else "")
+                out.append(f"<div style='color:{CURSE}'>✦ {tag}{name}</div>")
             return out
         if getattr(item, "has_curse", False):
             count = getattr(item, "curse_count", 0) or 0
@@ -492,20 +462,30 @@ class RelicSlot(QFrame):
 
     def show_the_suggestion(self, goal_label: str, group,
                             choice, *, may_explain: bool = True,
-                            held_favourite_line: str = "") -> None:
+                            held_favourite_line: str = "",
+                            pinned: bool = False, names=None,
+                            favourited: frozenset[int] = frozenset()) -> None:
         """Draw what the advisor would put here, while the answer lives.
 
         `may_explain` is the window's own reading of the bar's `Why` gate
         (AK-274), passed straight through: it names the same fact for every
         slot at once, and this card has no state of its own to add to it.
         `held_favourite_line` is the window's own choice of which one card
-        shows it (AK-314.3); this card only draws or withholds it.
+        shows it (AK-314.3); this card only draws or withholds it. `pinned` is
+        the answer's own: the run laid this relic because it is starred.
         """
         self.suggestion.show_the_suggestion(
             goal_label, group, already_equipped=self.already_equipped(choice),
             may_be_used=not self.is_held(), may_explain=may_explain,
             curse_tooltip=self._suggested_curse_tooltip(choice),
-            held_favourite_line=held_favourite_line)
+            held_favourite_line=held_favourite_line, pinned=pinned,
+            names=names, favourited=favourited,
+            symbol_of=self._effect_symbol,
+            relic_icon=getattr(self._suggested_copy(choice), "icon", None))
+
+    def show_no_suggestion(self, reason: str) -> None:
+        """The answer leaves this slot empty, and this is why (AK-441)."""
+        self.suggestion.show_no_suggestion(reason)
 
     def put_the_suggestion_away(self) -> None:
         """No answer names this slot any more."""
@@ -518,11 +498,15 @@ class RelicSlot(QFrame):
         tooltip the slot already offers for the relic it holds, so a player
         reads a curse the same way whether it is equipped or offered.
         """
-        if choice is None:
-            return ""
-        copy = next((item for item in self._holdable()
-                     if item.handle == choice.handle), None)
+        copy = self._suggested_copy(choice)
         return "" if copy is None else self.curse_tooltip(copy)
+
+    def _suggested_copy(self, choice):
+        """The owned copy a suggestion names, found by its handle."""
+        if choice is None:
+            return None
+        return next((item for item in self._holdable()
+                     if item.handle == choice.handle), None)
 
     def curse_tooltip(self, item) -> str:
         """Full wording for each curse, so the cost is legible not cryptic."""
@@ -560,11 +544,25 @@ class RelicSlot(QFrame):
         self.owned = owned
         self.all_effects = list(all_effects)
         self.effect_by_id = {e["id"]: e for e in all_effects}
-        self.chip.setStyleSheet(
-            f"background: {SLOT_COLOURS.get(colour, MUTED)};"
-            f" border: 1px solid {BORDER}; border-radius: 7px;"
-        )
+        self.chip.setPixmap(slot_chip(self.icons, colour, None, HEADER_CHIP,
+                                      self.deep))
         self.populate()
+
+    def _effect_symbol(self, effect_id: int):
+        """An effect's status symbol, or None."""
+        effect = self.effect_by_id.get(effect_id)
+        if effect is None or self.icons is None:
+            return None
+        return self.icons.status(effect.get("icon"))
+
+    def effect_symbols(self, item) -> dict:
+        """Name as a card shows it -> symbol, over rolls and curses alike."""
+        symbols = {}
+        for effect_id in (*item.effect_ids, *(getattr(item, "curse_ids", ()) or ())):
+            symbol = self._effect_symbol(effect_id)
+            if symbol is not None:
+                symbols[effecttext.name(self.effect_by_id[effect_id])] = symbol
+        return symbols
 
     def effect_names(self, item) -> list[str]:
         return [
@@ -785,8 +783,10 @@ class RelicSlot(QFrame):
         # claim about what the player owns that the program cannot support
         # (A7) -- and it is the shape that reads like lost data.
         count = "" if self.owned is None else f"  ({len(items)} available)"
+        gem = iconpack.inline(self.icons, "ui",
+                              iconpack.GEM_SPRITES.get(self.colour))
         self.title.setText(
-            f"{self.slot_name()} — "
+            f"{self.slot_name()} — {gem}"
             f"{model.COLOUR_NAMES.get(self.colour, self.colour)}"
             f"{count}"
         )

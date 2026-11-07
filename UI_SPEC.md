@@ -8922,3 +8922,935 @@ Icon-Rahmen; Aenderung der Mindestbreite (AK-400).
 (`swapped_art_ids`), `nrplanner/advisorbar.py` (`:615`, `:636`),
 `nrplanner/advisor/goals.py` (`:437-447`), `nrplanner/advisor/explain.py`,
 `nrdata/` und `nrplanner/iconpack.py` (Art-Icons, EXTRACT_VERSION 17), Tests.
+
+---
+
+#### Nachtrag A28 (ui-ux-designer), 2026-11-06 — X an der Effektzeile, `Reject`, Chalice-Vergleich, Stern = Pflicht, leere Slots, A18-Wortlaut (AK-420 bis AK-448, Spec-Modus)
+
+*Quellen: `GOAL.md` A18 (Ersatz vom 06.11.2026: ein Relikt mit einem
+vermiedenen Effekt oder Fluch wird nie vorgeschlagen) und A28 (Nutzer,
+06.11.2026). Verwechslungsgefahr: die Kennung "A28" im `UI_SPEC_REGISTER.md`
+(T-145, Gefaess-Rueckfrage) ist eine andere; hier ist immer `GOAL.md` A28
+gemeint. **Kein Fensterlauf** (QA haelt die Instanz): alle Groessen sind aus dem
+Code abgeleitet (`advisorblock.py`, `relicslots.py`, `advisorbar.py`,
+`app.py:903`, `relicpicker.py`) und Startwerte; der `developer` misst nach dem
+Bau am laufenden Fenster (`QWidget.grab()`, NH-002). Daten und Rechnung
+(Chalice-Lauf, Pflicht-Relikte, Ablehnmenge, Gruende je Slot) legt der
+`architect` in `ARCHITECTURE.md` fest; diese Vorgabe nennt nur, was der Nutzer
+davon sehen muss, und die Gruende als Kategorien. Naechste freie AK: AK-449.*
+
+**Token (keine neuen Hex-Werte):** `ACCENT`, `BAD`, `MUTED`, `PANEL`,
+`BORDER`, `FAVOURITE` (`#a86fe0`, nur fuer das Relikt-Stern-Zeichen), Text
+11 px (`SMALL_TEXT`), `FoldButton` (`advisorblock.py`, 24 px), `WORD_BUTTON_STYLE`
+(`relicslots.py`). Texte: Englisch (A8); Spiel- und Nutzertext nur als Klartext,
+nie als Markup (SEC-019, AK-29).
+
+**Begriffe.** `Favourite` heisst jetzt an beiden Stellen "kommt in den Vorschlag"
+(Effekt: zwingend, A19; Relikt-Stern: wenn es passt, A28). Die Namenskollision
+aus AK-300 entschaerft sich dadurch, die Staerke bleibt verschieden und wird im
+Text benannt (AK-440, AK-445). Ein Relikt wird per **Roll** erkannt (gleiche
+Effekte und Fluche = dasselbe Relikt), wie beim Stern (`favourites.py`).
+
+##### 1. Das X an der Effektzeile des Vorschlags
+
+**Zweck.** Einen Effekt, den man in diesem Vorschlag nicht will, mit einem Klick
+dauerhaft auf Avoid setzen; der Vorschlag rechnet sofort neu.
+
+**AK-420 Aufbau.** Jede im Vorschlagsblock gezeichnete Effekt- und Fluchzeile
+(`types.drawn_in_the_block`) ist eine Zeile aus Aufzaehlungszeichen, Text (wie
+heute, gleiche Farben und Zustaende) und am rechten Ende einem Knopf `✕`
+(U+2715). Aus dem einen `RichText`-Label `lines` werden damit je Zeile zwei
+Klartext-Labels und ein Knopf (Muster `WhyLine`). Kein X an `count_line`, an der
+Favoritenzeile (AK-314), an `already_equipped`.
+
+**AK-421 Aussehen und Groesse.** `✕` in `MUTED`, bei Hover und Fokus in `BAD`;
+Fokusrahmen 1 px `ACCENT` (wie `FoldButton`); Trefffeld **24 × 24 logische px**
+(skaliert mit `ui/scale`), 4 px Abstand zum Text, Zeilenhoehe damit mindestens
+24 statt ~16 px. Messen und melden: Mehrhoehe einer Karte mit 3 Effekten + 1
+Fluch (Startwert <= 32 px); **keine** waagerechte Rollleiste der Mittelspalte
+bei 6 Karten (AK-160) und bei Fenster-Mindestbreite 1190 px.
+
+**AK-422 Tooltip und Name.** Effekt: `Avoid “{name}” — no suggestion will use a
+relic that carries it. Undo in Filters.` Fluch: `Avoid the curse “{name}” — no
+suggestion will use a relic that carries it. Undo in Filters.` Ist der Effekt
+schon Favourite, steht statt des ersten Satzes `Avoid “{name}” — this replaces
+your Favourite for it.` Zugaenglichkeitsname `Avoid {name}`, Beschreibung =
+Tooltip. Tooltip ueber `as_a_tooltip` (AK-30).
+
+**AK-423 Tastatur.** Alle X eines Blocks bilden **einen** Tabstopp (Pfeil
+hoch/runter wandert, Leertaste/Enter loest aus, Tab verlaesst die Gruppe).
+Reihenfolge in der Karte: `Hold`, Reliktwahl, `Use`, `Why this relic`,
+`Reject`, X-Gruppe, naechste Karte. Begruendung: bis zu 6 Karten × 6 Zeilen
+waeren sonst 36 Tabstopps.
+
+**AK-424 Wirkung.** Klick = `EffectFilters.mark(id, EXCLUDED)` (die Gegenmarke
+derselben Id faellt weg) und **ein** neuer Lauf mit derselben Frage wie der
+letzte `Optimize` (Ziel, Felder, Holds, Ablehnungen), ohne Entprellzeit. Der
+Lauf zaehlt nicht als "Build geaendert" (kein Zustand 4.7, keine Rueckkehr zu
+4.1): `the_build_changed` bekommt eine Option "vom Block ausgeloest" oder
+gleichwertig. Marken, die im Filter-Fenster gesetzt werden, verhalten sich
+unveraendert (AK-289).
+
+**AK-425 Waehrend des Neurechnens.** Die alten Bloecke bleiben stehen, damit
+nichts springt; ihre Knoepfe (`Use`, `Why this relic`, `Reject`, X) sind
+gesperrt; die Leiste zeigt die Zustaende 4.2-4.4 und `Cancel`. Bei `Cancel`
+sagt die Leiste `Stopped. “{name}” stays avoided.` (statt `Stopped. Nothing was
+changed.`), die Bloecke verschwinden.
+
+**AK-426 Danach.** Die Leiste nennt es als letzte Klausel (Trenner `CLAUSES`):
+`… slots filled  ·  “{name}” avoided.`, bis zum naechsten Lauf oder einer
+Aenderung; der Statustooltip haengt `Undo this in Filters.` an. Der Fokus geht,
+wenn er beim Klick im Block war, auf das erste X des Blocks desselben Slots,
+sonst (kein Block mehr) auf `Optimize`; er faellt nie auf nichts.
+
+**Rueckgaengig: ja, das Filter-Fenster reicht.** Dort steht jeder besessene
+Effekt mit Suchfeld; Aufwand 3-4 Schritte (Filters, Suchen, Haken weg). Ein
+eigener Rueckgaengig-Knopf wuerde AK-07 (hoechstens drei Aktionsknoepfe in der
+Leiste) brechen; die Klausel aus AK-426 sagt, wo.
+
+##### 2. `Reject` am Relikt (nur dieser Build)
+
+**Zweck.** "Dieses Relikt nicht" fuer den laufenden Build, ohne einen Effekt
+dauerhaft zu verbieten.
+
+**AK-427 Platz.** `Reject` steht in der Kopfzeile des Blocks **rechts von `Why
+this relic`**: `Use`, `Why this relic`, `Reject`, gleiche Bauart wie die
+Nachbarn, sichtbar genau wie `Use`. Reicht die Breite bei Fenster-Mindestbreite
+1190 px nicht, bricht die Ueberschrift `SUGGESTED — {GOAL}` auf zwei Zeilen um;
+**kein** Knopf wird gekuerzt oder abgeschnitten, keine waagerechte Rollleiste
+(AK-160). Tooltip: `Do not suggest this relic, or any copy with the same
+effects, for this build.` Ist es ein Stern-Relikt (AK-437): angehaengt `Your
+favourite stays marked.`
+
+**AK-428 Geltungsbereich.** "Dieser Build" = die geoeffnete Anordnung (Nightfarer
++ Gefaess); die Menge lebt wie `Hold` bis zum Programmende (`HOLD_TOOLTIP`:
+"forgotten when the program closes") und kommt beim Zurueckwechseln des
+Gefaesses in derselben Sitzung wieder. Sie gehoert nicht in den gespeicherten
+Build. Per Hand darf der Spieler das Relikt weiter waehlen und halten
+(A18-Grundsatz).
+
+**AK-429 Wirkung.** Wie AK-424: ein Klick, ein Lauf, gleiche Zustaende, Klausel
+`… slots filled  ·  “{relic name}” rejected.`, `Cancel` sagt `Stopped. “{relic
+name}” stays rejected.`
+
+**AK-430 Abgelehnte sehen und zuruecknehmen.** Unter der Leiste, **nicht in**
+ihr (die Leiste erhaelt kein Widget; AK-05/AK-07/AK-194 unberuehrt), steht nur
+bei mindestens einem abgelehnten Relikt ein `FoldButton` `▸ {n} relic(s)
+rejected for this build` (`▾` offen). Offen: je Relikt eine Zeile `{relic name}
+— {effect}, {effect}` (elidiert, voller Text im Tooltip) und rechts `Suggest
+again`; hoechstens 4 Zeilen sichtbar, dann Bildlauf in der Liste (nicht in der
+Mittelspalte). `Suggest again` nimmt die Ablehnung zurueck und rechnet neu, wenn
+gerade ein Vorschlag steht (sonst nichts). Faltzustand wird nicht gemerkt;
+geschlossen kostet die Zeile 24 px, bei 0 Relikten 0 px. Aufwand zum
+Zuruecknehmen: 2 Klicks.
+
+**Nicht in dieser Vorgabe:** ein Zeichen "abgelehnt" auf den Reliktkarten im
+Picker (waere ein Nachtrag; die Liste aus AK-430 ist der Ort).
+
+##### 3. Bester Chalice bei `Optimize`
+
+**Zweck.** Nach einem `Optimize` auf einen Blick sehen, welches der 11 Gefaesse
+fuer das gewaehlte Ziel am meisten bringt, und mit einem Klick dorthin wechseln.
+
+**AK-431 Nichts wechselt ungefragt.** Das gewaehlte Gefaess, seine Karten, die
+Auswahl in `chalice_list` und der angezeigte Vorschlag aendern sich durch den
+Vergleich nie. Nur der Klick des Spielers wechselt.
+
+**AK-432 Ort: die Gefaessliste, nicht die Leiste.** Die Leiste bekommt keine
+neuen Teile; ihre Statuszeile sagt weiter nur den Lauf fuer das gewaehlte
+Gefaess (Budget A6, A28). Der Vergleich steht in der linken Spalte; die
+Gefaessliste (`chalice_list`, `app.py:903`) bekommt:
+
+1. **Jede der 11 Zeilen eine zweite Textzeile** in 11 px `MUTED`: der Wert
+   `{figure}`; bei der besten Zeile `BEST  {figure}` in `ACCENT`. Das Wort `BEST`
+   traegt die Aussage, nicht die Farbe. Die Reihenfolge der Zeilen aendert sich
+   nie. Trennzeilen und das Zeichen fuer das getragene Gefaess bleiben.
+2. **Eine Statuszeile** zwischen der Ueberschrift `Vessel` und der Liste
+   (`QLabel`, `wordWrap`, 11 px, `MUTED`; hoechstens 2 Zeilen), nur sichtbar
+   nach einem `Optimize`:
+   - laeuft: `Comparing your vessels for {goal}… {done} of {total}`
+   - fertig, das gewaehlte ist das beste: `This is the best of {total} vessels
+     for {goal}: {figure}.`
+   - fertig, ein anderes ist besser: `Best of {total} for {goal}: {name}
+     ({figure}, {difference} more than this one).` und darunter ein Knopf
+     `Switch to it` (in den anderen Faellen unsichtbar).
+   - Gleichstand: `{k} vessels tie for best at {figure}: {name}, {name}` (ab drei
+     Namen `…and {n} more`); gehoert das gewaehlte dazu, kein Knopf, sonst
+     `Switch to it` auf das getragene Gefaess, sonst auf das erste der Liste.
+   - ueberholt (AK-434): `Out of date — use Optimize again to compare.`; die
+     Werte bleiben stehen, `MUTED`, ohne `BEST`.
+   - angehalten: `Comparison stopped.`; Fehler: `Could not compare the vessels —
+     {reason}.`
+3. Der Tooltip einer Zeile bekommt vor `Equipped in game` die Zeile `Compared:
+   {figure} for {goal} — rank {r} of {total}.`; gleiche Werte, gleicher Rang.
+   Hat das Gefaess ein Pflichtziel nicht erfuellt (AK-439, Effekt-Favourite):
+   `Misses: {names}.`
+
+`{figure}` und `{difference}` sind die Kennzahl des Ziels, **aus derselben
+Quelle, Einheit und Rundung** wie die Kopfzahl des `Why`-Dialogs fuer dieses Ziel
+(eine Zahlquelle, AK-415-Muster). **Gleichstand** heisst: angezeigte Werte
+gleich. Zeilenhoehe: die Liste waechst um die zweite Zeile (Startwert 34 → ~38 px
+je Zeile); die Liste behaelt die Dehnung, die Fenster-Mindesthoehe waechst um
+hoechstens Statuszeile plus Knopf (Startwert <= 60 px, melden).
+
+**AK-433 Fortschritt.** Waehrend des Hintergrundlaufs fuellen sich die Zeilen,
+sobald ihr Wert da ist (offene Zeilen zeigen `…`); `BEST` und der Satz "Best
+of…" erscheinen erst, wenn alle 11 fertig sind (kein Flackern der Bestmarke).
+Der Lauf blockiert weder Leiste noch Karten noch Liste; `Cancel` in der Leiste
+bricht Vorschlag **und** Vergleich ab (Satz "Comparison stopped."); das Fenster
+schliessen stoppt ihn (`shutdown`).
+
+**AK-434 Wann veraltet.** Der Vergleich ist ueberholt bei Aenderung von: Ziel
+oder dessen Felder, Level, Nightfarer, Deep-Schalter, Avoid/Favourite/Allow,
+Stern-Relikte, Ablehnungen, Holds, Spielstand neu gelesen. **Nicht** bei Wechsel
+des Gefaesses, bei `Use`/`Apply all` oder bei Aenderung eines Slots von Hand.
+
+**AK-435 Klick zum Wechseln.** (a) Ein normaler Klick auf eine Zeile wechselt wie
+heute. (b) `Switch to it` waehlt die beste Zeile. (c) Ist der Vergleich nicht
+ueberholt, zeigt das Gefaess nach (a) und (b) **sofort** seinen Vorschlag (aus
+dem Vergleich, ohne zweiten Lauf, ohne weiteren `Optimize`; Leiste 4.6/4.9/4.11);
+sonst wie heute 4.1. Aufwand fuer "bestes Gefaess samt Vorschlag": **2 Klicks**
+(`Optimize`, `Switch to it`), 0 Eingaben, 0 Entscheidungen.
+
+**AK-436 Zugaenglichkeit.** Zeilen: Zugaenglichkeitstext `{name}, {figure}, best
+of {total}` bzw. `{name}, {figure}, rank {r} of {total}`; `Switch to it` liegt in
+der Tab-Reihenfolge direkt vor der Liste; die Liste bleibt mit Pfeiltasten
+bedienbar. Spielnamen als Klartext.
+
+##### 4. Stern = Pflicht, und was nicht passt
+
+**AK-437 Stern im Vorschlag.** Ein Block, dessen Relikt fuer den gewaehlten
+Nightfarer einen Stern traegt, zeigt unter dem Reliktnamen eine Zeile in 11 px
+`FAVOURITE`: `★ Your favourite — included because it fits.` Eigenes Label wie
+`held_favourite` (AK-314), nie anklickbar.
+
+**AK-438 Text in der Reliktwahl** (`relicpicker.py:1584`). Der Schluss der
+Summenzeile heisst: `right-click a relic to favourite it — Optimize puts
+favourited relics in when they fit`. (Der Rest der Zeile, auch `— {n} favourited
+for {hero}`, bleibt.) Das `FavouriteMenu` bekommt unter `Favourite for` eine
+gedaempfte Zeile (11 px, `MUTED`): `Optimize puts it in the build when it fits.`
+Der Stern auf der Karte bekommt den Tooltip `Favourite for {hero}: Optimize puts
+it in the build when it fits.`
+
+**AK-439 Passt nicht jedes.** Der Vorschlag wird nie blockiert. Die Leiste hat in
+den drei Ergebniszustaenden (4.6, 4.9, 4.11) eine weitere Klausel am Ende
+(Trenner `CLAUSES`): `1 favourited relic did not fit` / `{n} favourited relics
+did not fit`, Tooltip `{name}: {reason}` je Relikt. Der `Why`-Dialog bekommt
+**ueber** den Slotgruppen den Abschnitt `Favourited relics left out:` — je
+Relikt eine Zeile `{relic name} ({effect}, {effect}) — {reason}`. Gruende
+(Kategorien vom `architect`, Wortlaut hier): `it carries “{effect}”, which you
+avoided` · `you rejected it for this build` · `no free slot of its colour is
+left` · `every slot of its colour is held` · `placing it would leave “{effect}”
+(Favourite) unmet` · `“{other}” is favourited too and takes the only slot it
+could use` · `you own no copy that is free` · sonst `it does not fit with the
+other choices`. Vorrang bei Streit: Avoid und Reject schlagen den Stern (A18
+"nie vorgeschlagen"); der Stern bleibt gesetzt. Ein Effekt-Favourite, den kein
+besessenes Relikt traegt, bleibt der A7-Satz (AK-281/AK-291), nicht diese Klausel.
+
+**AK-440 Unterscheidung im Filter-Fenster.** Die Legende nennt den Unterschied
+(Wortlaut AK-445): Effekt-Favourite sind zwingend und gelten fuer jeden
+Nightfarer; das Stern-Relikt ist eine eigene Liste je Nightfarer und kommt
+hinein, wenn es passt. Der Satz "They are not the star on a relic." entfaellt.
+
+##### 5. Leerer oder blockierter Slot
+
+**AK-441 Block ohne Vorschlag.** Hat ein nicht gehaltener Slot im Ergebnis keine
+Wahl, zeigt seine Karte denselben gestrichelten Block mit Ueberschrift `NO
+SUGGESTION` (kein `Use`, kein `Reject`, kein X) und **einer** Grundzeile in 11 px
+`MUTED` (Klartext, bis 2 Zeilen, voller Text im Tooltip). Kein stummer leerer
+Slot mehr. Gehaltene Slots behalten `Held empty — …` (AK-55).
+
+**AK-442 Grundzeilen** (Kategorie vom `architect`, Wortlaut hier; hoechstens zwei
+Namen, dann `and {n} more`):
+- Avoid: `Every relic left for this slot carries an effect you avoided: “{a}”, “{b}”.`
+- Reject: `Every relic left for this slot is one you rejected.`
+- Avoid und Reject gemischt: `Every relic left for this slot is rejected or carries an effect you avoided.`
+- Favourite-Effekt: `No relic left for this slot works together with “{effect}”, which you favourited.`
+- Stern: `The relics that could go here are used by your favourite “{relic}”.`
+- nichts uebrig (wie bisher): `You own no unused relic of this colour for this slot.` (Weiss: `…of any colour…`)
+
+**AK-443 Statuszeile mit Grund.** Die Klausel von 4.11 nennt den konkreten Grund
+statt `blocked by a requirement you marked`: haben alle leeren Slots denselben
+Grund, `{n} slot(s) empty: {short}` mit `{short}` = `everything left carries an
+effect you avoided` / `everything left is rejected` / `nothing left to choose
+from` (wie bisher) / `no relic left works with “{effect}” (Favourite)` / `your
+favourite “{relic}” uses the rest`; sonst `{n} slots empty for different
+reasons — see the slot cards`. Die Statuszeile darf wie bisher schrumpfen
+(AK-05), der volle Text steht im Tooltip. `SUGGESTED_WITH_AN_EMPTY_SLOT` bleibt
+ein Zustand.
+
+**AK-444 Teilerfuellung.** `{n} of {m} slots filled` zaehlt wie bisher; `Apply
+all` setzt die gefuellten Slots und laesst die leeren Slots unveraendert (ein
+Relikt, das der Spieler schon dort hat, bleibt); `Undo apply` stellt alles wie
+vorher her. Test: Vorschlag mit 1 leerem Slot, der ein Relikt traegt.
+
+##### 6. A18: Wortlaut ("counted" / "stays a candidate")
+
+"Zaehlt nicht" ist seit A18 vom 06.11.2026 falsch: ein vermiedener Effekt bringt
+das ganze Relikt aus dem Vorschlag. Wahr ist: `no suggestion uses a relic that
+carries it`.
+
+**AK-445 `MARKS_EXPLANATION`** (`effectfilterdialog.py:66-71`), Wortlaut:
+`Favourite: every suggestion must carry this effect. Avoid: no suggestion uses a
+relic that carries it — on a family header, every member below, unless one is set
+to Allow. Allow lets that one member back in without allowing the rest of the
+family. These marks apply to every Nightfarer. They are separate from the ★ you
+can give a relic in the relic picker: that is per Nightfarer, and Optimize puts a
+favourited relic in when it fits.` Das Legendenlabel waechst um eine Zeile;
+`OPENING_SIZE` neu messen, die Baumhoehe 449 px (AK-303) bleibt.
+
+**AK-446 Tooltips** (`effectfilterdialog.py:76-79`): `AVOID_TOOLTIP` = `No
+suggestion uses a relic that carries this effect.` `FAMILY_AVOID_TOOLTIP` = `No
+suggestion uses a relic that carries an effect of this family, unless a member
+below is set to Allow.` (`FAVOURITE_TOOLTIP`, `ALLOW_TOOLTIP`, `FILTERS_TOOLTIP`
+bleiben.)
+
+**AK-447 Why-Zeile** (`explain._marked_line`, bisher `{name}: you avoided it, so
+it is not counted.`): die Zeile erscheint nur noch an einem Relikt, das der
+Spieler gehalten oder gewaehlt hat. Zwei Fassungen, **der `architect` waehlt die
+wahre** (zaehlt der Effekt in der Zahl oder nicht):
+(A, nicht in der Zahl) `{name}: you avoided it. This relic is here because you
+kept it, and the effect is left out of the figure.`
+(B, in der Zahl) `{name}: you avoided it. This relic is here because you kept it,
+and the effect still counts in the figure.`
+`MARK_LEGEND` (`advisorblock.py:82`) muss dazu passen: bei Fassung B faellt dort
+"A struck-through effect does nothing for you: you avoided it" fuer Avoid weg.
+
+**AK-448 Handbuch** (`docs/anleitung/guide.md`, Englisch). Z. 216-223: `check
+**Avoid** and no suggestion uses a relic that carries it (a relic you place or
+hold yourself stays where you put it)`; die zitierte Legende = AK-445 woertlich.
+Z. 238-241 ersetzen durch: `**Favourites** — mark a relic in the picker as wanted
+for one or more Nightfarers. It leads the grid the next time you open a slot for
+that Nightfarer, and **Optimize** puts it into the build whenever it fits. If it
+cannot — it carries an effect you avoided, no free slot of its colour is left, or
+it would keep a favourite effect from being met — the status line says how many
+were left out and **Why** names each with its reason.` Neu zu beschreiben: das X
+an der Effektzeile (AK-420-426), `Reject` und die Liste (AK-427-430), der
+Gefaessvergleich (AK-432-435), `NO SUGGESTION` (AK-441). `CHANGELOG.md` und
+`README` nach `technical-writer`.
+
+**Suchergebnis** (`rg 'not counted\.|counts in no suggestion|it never counts|stays a candidate'`
+ueber das Projekt, 06.11.2026, ohne `.git`, `design-review`, Archiv):
+- *zu aendern, sichtbar:* `effectfilterdialog.py:67, :76, :78` (AK-445/446) ·
+  `explain.py:567` (AK-447) · `guide.md:217-218, :222` (AK-448) und `:240`
+  ("changes nothing about the build", falsch seit A28).
+- *zu aendern, Kommentar/Doku/Test:* `types.py:159` ("The relic stays a
+  candidate") · `favourites.py:4` ("changes nothing about the build") ·
+  `tests/test_effectfilterdialog.py:310` · `tests/test_advisor_run.py:288` ·
+  `tests/test_advisor_explain.py:982, :1007` · `ARCHITECTURE.md:6119-6120`
+  (AD-036.3).
+- *Spec-Verlauf, durch diesen Nachtrag ersetzt, nicht umgeschrieben:*
+  `UI_SPEC.md:1390` (AK-290.1-Tabelle), `:1614` (AK-305-Tooltip), `:5754`
+  (AK-290.1), `:7417` (AK-317.2) sowie die aelteren Fassungen `:5555, :5816,
+  :5826`. Es gilt der Wortlaut aus AK-445 bis AK-447.
+- *gleiche Woerter, anderer Sinn — nicht aendern:* `candidates.py:132` (bedingte
+  Effekte, 4.9b), `explain.py:651` + `UI_SPEC.md:8034` +
+  `tests/test_ailment_conditions.py:286` (Favourite-Bedingung),
+  `CHANGELOG.md:39`, `RELEASE_BODY.md:181`, `guide.md:123, :167-170`,
+  `advisorbar.py:142`. **Zu klaeren (`architect`):** `candidates.py:132` und 4.9b
+  sagen, bedingte Effekte seien "not counted"; GOAL A18 ("bedingte Effekte gehen
+  ein wie unbedingte") und `guide.md:235` sagen das Gegenteil. Ob der Satz nach
+  A18 noch stimmt, habe ich nicht geprueft.
+- Archiv (`docs/archiv/`, Berichte, Tasks, `qa/`, `tests/`-Treffer ausser den
+  oben genannten): Geschichte, nicht anfassen.
+
+##### 7. Zustaende und Plattform
+
+Leer: kein Vorschlag → kein X, kein `Reject`, Vergleichszeile und Ablehnliste
+versteckt. Laedt: AK-425/433. Fehler: AK-432. Erfolg: AK-426/429. Sehr viele
+Daten: Namenslisten auf zwei gekappt (AK-442), Ablehnliste scrollt (AK-430). Sehr
+lange Namen: elidieren, Tooltip mit vollem Text. Plattform: Windows-Desktop,
+Fusion-Stil, Maus und Tastatur, Zielgroesse 24 × 24 (X) bzw. 80 × 24 (Knoepfe),
+kein Hover-Zwang (Tooltips ergaenzen nur).
+
+##### 8. Aufwand je Ziel
+
+| Ziel | Schritte | Eingaben | Entscheidungen |
+|---|---|---|---|
+| Effekt im Vorschlag verbieten | 1 Klick (X) | 0 | 0, Neurechnung automatisch |
+| Relikt fuer diesen Build verwerfen | 1 Klick (`Reject`) | 0 | 0 |
+| Verwerfen zuruecknehmen | 2 Klicks (Faltknopf, `Suggest again`) | 0 | 0 |
+| Avoid zuruecknehmen | 3-4 (Filters, Suchen, Haken) | 1 Suchtext | 0 |
+| Bester Chalice samt Vorschlag | 2 Klicks (`Optimize`, `Switch to it`) | 0 | 0; vorher 11 × (waehlen + `Optimize`) |
+| Relikt als Pflicht | unveraendert 2 (Rechtsklick, Nightfarer-Kachel) | 0 | 1 (fuer wen) |
+
+##### 9. Ausdruecklich nicht Teil der Vorgabe
+
+Merken der Ablehnungen im gespeicherten Build oder ueber den Neustart; Zeichen
+"abgelehnt" im Picker; ein Rueckgaengig-Knopf fuer X in der Leiste; automatisches
+Wechseln des Gefaesses; Sortierung der Gefaessliste nach Wert; Vergleich ueber
+mehrere Nightfarer; Staerkeregler fuer Sterne; die Rechnung selbst (`architect`).
+
+#### Nachtrag A28-2 (ui-ux-designer), 2026-11-06 — Antworten auf `ARCHITECTURE.md` OF-63 und die Festlegungen des `architect` (AK-449 bis AK-460, Spec-Modus)
+
+*Quellen: OF-63 (a-f) und AD-057 bis AD-062 in `ARCHITECTURE.md`, Themenbereich Q.
+**Kein Fensterlauf**, alle Groessen sind Startwerte aus dem Code. Naechste freie AK:
+AK-466 (Stand 2026-11-07, Abschnitt 7a: AK-461 bis AK-465). Dieser Nachtrag **ersetzt nur die unten genannten Stellen** des Nachtrags
+A28 (AK-420 bis AK-448); alles andere dort gilt unveraendert. Das Wort "Wunsch" kommt
+im Programmtext nie vor, dort steht `favourite`.*
+
+**Gilt statt:**
+
+| Stelle im Nachtrag A28 | Ersetzt durch |
+|---|---|
+| AK-432 Absatz `{figure}`/`{difference}` ("Kopfzahl des Why-Dialogs") | AK-449 |
+| AK-432 Statuszeile: Fall "ein anderes ist besser", Gleichstand, Fall "angehalten" | AK-450, AK-453 |
+| AK-432 Zeilentext und Zeilen-Tooltip | AK-451, AK-452 |
+| AK-433 Satz "`Cancel` in der Leiste bricht Vorschlag **und** Vergleich ab" | AK-453 |
+| AK-435 (a), (c) bei Holds oder Rejects | AK-454 |
+| AK-439 Liste der Gruende, Leistenklausel | AK-455, AK-456 |
+| AK-442 Saetze "Favourite-Effekt" und "Stern", AK-443 `{short}` | AK-457 |
+| AK-447 "zwei Fassungen" | AK-458: **Fassung A** |
+| A7-Saetze (AK-281/AK-291) `No combination of the copies you own carries …` und `…which you favourited — no suggestion can meet that.` (zwei Stellen, Zeile 1392/1393 dieser Datei) | AK-462 (Kombination), AK-461 (Avoid); der Satz "No copy you own carries …" bleibt in der Aussage |
+| AK-450 Satz 3, Satz 5, Absatz "Satz 3 und 4 sagen …"; Kopf-Absatz "Zum offenen BEST-Rang" (Fassungen A/B) | AK-463 bis AK-465 |
+
+**Zum BEST-Rang (OF-62): entschieden am 2026-11-07** (`GOAL.md` A28, letzter Punkt,
+Nutzerzitat): erst erfuellte Effekt-Favourites, dann Stern-Relikte, dann Zahl des
+gewaehlten Ziels, dann das andere Ziel. Es gibt keine Fassung B mehr; die Saetze
+AK-450 (3) und (4) sind echte Faelle, die Zeile `{n} favourite(s) missing` (AK-452) ist
+Pflicht. Massgeblich sind AK-463 bis AK-465 (Abschnitt 7a); wo AK-450 und AK-452 davon
+abweichen, gilt Abschnitt 7a.
+
+##### 1. Zahlquelle fuer den Gefaessvergleich (OF-63 a)
+
+**AK-449.** `Suggestion.score.display` des besten Vorschlags eines Gefaesses (AD-062.6),
+bei Gefaessen ohne Vorschlag die Grundlinie, ist die einzige Quelle; es gibt keine zweite
+Zahl und keine Neuformatierung. Daraus drei Schreibweisen:
+- `{figure}` = `display` ganz (z. B. `Attack rating 117`): Statuszeile, Tooltip,
+  Zugaenglichkeitstext.
+- `{number}` = der Teil nach dem letzten Leerzeichen (`117`, `×1.42`), wenn er eine Ziffer
+  enthaelt, sonst `—`: **nur** die zweite Textzeile der Listenzeile, damit das Ziel nicht
+  elfmal in der schmalen Spalte steht und `BEST` samt Zahl nie abgeschnitten wird.
+- `{difference}` = Betrag des Unterschieds der beiden `value`, in der Zahlform von
+  `{number}` (ganze Zahl bei Rating und HP, zwei Stellen bei `×`-Zahlen);
+  `explain._signed_delta` kann das nur fuer ganze Zahlen. Wird der Unterschied in dieser
+  Form `0`, obwohl die Werte verschieden sind, entfaellt der Zusatz `, {difference}
+  more/less than this one` und die Klammer nennt nur `{figure}`.
+- Akzeptanz: Test `vessel_row.figure == run.run(...).suggestions[0].score.display` je
+  Gefaess (Waechter aus AD-062); kein eigener Formataufruf in `app.py`.
+
+##### 2. Satz in der Statuszeile, wenn BEST die kleinere Zahl hat (OF-63 b)
+
+**AK-450.** Ersetzt die Faelle "ein anderes ist besser" und "Gleichstand" aus AK-432.
+`{total}` ist immer die Zahl aller Gefaesse (11), auch wenn Zeilen nach AK-451 keinen Wert
+tragen. Die Statuszeile folgt der **gewaehlten** Zeile sofort: Klick auf eine andere Zeile
+rechnet Satz, `{difference}` und Knopf neu, ohne neuen Lauf; die Zahlen der Zeilen bleiben.
+
+1. Das gewaehlte Gefaess ist das beste: `This is the best of {total} vessels for {goal}:
+   {figure}.` Kein Knopf.
+2. Ein anderes ist das beste, **hoehere** Zahl: `Best of {total} for {goal}: {name}
+   ({figure}, {difference} more than this one).` Knopf `Switch to it`.
+3. Ein anderes ist das beste, **gleiche** angezeigte Zahl: `Best of {total} for {goal}:
+   {name} ({figure}, same as this one, but it meets more of your favourites).`
+4. Ein anderes ist das beste, **kleinere** Zahl: `Best of {total} for {goal}: {name}
+   ({figure}, {difference} less than this one, but it meets more of your favourites).`
+5. Gleichstand = alle Rangschluessel vor "das gewaehlte" (AD-062.6) gleich: `{k} vessels
+   tie for best at {figure}: {name}, {name}` (ab drei Namen `…and {n} more`); sind es alle:
+   `All {total} vessels tie at {figure}.` Knopf wie in AK-432 (keiner, wenn das gewaehlte
+   dazugehoert, sonst auf das getragene Gefaess, sonst auf das erste der Liste).
+
+Satz 3 und 4 sagen "favourites" fuer Effekt-Favourites **und** Stern-Relikte zusammen; welche
+der Rang zaehlt, entscheidet der `architect`; der Satz bleibt wahr, solange `BEST` mindestens
+eines mehr erfuellt. Hoechstens zwei Zeilen Umbruch (AK-432), voller Text im Tooltip.
+- Akzeptanz: je Satz ein konstruierter Fall (3 und 4 nur unter Fassung A erreichbar); der
+  Satz widerspricht nie der Zeilenreihenfolge (`BEST` steht an der Zeile, die der Satz
+  nennt); in Satz 4 steht nirgends "more".
+
+##### 3. Zeilen: gehaltene Relikte ohne Platz, fehlende Favourites (OF-63 c)
+
+**AK-451 Das Gefaess nimmt die gehaltenen Relikte nicht auf** (`unfit_holds` nicht leer). Die
+Zeile hat **keine** Zahl und nie `BEST`; ihre zweite Textzeile heisst `Your held relics do
+not fit` (11 px, `MUTED`, Klartext). Sie steht im Rang zuletzt, die Reihenfolge der Liste
+bleibt (AK-432). Tooltip statt der Vergleichszeile: `Not compared: {name} would not fit any
+slot of this vessel.` (bis zwei Namen, dann `…and {n} more`), danach wie bisher `Equipped
+in game`. Zugaenglichkeitstext `{name}, your held relics do not fit, not ranked`. Kein
+Hinweis in der Statuszeile (die Zeile sagt es selbst; ein Satz mehr waere ein dritter
+Umbruch). Der Fortschritt `{done} of {total}` zaehlt diese Zeile mit.
+
+**AK-452 Zweite Textzeile und Tooltip einer Zeile mit Zahl.**
+- Text: `{number}`, bei der besten Zeile `BEST  {number}` (`ACCENT`, AK-432). Sind Favourites
+  unerfuellt (`required_left_out` plus `pins_left_out` > 0), haengt `  ·  {n} favourite
+  missing` / `{n} favourites missing` an (Trenner `CLAUSES`, 11 px `MUTED`). Am Ende
+  elidiert, nie davor: `BEST` und Zahl bleiben sichtbar.
+- Tooltip: `Compared: {figure} for {goal} — rank {r} of {total}.`; fehlen Favourites,
+  `Misses: {names}.` (Effektnamen, dann Reliktnamen, bis vier, dann `…and {n} more`); sind
+  die gehaltenen Relikte des gewaehlten Gefaesses hierher gelegt (AD-062.5), `Compared with
+  your {n} held relic(s) placed in it.`
+- Akzeptanz: eine Zeile ohne fehlende Favourites zeigt nichts davon; `{n}` stimmt mit der
+  Zahl der Namen in `Misses:` ueberein.
+
+##### 4. `Cancel` und der Vergleich (OF-63 e)
+
+**AK-453 Antwort: kein zweiter Abbruchknopf.** Waehrend des Vergleichs steht die Leiste auf
+`Optimize` (der Vorschlag ist da) und der Vergleich blockiert nichts (AK-433). In der Leiste
+ist ein weiterer Knopf nach AK-07 ausgeschlossen; in der Liste waere er ein Bedienelement
+fuer einen Hintergrundlauf, der sich bei jeder Eingabe ohnehin erneuert. Er wird nur
+nachgeruestet, falls `performance-tuner` am Fenster (Pruefpunkt b, AD-062) den Picker
+waehrend des Vergleichs traege findet. Ein Vergleich endet durch: fertig · neuer `Optimize`,
+`X`, `Reject`, `Suggest again` · Veraltung (AK-434) · Fenster schliessen. Dazu:
+- `Cancel` in der Leiste gilt dem Vorschlag, der dann noch laeuft (AK-425); der Vergleich
+  hat da nicht begonnen, die Liste faellt auf "ohne Vergleich" (Statuszeile verborgen,
+  Zeilen ohne zweite Textzeile). Der Satz `Comparison stopped.` und der Fall "angehalten"
+  aus AK-432 **entfallen**, kein Nutzerweg fuehrt dorthin.
+- Ab dem Start eines Laufs (`Optimize`, `X`, `Reject`, `Suggest again`) zeigen alle Zeilen
+  `…` als zweite Textzeile; die Statuszeile sagt `Comparing your vessels for {goal}…` ohne
+  Zahl, bis der Vorschlag da ist, dann `… {done} of {total}`. Alte Werte stehen nie neben
+  einem neuen Lauf (kein `BEST` auf einer Zahl, die nicht mehr gilt).
+- Der Fehlersatz `Could not compare the vessels — {reason}.` bleibt.
+- Akzeptanz: nach `Cancel` des Vorschlagslaufs sind Statuszeile und zweite Textzeilen
+  verborgen; waehrend ein `X`-Lauf rechnet, steht kein `BEST`; kein Nutzerweg erzeugt
+  `Comparison stopped.`.
+
+##### 5. Zeilenklick bei Holds oder Rejects (OF-63 f)
+
+**AK-454.** So wie in AD-062.7 entschieden, plus die Sichtbarkeit:
+- Der gewoehnliche Klick wechselt das Gefaess und uebertraegt nichts. Hat der Spieler Holds
+  oder Rejects, gibt es keinen Treffer und die Leiste steht auf 4.1 `Nothing suggested
+  yet.`; hat er keine und ist der Vergleich aktuell, zeigt sie sofort den Vorschlag (AK-435).
+- Der Tooltip jeder Zeile, deren Wert mit uebertragenen Holds oder Rejects gerechnet ist,
+  bekommt als letzte Vergleichszeile: `Click opens it as you left it. Switch to it brings
+  your held relics and rejections along.` Ohne Holds und Rejects fehlt sie.
+- Tooltip von `Switch to it`, mit Holds oder Rejects: `Moves your held relics and
+  rejections to this vessel and replaces the slots saved there. Undo apply puts them back.`
+  Ohne beide: `Opens this vessel with its suggestion.`
+- Nach `Switch to it` mit uebertragenen Holds steht die Leiste im Zustand 4.13 `Applied.
+  Undo puts your slots back as they were.` **mit** dem Vorschlag; `Undo apply` stellt die
+  Slots des Zielgefaesses und die Holds und Rejects beider Gefaesse her.
+- Akzeptanz: Test "Vorschlag mit Hold, `Switch to it`, `Undo apply`": die gespeicherten
+  Slots des Zielgefaesses sind danach gleich wie davor; der gewoehnliche Klick startet
+  keinen Lauf.
+
+##### 6. Gruende fuer Favourites, die nicht hineinkommen
+
+**AK-455 Leistenklausel fuer Favourite-Effekte (OF-63 d).** In den drei Ergebniszustaenden
+(4.6, 4.9, 4.11), auch bei **voll gefuellten** Slots, steht eine weitere Klausel
+(`CLAUSES`, **vor** der Klausel der Relikte aus AK-439): `1 favourite effect could not be
+met` / `{n} favourite effects could not be met`. Tooltip: je Effekt die Zeile aus
+`required_but_unmet`, derselbe Satz, den der `Why`-Dialog nennt (eine Quelle). Die Klausel
+`blocked by a requirement you marked` entfaellt ganz (AD-058.5 ersetzt das Feld). Beispiel:
+`Attack rating 117 — 6 of 6 slots filled  ·  2 favourite effects could not be met`. Sind
+zugleich Slots leer (AK-443), stehen alle Klauseln in der Reihenfolge: leere Slots, Effekte,
+Relikte.
+- Akzeptanz: 6 von 6 gefuellt und 2 Favourite-Effekte offen → Klausel steht; alle
+  erfuellt → sie fehlt; `{n}` = Laenge von `required_left_out`.
+
+**AK-456 Wortlaut der sieben `PIN_*` (ersetzt die Liste in AK-439).** Zeile im
+`Why`-Dialog: `{relic name} ({effect}, {effect}) — {reason}`; Tooltip der Leiste `{name}:
+{reason}`. Jeder Grund ist ein kleingeschriebener Halbsatz ohne Punkt:
+
+| Konstante | `{reason}` |
+|---|---|
+| `PIN_AVOIDED` | `it carries “{effect}”, which you avoided` |
+| `PIN_REJECTED` | `you rejected it for this build` |
+| `PIN_NO_COPY` | `you own no copy that is free` |
+| `PIN_NO_SLOT` | `this vessel has no slot that fits its colour`; ist es ein Deep-Relikt und Deep of Night aus: `it is a Deep of Night relic and Deep of Night is off` |
+| `PIN_SLOTS_HELD` | `every slot it could go in is held` |
+| `PIN_OTHER_PIN` | `“{other}” is favourited too and takes the only slot it could use` |
+| `PIN_BLOCKS_REQUIREMENT` | `placing it would leave “{effect}” (Favourite) unmet` |
+
+Den Rest "it does not fit with the other choices" gibt es nicht mehr (AD-059.5: wird nie
+erzeugt); eine unbekannte Konstante ist ein Fehler (`KeyError` wie bei den Leistensaetzen),
+kein stiller Fallback. `{effect}` und `{other}` sind Spielnamen (Klartext, SEC-019). Der
+Satz sagt `fits its colour`, nicht `of its colour`: ein farbiges Relikt passt auch in einen
+weissen Slot, "kein Slot seiner Farbe" waere falsch.
+- Akzeptanz: je Konstante ein Fall mit dem Satz wortgleich; `PIN_NO_SLOT` in beiden Formen.
+
+**AK-457 Wortlaut der sechs `EMPTY_*` (ersetzt AK-442 und AK-443 `{short}`).** Nennt ein Satz
+Namen: hoechstens zwei, dann `and {n} more` (Form `“{a}”, “{b}” and {n} more`).
+
+| Konstante | Grundzeile auf der Karte (AK-441) | `{short}` in der Leiste (AK-443) |
+|---|---|---|
+| `EMPTY_REQUIREMENT` | `The relics that could go here are needed elsewhere to carry “{effect}”, which you favourited.` | `what is left is needed for your Favourite effects` |
+| `EMPTY_PIN` | `The relics that could go here are used by your favourite “{relic}”.` | `your favourite “{relic}” uses the rest` |
+| `EMPTY_AVOIDED_AND_REJECTED` | `Every relic left for this slot is rejected or carries an effect you avoided.` | `everything left is rejected or carries an avoided effect` |
+| `EMPTY_AVOIDED` | `Every relic left for this slot carries an effect you avoided: “{a}”, “{b}”.` | `everything left carries an effect you avoided` |
+| `EMPTY_REJECTED` | `Every relic left for this slot is one you rejected.` | `everything left is rejected` |
+| `EMPTY_NOTHING` | `You own no unused relic of this colour for this slot.` (Weiss: `…of any colour…`) | `nothing left to choose from` |
+
+Haben alle leeren Slots denselben Grund: `{n} slot(s) empty: {short}`; sonst `{n} slots
+empty for different reasons — see the slot cards`. Der Satz "works together with" aus dem
+alten AK-442 entfaellt: die Bedingung von `EMPTY_REQUIREMENT` ist "die Kopien werden
+anderswo gebraucht", nicht "sie passen nicht dazu". Die Leiste nennt dort keine Namen
+(mehrere Effekte moeglich), die Karte bis zwei.
+- Akzeptanz: je Konstante ein Fall, Karte und Leiste wortgleich zur Tabelle; die Karte nennt
+  nie einen Namen, der nicht in `effect_ids` bzw. `relic_name` steht.
+
+##### 7. Festlegungen des `architect`, soweit sie Wortlaut betreffen
+
+**AK-458 AK-447: Fassung A gilt.** `{name}: you avoided it. This relic is in the build because
+you chose it, and the effect is left out of the figure.` ("chose" statt "kept": die Zeile
+erscheint auch an einem von Hand gewaehlten, nicht gehaltenen Relikt.) `MARK_LEGEND`
+(`advisorblock.py:82`) bleibt; "A struck-through effect does nothing for you: you avoided it"
+stimmt unter A. Fuer das Handbuch (AK-448) ein Satz: die Beraterzahl weicht dort vom
+Werteblatt des Spiels ab.
+- Akzeptanz: `rg 'because you kept it'` im Code und in den Tests trifft nichts mehr.
+
+**AK-459 Kopf des `Why`-Dialogs.** Bleibt ohne Zahl (`head_sentence`). Es wird keine Zahl in
+den Kopf gebaut, damit AK-432 eine hat; AK-449 liest nur `score.display`.
+
+**AK-460 Aufwand.** Unveraendert gegenueber Abschnitt 8 des Nachtrags A28 (`Optimize`,
+`Switch to it`: 2 Klicks, 0 Eingaben, 0 Entscheidungen). Mit Holds oder Rejects bleiben es 2
+Klicks, aber der Spieler trifft dort eine Entscheidung: Zeilenklick (nichts mitnehmen) oder
+`Switch to it` (mitnehmen), AK-454.
+
+##### 7a. Nachtrag 2026-11-07 (ui-ux-designer): A7-Saetze bei Avoid und Teilerfuellung, Rang des Vergleichs (AK-461 bis AK-465)
+
+*Quellen: `ARCHITECTURE.md` AD-057.5 und AD-058, `explain.required_but_unmet`
+(`explain.py:1247-1293`), `GOAL.md` A28. Kein Fensterlauf. Naechste freie AK: AK-466.*
+
+**AK-461 Eigene Traeger alle mit Avoid (AD-057.5).** Fall in `required_but_unmet`: der Spieler
+besitzt mindestens ein Relikt mit dem Effekt-Favourite, kein Pool enthaelt einen Traeger, und
+**jedes** besessene Relikt mit diesem Effekt traegt mindestens einen vermiedenen Effekt oder
+Fluch. Dieser Satz geht vor dem Satz `none fits the open slots` und vor dem Deep-Zusatz.
+Ist nur ein Teil der Traeger vermieden, bleibt der bisherige Satz (`none fits the open slots`
+ist dort wahr). Wortlaut (Namen in Anfuehrungszeichen wie AK-456; die vermiedenen Namen
+sind die Vereinigung ueber diese Relikte, alphabetisch, hoechstens zwei, dann `and {n} more`,
+Form AK-457):
+- ein Relikt: `You own 1 copy carrying “{effect}”, which you favourited, but it also carries an
+  effect you avoided: {names}. Remove the avoid under Filters to use it.`
+- mehrere: `You own {n} copies carrying “{effect}”, which you favourited, but each also carries an
+  effect you avoided: {names}. Remove the avoid under Filters to use them.`
+
+Der Schlusssatz nennt den Weg (Filters-Knopf, AK-302) und ist deshalb Pflicht. Der Satz sagt
+nie `no suggestion can meet that`: der Spieler kann es aendern.
+- Akzeptanz: Fall "ein Traeger, vermieden" und "drei Traeger, zwei verschiedene Avoids" mit
+  dem Satz wortgleich; Fall "ein Traeger vermieden, einer wegen Farbe nicht passend" liefert
+  den Bestandssatz; `rg 'none fits the open slots'` trifft den Fall "alle Traeger vermieden"
+  im Test nie.
+- Nicht festgelegt: ein per `Reject` abgelehntes Relikt (kein Avoid) faellt heute ebenfalls
+  in `none fits`; ein eigener Satz dafuer ist eine Frage an den `architect`, hier nicht
+  entschieden.
+
+**AK-462 Bestandssatz bei Teilerfuellung (AD-058).** Der Satz in `required_but_unmet`, der
+heute lautet `No combination of the copies you own carries {effect}, which you favourited —
+no suggestion can meet that.`, steht dort, wo ein Pool einen Traeger **hat** (der Effekt fehlt,
+weil die freien Slots ihn nicht zusammen mit den uebrigen tragen koennen). Er ist falsch
+geworden: eine andere Kombination traegt den Effekt, und "no suggestion can meet that" klingt
+nach Unmoeglichkeit. Neuer Wortlaut:
+
+`Your copies can carry “{effect}”, which you favourited, but not together with the favourites
+this suggestion already meets.`
+
+Der Satz `No copy you own carries “{effect}”, which you favourited — no suggestion can meet
+that.` (kein Relikt im Besitz) **bleibt** in der Aussage, denn dort stimmt er; dazu die
+Anfuehrungszeichen, ebenso im Satz `You own {n} copy/copies carrying “{effect}”, but none
+fits the open slots` (eine Konvention in einem Dialog). Der Satz "kein Vorschlag kann das
+erfuellen" steht damit nur noch dort, wo der Spieler das Relikt gar nicht besitzt.
+- Akzeptanz: `rg 'No combination of the copies you own'` und `rg 'no suggestion can meet
+  that'` treffen im Code nur noch den Satz "No copy you own"; Test mit einem Pool-Traeger
+  und fehlendem Effekt liefert den neuen Satz; AK-455 (Tooltip der Leistenklausel) nennt
+  denselben Satz (eine Quelle).
+
+**AK-463 Rang des Gefaessvergleichs (Entscheidung des Nutzers, `GOAL.md` A28).** Reihenfolge
+der Schluessel, jeweils der bessere zuerst, hinter "unfit zuletzt" (AK-451):
+1. mehr erfuellte **Effekt-Favourites** (weniger `required_left_out`),
+2. mehr erfuellte **Stern-Relikte** (weniger `pins_left_out`),
+3. hoeherer Wert des **gewaehlten Ziels**,
+4. hoeherer Wert des **anderen Ziels** (Schaden bzw. Abwehr).
+
+Danach (nicht sichtbar) Listenreihenfolge als letzter Entscheider. Diese Fassung ersetzt
+die Vermutung in AK-450 "welche der Rang zaehlt, entscheidet der `architect`": beide
+Favourite-Arten zaehlen, Effekte vor Sternen. Der `architect` zieht `ranked` (AD-062.6) nach;
+ein frueherer Schluessel "mehr `filled`" ist durch die Nutzerentscheidung nicht gedeckt.
+- Akzeptanz: Testfaelle, in denen je ein Schluessel allein entscheidet (1, 2, 3, 4); der
+  Test des Schluessels 4 hat gleiche Zahl im gewaehlten Ziel und verschiedene im anderen.
+
+**AK-464 Saetze der Statuszeile nach dem Rang.** AK-450 (1), (2) und (4) bleiben
+wortgleich. Die Faelle werden am **Wert** des gewaehlten Ziels unterschieden (nicht an der
+angezeigten Zahl):
+- (2) BEST hat den hoeheren Wert: wie AK-450 (2), auch wenn BEST zusaetzlich mehr Favourites
+  erfuellt (der Satz ist dann ebenfalls wahr; `{difference}` entfaellt nur nach AK-449).
+- (3) gleicher Wert, BEST erfuellt mehr Favourites (Effekte oder Sterne): wie AK-450 (3),
+  `…, same as this one, but it meets more of your favourites).`
+- **(3b) neu:** gleicher Wert, gleich viele erfuellte Favourites, BEST ist im **anderen** Ziel
+  besser: `Best of {total} for {goal}: {name} ({figure}, same as this one, but better for
+  {other}).` mit `{other}` = Name der anderen Zielrichtung aus derselben Quelle wie `{goal}`.
+  Ohne diesen Satz wuerde (3) hier falsch sagen, BEST erfuelle mehr Favourites.
+- (4) kleinerer Wert: wie AK-450 (4); das ist unter AK-463 nur moeglich, wenn BEST mehr
+  Favourites erfuellt, der Satz bleibt dadurch immer wahr.
+- (5) Gleichstand: **alle vier** Schluessel aus AK-463 gleich (nicht nur die Zahl des
+  gewaehlten Ziels); sonst entscheidet (3b).
+- Akzeptanz: je Satz ein konstruierter Fall, auch (3), (3b), (4) sind ab jetzt erreichbar;
+  zwei Gefaesse mit gleicher Zahl im gewaehlten Ziel und verschiedener im anderen zeigen
+  (3b), nicht (5) und nicht (3).
+
+**AK-465 `favourite(s) missing` ist Pflicht; OF-62 geschlossen.** Die Zeile
+`  ·  {n} favourite missing` / `{n} favourites missing` in der zweiten Textzeile (AK-452) steht
+immer, wenn `required_left_out` plus `pins_left_out` > 0 ist, in beiden Faellen: auf `BEST` und
+auf jeder anderen Zeile. `{n}` zaehlt Effekte und Sterne zusammen (wie die Schluessel 1 und 2).
+Der Tooltip `Misses: {names}.` nennt erst Effektnamen, dann Reliktnamen (AK-452), das
+entspricht der Reihenfolge des Rangs. Die Offenheit zu OF-62 und die Fassungen A/B im
+Kopf dieses Nachtrags sind erledigt.
+- Akzeptanz: eine Zeile mit `required_left_out` oder `pins_left_out` > 0 zeigt die Zeile,
+  auch wenn sie `BEST` ist; eine Zeile ohne fehlende Favourites zeigt nichts davon; `{n}` =
+  Zahl der Namen in `Misses:`. Eine `BEST`-Zeile mit kleinerer Zahl wird durch Satz (4)
+  der Statuszeile erklaert, die Zeile selbst zeigt die Zahl der **noch** fehlenden.
+
+##### 8. Offene Fragen an den App Designer
+
+- **OF-62: beantwortet am 2026-11-07** (Nutzerzitat in `GOAL.md` A28), keine Offenheit
+  mehr; siehe AK-463 bis AK-465. Das Wort bleibt `BEST` (der Nutzer sagt "als beste
+  markieren"); `AK-450 (3)/(4)` und AK-452 erklaeren, warum die Zahl kleiner sein kann.
+- **`Switch to it` mit Holds ueberschreibt gespeicherte Slots des Zielgefaesses** (AD-062,
+  Risiken), ohne Rueckfrage, rueckholbar nur ueber `Undo apply` (AK-454). Der `architect`
+  bestaetigt, dass Undo das voll abdeckt; sonst braucht der Knopf eine Bestaetigung, wenn
+  das Zielgefaess an diesen Stellen gespeicherte Relikte hat.
+
+#### Nachtrag A28-3 (ui-ux-designer), 2026-11-07 — Angleichung an den Code (HEAD 05f946c), AK-466 bis AK-468 (Spec-Modus)
+
+*Quellen: `effectfilterdialog.py` (HEAD), `advisor/explain.py`, `advisor/types.py`,
+`effecttext.py:439`, `ARCHITECTURE.md` AD-062.7/.8, `GOAL.md` A28 (letzter Punkt, "Fremde
+Favoriten", Nutzer, 07.11.2026). **Nur festgehalten, was im Code steht; kein neuer
+Entwurf, kein Fensterlauf.** Naechste freie AK: AK-469. Wortlaute unten sind aus dem Code
+uebernommen und massgeblich, sobald Code und Spec so stehen.*
+
+**Gilt statt:**
+
+| Stelle | Ersetzt durch |
+|---|---|
+| AK-445 `MARKS_EXPLANATION` (Wortlaut im Nachtrag A28) | AK-445 unten |
+| AK-446 `FAVOURITE_TOOLTIP` ("bleiben" in A28) | AK-446 unten; `AVOID_TOOLTIP`, `FAMILY_AVOID_TOOLTIP`, `ALLOW_TOOLTIP` unveraendert |
+| AK-383 (nur die Waffenart-Zeile) | AK-383 unten: drei Ursachen statt einer |
+| AK-454 letzter Punkt ("`Undo apply` stellt die Slots ... her") | AK-454 unten: auch die Hand |
+| AK-456 Zeile `PIN_OTHER_PIN` | AK-456 unten: zwei Fassungen |
+| AK-461 "Nicht festgelegt: ein per `Reject` abgelehntes Relikt" | AK-467 |
+| AK-440 Satz "Effekt-Favourite ... gelten fuer jeden Nightfarer" | AK-445 und AK-468 |
+
+**AK-445 (Wortlaut HEAD).** `MARKS_EXPLANATION`, woertlich: `Favourite: every suggestion for
+this Nightfarer must carry this effect, if it can. Avoid: no suggestion uses a relic that
+carries it — on a family header, every member below, unless one is set to Allow. Allow lets
+that one member back in without allowing the rest of the family. These marks apply to every
+Nightfarer; an effect that only works for another Nightfarer is ignored here. They are
+separate from the ★ you can give a relic in the relic picker: that is per Nightfarer, and
+Optimize puts a favourited relic in when it fits.` `OPENING_SIZE` ist `(608, 707)` [**veraltet,
+korrigiert T-336f 2026-11-07: jetzt `(702, 733)`, siehe AK-469 bis AK-473**] (Kommentar
+im Code: die Saetze zu fremden Marken kosten 26 px, die Baumhoehe 449 px bleibt, offscreen,
+Fusion, 07.11.2026).
+- Akzeptanz: der Wortlaut steht einmal im Code (`rg 'must carry this effect, if it can'`
+  trifft Legende und Tooltip, `guide.md` zitiert ihn woertlich); die Baumhoehe bleibt 449 px.
+
+**AK-446 (Wortlaut HEAD).** `FAVOURITE_TOOLTIP` = `Every suggestion for this Nightfarer must
+carry this effect, if it can.` Die uebrigen drei Tooltips wie in A28.
+
+**AK-383 (Erweiterung, Wortlaut HEAD).** Neben dem Waffenzahl-Satz des Nachtrags gibt es zwei
+weitere Zeilen fuer einen favorisierten Effekt, der in der Rechnung nichts bewegt
+(`explain._silent_effect`, Pruefung vor allem anderen):
+- Effekt eines anderen Nightfarers (`problem.favourites_of_others`, `silence` =
+  `SILENT_ANOTHER_NIGHTFARER`): `{name}: you favourited it, but it only works for
+  {nightfarer}, so it moves no number.` `{nightfarer}` = Besitzer laut `effecttext.owner`,
+  fehlt er: `another Nightfarer`.
+- Effekt, der auf den Gegner wirkt (`model.ON_THE_ENEMY_EFFECT_IDS`, `silence` =
+  `SILENT_REQUIRED_OTHER_TYPE`): `{name}: you favourited it, but it acts on the enemy, so it
+  moves no number.`
+- Beide gehen vor dem Waffenzahl-Satz und vor `_marked_line`.
+- Akzeptanz: je Zeile ein Fall mit dem Satz wortgleich; ein gezaehlter Favourite traegt
+  weiter AK-290.2.
+
+**AK-454 (Erweiterung: die Hand, `ARCHITECTURE.md` AD-062.8).** Die Hand (Schalter
+Ein-/Zweihand, `two_handed`) gehoert zur Frage einer Zeile und zum gespeicherten Gefaess:
+- `Switch to it` nimmt die Hand der Frage mit; geschrieben wird sie nur, wenn ein
+  `Undo apply` moeglich ist (mit uebertragenen Holds sofort, ohne beim Anwenden).
+  `Undo apply` stellt die Hand mit her, zusammen mit Slots, Holds und Rejects.
+- Der gewoehnliche Zeilenklick nimmt nichts mit, auch die Hand nicht; das gefragte Gefaess
+  selbst oeffnet nur. Ein Klick in ein Gefaess mit anderer gespeicherter Hand ist ein
+  Fehlschlag, die Leiste steht auf 4.1.
+- Vor dem Uebertragen prueft `Switch to it` den Treffer (`comparison_knows`); ohne Treffer
+  wechselt es nur und ueberschreibt nie Slots ohne `Undo apply`.
+- Akzeptanz: Test "Vorschlag mit anderer Hand, `Switch to it`, `Undo apply`": Hand und
+  Slots danach wie davor; Zeilenklick aendert die Hand nicht.
+
+**AK-456 (Erweiterung `PIN_OTHER_PIN`, Wortlaut HEAD).** Ist das andere favorisierte Relikt
+dasselbe Relikt (`left.other == left.name`, zwei Kopien), lautet der Grund `another
+favourited copy takes the only slot it could use`; sonst wie in AK-456 (`“{other}” is
+favourited too and takes the only slot it could use`).
+
+**AK-466 Zeilen am gehaltenen Relikt und am Gegner (Wortlaut HEAD).**
+- Avoid am gehaltenen Relikt (`explain.avoided_on_a_hold`, neben der Zeile der gehaltenen
+  Slots): `{relic}, held in Slot {n} — {name}: you avoided it. This relic is in the build
+  because you chose it, and the effect is left out of the figure.` Der zweite Teil ist AK-458
+  wortgleich; `{n}` zaehlt ab 1. Ein Vorschlag bietet nie eine Kopie mit vermiedenem Effekt an
+  (AD-057), die Zeile erscheint darum nur am eigenen, gehaltenen Relikt.
+- Favourite am gehaltenen Relikt (`required_met_by_a_hold`, A19): `{name}, which you
+  favourited, is carried by {relic} held in Slot {n}.` (mehrere Traeger mit Komma).
+- Effektbeschreibung eines Effekts auf den Gegner (`effecttext`, `ON_THE_ENEMY_EFFECT_IDS`):
+  der Text beginnt mit `On the enemy: `, danach die Werte; der Effekt zaehlt nie in eigene
+  Summen (`is_conditional` ist immer wahr).
+- Akzeptanz: je Satz ein Fall wortgleich; `rg 'because you kept it'` trifft nichts.
+
+**AK-467 Saetze fuer abgelehnte Traeger (`explain._every_copy_turned_down`, Wortlaut
+HEAD).** Betrifft `required_but_unmet`, wenn der Spieler Kopien besitzt und **jede**
+abgelehnt oder vermieden ist; Anfang jeweils `You own {n} copy/copies carrying “{effect}”,
+which you favourited, but ` und `{it}` = `it` bei einer Kopie, sonst `them`:
+- nur Avoid (AK-461): `{it|each} also carries an effect you avoided: {names}. Remove the avoid
+  under Filters to use {it}.` (`it` bei einer Kopie, `each` sonst)
+- nur `Reject`: `you rejected {it} for this build. Use Suggest again to bring {it} back.`
+- gemischt: `each is rejected for this build or also carries an effect you avoided:
+  {names}. Use Suggest again, or remove the avoid under Filters, to use them.`
+- `{names}`: hoechstens zwei, dann `and {n} more` (AK-457). Ist eine Kopie nur nicht passend
+  (nicht abgelehnt), steht der Bestandssatz `none fits the open slots`.
+- Akzeptanz: je Satz ein Fall wortgleich; jeder nennt den Weg zurueck (`Suggest again` bzw.
+  `Filters`).
+
+**AK-468 Favourites anderer Nightfarer (Nutzer, `GOAL.md` A28 letzter Punkt, 07.11.2026).**
+Ein Effekt-Favourite eines anderen Nightfarers wird beim aktuellen Helden ignoriert: er
+bekommt keinen Slot, zaehlt nicht als fehlend (weder in `{n} favourite(s) missing`, AK-452/465,
+noch in der Leistenklausel, AK-455, noch in `Misses:`) und bindet den Vorschlag nicht. Die
+Marke bleibt gespeichert und gilt wieder beim anderen Nightfarer. Sichtbar wird das an drei
+Stellen: der Legende (AK-445), dem Tooltip (AK-446) und der Why-Zeile aus AK-383. Das
+Handbuch (`guide.md`) sagt es in einem Satz.
+- Akzeptanz: ein Favourite eines anderen Nightfarers aendert Vorschlag, Rang und Zaehler
+  nicht; die Marke ist nach Wechsel des Nightfarers noch da.
+
+#### Nachtrag T-336f (ui-ux-designer), 2026-11-07 — Spalte `Stacks` im Effektfilter, AK-469 bis AK-473 (Spec-Modus, nur nachgetragen)
+
+*Quellen: `nrplanner/effectfilterdialog.py` und `nrplanner/effectfilters.py` (HEAD `10e2c07`),
+`nrplanner/advisorblock.py:105`, `advisor/explain.py:691`, `docs/berichte/T-336-qa-engineer.md`,
+Nutzerentscheidungen vom 07.11.2026 (Auftrag T-336, T-336b, T-336d). **Gebaut und entschieden;
+kein Umbau, kein Programmlauf.** Erweitert §3.6 (AK-304: aus fuenf werden sieben Spalten).
+Wortlaute sind aus dem Code uebernommen und massgeblich. Naechste freie AK: AK-474.*
+
+**AK-469 Die Spalte.** Die Tabelle hat sieben Spalten: `Favourite`, `Avoid`, `Allow`, **`Stacks`**,
+`Name`, `Type`, `Copies`. `Stacks` steht zwischen `Allow` und `Name`.
+- Ein Eingabefeld (`QLineEdit`, mittig, feste Breite 42 px, `STACKS_FIELD_WIDTH`) steht nur in
+  Zeilen eines Stack-Effekts (`model.accumulates`; im Spielstand der QA-Messung 7 von 343 Zeilen).
+  Alle anderen Zeilen, Familienkopfzeilen und Fluchzeilen haben in der Spalte nichts, kein
+  deaktiviertes Feld.
+- Zeilenhoehe (T-336h): eine Zeile mit Feld ist so hoch wie eine ohne, das Feld nimmt das Hoehere
+  aus Kontrollkaestchen und Textzeile. Gemessen im Windows-Fenster: 16 Einheiten bei 100, 125 und
+  150 %; `10` und roter Text bleiben lesbar (`PrintWindow`).
+- Zugaenglicher Name des Feldes: `Stacks: {Effektname}`.
+- Akzeptanz: eine Zeile mit `model.accumulates(effect)` hat ein Feld, jede andere keins; die
+  Kopfzeile heisst `Stacks`; die Reihenfolge der Spaltenkoepfe ist wortgleich die obige.
+
+**AK-470 Eingabe, Grenzen, Fehlerzustand.** Gueltig ist eine ganze Zahl von 0 bis zur Grenze des
+Effekts (T-339, `model.STACK_LIMITS`: 7060200 bis 4; 7060000 und 7060100 bis 7; 6060300, 6060400,
+6060500, 6060600 bis 10; 6500500 ohne Skriptbeleg bis `effectfilters.MOST_STACKS = 10`), in
+ASCII-Ziffern, hoechstens zwei Zeichen. Die Beispiele unten gelten fuer die Grenze 10.
+- Das Feld hat keinen Validator; ein Text wird so stehen gelassen, wie er getippt ist. Ein Text,
+  der keine gueltige Zahl ist (`11`, `100`, `2.5`, `-1`, Buchstaben, Leerzeichen), wird in `BAD`
+  (`#d1655f`, bestehender Token) gefaerbt und **zaehlt als leer**; er wird nie still zu einer anderen
+  Zahl. `07` ist gueltig und gilt als 7. Ein leeres Feld ist gueltig und heisst "kein Wert".
+- Gespeichert wird bei jedem Tastendruck (`textEdited`), nicht erst bei Enter oder Fokusverlust:
+  ein Wert, der getippt und durch X oder Esc stehen gelassen wird, bleibt. Enter schliesst das
+  Fenster nicht.
+- Speicher: fester Schluessel `advisor/stacks`, Wert `id=zahl,id=zahl`; eine beschaedigte oder
+  ausserhalb der Grenze des Effekts liegende Angabe liest sich als leer, nie als Fehler (gespeichertes
+  `11` = leer, `7060200=5` = leer).
+- Akzeptanz: `10` gilt, `11` ist rot und zaehlt als leer; `0` bleibt 0 (nicht leer); `07` wird 7, `007` ist rot und zaehlt als leer;
+  nach Neustart stehen die Werte unveraendert da; ein gespeichertes `11` zeigt ein leeres Feld.
+
+**AK-471 Bedeutung und Geltung.** Der Wert gilt fuer **Optimize und die Zahlen des Relikt-Pickers**
+(Nutzer 07.11.2026, QA-335), **nicht** fuer die Statistik-Seite; sie bleibt unveraendert.
+Rangfolge fuer den Zaehlwert eines Stack-Effekts: Filterwert, sonst die ×-Zahl der Statistik-Seite
+(wenn der Effekt dort abgehakt ist), sonst 1. `0` heisst: der Effekt zaehlt nicht.
+- Eine Aenderung wirft eine vorhandene Antwort weg (`EffectFilters.changed`), eine laufende
+  Rechnung meldet AK-289; der Folgelauf rechnet mit dem neuen Wert.
+- Why: steht mindestens ein Filterwert fuer einen Stack-Effekt, den die Frage verwendet, nennt der
+  Dialog ihn unter der Ueberschrift `Stacks you set in the effect filter:`, eine Zeile je Effekt.
+  Bei `0` sagt die Why-Zeile `{name}: you set its stacks to 0, so it is not counted.`, auch bei
+  Favourite.
+- Akzeptanz: bei Filterwert 2 rechnet Optimize mit zwei Stacks und die Why-Ueberschrift steht da;
+  bei Filterwert 2 und ×3 auf der Statistik-Seite gilt 2, die Statistik-Seite zeigt weiter ×3.
+
+**AK-472 Sortieren, Suche, Tastatur.**
+- Klick auf den Kopf `Stacks` sortiert nach dem Wert; Zeilen ohne Wert (leer oder ungueltig) stehen
+  vor `0`, ein Feld bleibt an seiner Zeile. Zeilen ohne Feld sortieren wie leere. Es wird nicht
+  waehrend des Tippens umsortiert (AK-308 Nachtrag gilt fort).
+- Die Suche (AK-306) blendet Zeilen aus und ein; der Wert bleibt erhalten.
+- Tab: `Favourite`, `Avoid`, (`Allow`), `Stacks`, dann die naechste Zeile.
+- Akzeptanz: Sortieren nach `Stacks` auf und ab laesst 0 Felder an einer falschen Zeile; Tab laeuft
+  in der genannten Reihenfolge; ein Wert ueberlebt Suchen und Sortieren.
+
+**AK-473 Legende, Tooltip, Fenstergroesse.**
+- `STACKS_TOOLTIP` (wortgleich, `{limit}` ist die Grenze des Effekts): `How many stacks Optimize and
+  the relic picker's figures count, a whole number from 0 to {limit}; 0 leaves this effect out. Empty: the count ticked on the stat sheet,
+  otherwise 1. Anything else turns red and counts as empty. The stat sheet itself does not change.`
+- `MARKS_EXPLANATION` endet mit (wortgleich): `Stacks: how many stacks Optimize and the relic
+  picker's figures count for an effect that stacks, not the stat sheet; 0 does not count it, empty
+  uses the count ticked on the stat sheet, otherwise 1.`
+- `OPENING_SIZE` = `(702, 733)` (Kommentar im Code: offscreen, Fusion, 339 Zeilen, 07.11.2026; die
+  Spalte `Stacks` kostet 94 px Breite, der laengere Satz 26 px Hoehe, die Baumhoehe bleibt
+  449 px). Im echten Fenster bestaetigt QA die Breite 702 logisch (702 / 877 / 1053 px physisch bei
+  100 / 125 / 150 %), kein waagerechter Rollbalken.
+- Akzeptanz: beide Saetze stehen je einmal im Code und nennen keine feste Grenze;
+  das Fenster oeffnet ohne waagerechten Rollbalken.
+- **Abweichung zu AK-445, nur gemeldet:** der Wortlaut dort (`These marks apply to every
+  Nightfarer; an effect that only works for another Nightfarer is ignored here.`) lautet im Code
+  seit `114d0a1` `These marks are saved for every Nightfarer; one that only works for another
+  Nightfarer is ignored here.` Der Code-Wortlaut gilt; AK-445 wird hiermit so gelesen.
+
+**Befund, ohne Vorgabe (Zeilenhoehe), behoben T-336h, siehe AK-469.** Zeilen mit Stacks-Feld waren 1,5-mal so hoch wie die
+uebrigen (QA, physisch 16/24 px bei 100 %, 20/30 bei 125 %, 24/36 bei 150 %). Das ist ein
+Konsistenzbruch in der Liste, kein Bruch der Bedienbarkeit (**Wichtig**; Messwerte aus dem
+QA-Bericht, hier nicht nachgemessen). Richtung: Feldhoehe an die Zeilenhoehe angleichen (Rand
+und Innenabstand des Feldes verkleinern, Feld nicht hoeher als Kontrollkaestchen). Nicht
+spezifiziert: ob ein dichteres Feld lesbar bleibt, entscheidet der App Designer.
+
+**Nicht Teil dieser Vorgabe:** eine Grenze fuer die ×-Zahl der Statistik-Seite (seit T-339 die des
+Effekts, AK-476; ohne Skriptbeleg 99, `statsheet.MOST_COUNT`); ein Pfeil- oder
+Drehfeld; ein Hinweistext im Fehlerfall ausser der roten Schrift.
+
+#### Nachtrag T-338 (developer), 2026-11-07 — Waffen-Icon in der Kachel, AK-474 (nur nachgetragen)
+
+*Naechste freie AK: AK-479.*
+
+#### Nachtrag T-339 (developer), 2026-11-07 — Stack-Effekte, Grenzen, Ziel `Balanced` (nur nachgetragen)
+
+**AK-475 Ein Traeger je Stack-Effekt.** Die Zahl n gilt je Effekt (alle 8 mit `model.accumulates`):
+der erste Traeger zaehlt n-mal, jeder weitere zaehlt nicht und steht als Warnung
+`{name} x{k} — only one will apply` auf der Statistik-Seite. In der Slot-Karte traegt der Effekt `⚠`
+wie ein nicht stapelbarer; die Spalte `Stacks` im Reiter Effekte sagt `Strongest only`. `Why` sagt am
+zweiten Traeger `another copy of it is already counted`. Optimize legt keinen zweiten Traeger, ausser
+ein Favorit braucht genau dieses Relikt. Akzeptanz: Raider, Stufe 15, zwei Traeger 7060200, n=2:
+Faktor 1,1449, wie mit einem.
+
+**AK-476 Grenze je Stack-Effekt.** `model.STACK_LIMITS` (EMEVD-Lesart aus T-337, keine Spielprobe) gilt
+im Stacks-Feld (AK-470), in der ×-Zahl der Statistik-Seite und in der Rechnung. Die ×-Zahl wird beim
+Verlassen des Feldes auf die Grenze gesetzt, ihr Tooltip nennt sie (`How many times this is true right
+now, at most {n}`). 6500500 hat keinen Skriptbeleg: Filter bis 10, ×-Zahl bis 99, Rechnung ungedeckelt.
+Akzeptanz: `5` im Feld von 7060200 ist rot und zaehlt als leer, `4` gilt; ×100000 wird ×4.
+
+**AK-477 Richtung `Balanced`.** Eintrag `Balanced` in `GOAL_ORDER` hinter dem Paar aus A3, vor
+`Maximise offensive attributes`; damit auch `Sort by` und eine Wertezeile `Balanced` auf jeder Karte
+(AK-256, AK-258), dort in Prozent gegen den Grundzustand (`+12.3 %`), Chip `BEST FOR BALANCE`. Kein
+Regler, keine Schwelle (Nutzer 07.11.2026). `Hit with` und `Damage type` bleiben unter ihr verborgen
+(AK-337) und wirken nicht; im `Why` sagt eine Attributzeile unter ihr keinen Betrag, weil ein Produkt
+keinen lesbaren Abstand hat. Tiebreak im Gefaessvergleich ist die Schadenszahl (`OTHER_GOAL`).
+
+**AK-478 Gefaessliste unter `Balanced`.** Die Zahl vorne in Zeile und Statuszeile lautet
+`AR +89 % / Defense +31 %` (Gewinn der jeweiligen Zahl gegen dasselbe Gefaess ohne Relikte, gerechnet
+wie das Prozent aus A28, ein Verlust mit Vorzeichen), statt `AR` das Wort der Zahl (`Spell`) oder
+`Damage` beim blossen `×`. "Best of ..." und `BEST` richten sich nach dem Produkt; die Klausel `{gap}
+more than this one` entfaellt, weil ein Produkt keinen lesbaren Abstand hat. Tooltip und Vorlesename
+nennen beide Zahlen. Die anderen Richtungen bleiben unveraendert.
+
+**AK-474 Symbol der Waffe in der Kachel `Weapon damage`.** Eine belegte `WeaponTile` zeigt das
+Symbol der Waffe (`icons.item_icon(weapon["icon"])`, 28 x 28 logisch wie in der Waehleliste des
+Dialogs), linksbuendig in einer eigenen Zeile ueber dem Namen. Eine leere Kachel und eine Waffe ohne
+Symbol im Pack (`Unarmed`) halten keine Zeile frei: reiner Text wie zuvor.
+- **Warum eine eigene Zeile:** die Textbox misst bei 125 % 88 bis 97 px logisch; neben dem Namen
+  kaeme sie auf 54 bis 63 px, und 291 von 1788 Namen haben ein Wort ueber 64 px (Windows 11, Fenster
+  1959 x 860 logisch). Name und Zeile darunter behalten ihre Breite.
+- **Preis:** eine Zeile mit belegter Kachel wird 30 px logisch hoeher, das Blatt `Base stats` bis
+  `Resistances` mit zwei belegten Zeilen 60 px (1441 auf 1501 bei 125 %); das Blatt rollt ohnehin.
+- Akzeptanz: bei 100, 125 und 150 % keiner der 1788 Waffennamen abgeschnitten (Wortbreite und
+  `heightForWidth` je Kachel gegen die Textbox, in allen sechs Kacheln, vorher wie nachher 0).
+
+### Nachtrag T-340 (developer, 07.11.2026) — Spielsymbole
+
+Nutzerauftrag, ohne Vorgabe des `ui-ux-designer`; Masse sind Entscheidungen des `developer`.
+- **Groessen (logisch):** 14 px neben einer Textzeile (`iconpack.INLINE_ICON`), 16 in der
+  Nightlord-Tabelle, 18 am Reliktnamen im Block und in `Why`, 20 an Nightfarer, Vergleichsgefaess,
+  Relikt-Knopf und Slot-Chip im Kopf von Karte und Picker (vorher farbiger Punkt, 14/16 px).
+- **Slot:** Zelle `MENU_In_bg_22`, darueber das Licht der Farbe und Art, mit Relikt auf halber
+  Deckkraft; Edelstein nur bei belegtem Slot, Weiss ohne. Fehlt das Bild, bleibt die Farbe als Umriss.
+- **Fehlendes Symbol:** kein Platzhalter, die Zeile steht wie vorher. Reine Textzeilen (AK-29)
+  bleiben `PlainText`, das Bild steht in einem eigenen Label daneben.
+- **`Relic tier`** traegt je Zelle ein Bild: das beste Relikt der Stufe; eine Zelle fasst nur eines.
+- **`Colours` (Effects):** Reihe der Edelsteine vor dem Text; die Spalte wird dafuer 56 px und den Abstand
+  zum Text breiter (gemessen +62 px, 133 auf 195 bei 125 %). Die Breite gibt `Effect` ab, bis zu seiner Untergrenze und nie unter `What it does` (QA-342, T-340d).
+- **Gefaessliste (QA-341, T-340d):** eine Zeile ist so breit wie die Liste, nie breiter; zu langer Name
+  oder zweite Zeile endet mit `…`, ist die zweite Zeile gekuerzt, steht sie ganz im Tooltip unter dem
+  Namen. Keine waagrechte Bildlaufleiste.
+- **Akzeptanz:** bei 100, 125 und 150 % kein Label mehr abgeschnitten als ohne Symbolsatz (`PrintWindow`,
+  alle sieben Tabs und Picker, Windows 11, Basisskalierung 125 %).

@@ -269,8 +269,8 @@ historischer Befundtext, vermutlich richtig so.
 **Positivkontrolle zuerst** (`probe.py`, ohne Umlenkung):
 
 ```
-cache_dir()     : C:\Users\Daniel\AppData\Local\NightreignHelper
-shortcut_path() : C:\Users\Daniel\AppData\Roaming\...\Programs\Nightreign Helper.lnk
+cache_dir()     : %LOCALAPPDATA%\NightreignHelper
+shortcut_path() : %APPDATA%\...\Programs\Nightreign Helper.lnk
 favourites.ORG  : DankYeeter
 ```
 
@@ -330,7 +330,7 @@ Bitte pruefen, in dieser Reihenfolge:
    `Nightreign save (NR*.sl2)`, `Save file (*.sl2)`, `All files (*)`? Traegt er
    den Titel `Choose your Nightreign save file`?
 4. **Der Fall, fuer den das alles gebaut ist:** diese Maschine hat **zwei**
-   Konto-Ordner (`76561198073567627` und `76561198179244962`), beide mit einem
+   Konto-Ordner (`<Konto-B>` und `<Konto-A>`), beide mit einem
    19,5-MB-Spielstand. Den jeweils anderen waehlen und pruefen, dass die
    Reliktzahl wechselt und beim naechsten Start so bleibt.
 5. **R10 von Hand:** eine Datei waehlen, das Programm beenden, die Datei

@@ -37,9 +37,9 @@ BLOCKIERT DURCH: nichts
 |---|---|
 | Klon | `<scratchpad>\nr-t043`, `git checkout --detach` auf **`0dc54a6`** ("test(weapons): die Angriffskraft gegen die Zahlen des Spiels charakterisieren", Kopf von `docs/audit-and-advisor-design` zum Messzeitpunkt) |
 | Arbeitsbaum | **nicht angefasst**, kein Git; parallel laeuft dort der `developer` (T-045) |
-| Python | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\.venv\Scripts\python.exe` |
+| Python | `<Hauptbaum>\.venv\Scripts\python.exe` |
 | Spieldaten | `D:\SteamLibrary\...\ELDEN RING NIGHTREIGN\Game\regulation.bin`, 1 974 720 B, `sha256 876a3ca279a4561d0c69f81fe5e510c75c59ab9a8a201694f8cf4a42c91e0268`, `data_version 10350000` |
-| Save | `76561198179244962`, 309 Relikte, nur lesend |
+| Save | `<Konto-A>`, 309 Relikte, nur lesend |
 | QSettings | auf `DankYeeterQA/NightreignHelperQA_T049` umgebogen, Nutzer-Store unberuehrt |
 | Skripte | `<scratchpad>\t049\` (11 Stueck, Anhang) |
 

@@ -13,7 +13,7 @@ naechsten Lauf fortgeschrieben werden.
 "Nightreign Helper 1.12.1". Umgebung: `NIGHTREIGN_SETTINGS_ORG=DankYeeterT-268qa`,
 eigenes `LOCALAPPDATA`/`APPDATA`/`USERPROFILE` im Scratchpad, Testabzug (841
 Dateien) hineinkopiert, eingefrorene Savekopie unter
-`<scratch APPDATA>\Nightreign\76561198179244962\NR0000.sl2`. Einzige
+`<scratch APPDATA>\Nightreign\<Konto-A>\NR0000.sl2`. Einzige
 Fensterinstanz (`tasklist` vor dem Start leer, PID 32912 danach eindeutig).
 
 ## Fertig geprueft (alle bestanden)
@@ -95,7 +95,7 @@ sauber beenden, (2) A6 nach T-265d-Rezept (S11-Szenario, Cache je Messung ueber
 behoben, QA-274/QA-275 → behoben, mit den obigen Belegen).
 
 Verwendete Hilfsskripte (nicht Teil des Projekts, im System-Temp):
-`C:\Users\Daniel\AppData\Local\Temp\uia_helpers_T268.ps1` und die
+`%TEMP%\uia_helpers_T268.ps1` und die
 `*_T268.ps1`-Familie daneben — wiederverwendbar fuer den Fortsetzungslauf
 (UIA-Fensterfindung, PrintWindow inkl. `SetProcessDpiAwarenessContext(-4)`,
 Klick-Helfer). Wichtige Lektion darin bereits verankert: ohne

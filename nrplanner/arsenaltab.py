@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QScrollArea, QSpinBox, QToolButton, QVBoxLayout, QWidget,
 )
 
-from . import cardgrid, damage, search, tabheader, weapons
+from . import cardgrid, damage, iconpack, search, tabheader, weapons
 from .theme import ACCENT, BORDER, MUTED, PANEL
 from .weapons import RARITY_TIERS
 
@@ -520,7 +520,9 @@ class ArsenalTab(QWidget):
             # so `Physical` and the headline disagreed about whether a
             # two-handed grip was in play.
             for damage_type in rating.shown_per_type:
-                lines.append((weapons.DAMAGE_LABELS[damage_type],
+                lines.append((iconpack.inline_type(
+                                  self.icons, weapons.DAMAGE_LABELS[damage_type])
+                              + weapons.DAMAGE_LABELS[damage_type],
                               rating.displayed_hands(
                                   lambda r, dt=damage_type:
                                   r.final_per_type.get(dt, 0.0),
@@ -531,7 +533,8 @@ class ArsenalTab(QWidget):
             # less damage.
             for status, value in sorted(
                     (weapon.get("inflicts") or {}).items()):
-                lines.append((f"{status} buildup", f"{value:g}"))
+                lines.append((iconpack.inline_type(self.icons, status)
+                              + f"{status} buildup", f"{value:g}"))
             scaling = weapon.get("scaling") or {}
             lines.append(("Scaling", scaling_text(scaling)))
             # An infusion that moves the scaling says by how much, against

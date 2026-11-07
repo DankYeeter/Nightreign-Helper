@@ -10,7 +10,7 @@ threads and is checked without one.
 splash screen that has nothing else to do, and wrong here: the main window
 must stay answerable, so this starts the run, connects `ready`, and returns
 (`UI_SPEC` §5.4, AD-006 point 2). No `processEvents`, no modal dialog, no
-`wait()` in the main thread except when the window is closing.
+`wait()` for a run in the main thread except when the window is closing.
 
 **Two things stop a run, and they are not the same thing.** The interruption
 flag stops the *worker*, cooperatively, at the places `run.run` looks: inside
@@ -42,7 +42,8 @@ handed to it at construction: the Advisor bar's instance answers with
 else about the two differs but three figures -- the debounce, the size of the
 cache, and what comes back. A second thread path written for the picker would
 have been a second place for the generation counter, the debounce and the
-cancelling to be got right, and the two would have drifted.
+cancelling to be got right, and the two would have drifted. The vessel
+comparison is a third instance of the same class (AD-062), not a third path.
 
 **No `progress` signal.** AD-006 point 1 names one, and there is nothing for
 it to say: the progress bar of the advisor bar is indeterminate by
@@ -93,9 +94,9 @@ PICKER_DEBOUNCE_MS = 0
 PICKER_CACHE_SIZE = 64
 
 #: How long the window waits for a running search when it is closing. A
-#: `wait()` in the main thread is forbidden while the program is running
-#: (AD-006 point 4) and is the only correct thing here: the alternative is a
-#: `QThread` destroyed while its run is still going. The figure is the
+#: `wait()` for a run in the main thread is forbidden while the program is
+#: running (AD-006 point 4) and is the only correct thing here: the alternative
+#: is a `QThread` destroyed while its run is still going. The figure is the
 #: coarsest reaction time of the search plus room -- one slot level of the
 #: worst real case is about 200 ms (`scripts/measure_advisor_search.py`).
 SHUTDOWN_WAIT_MS = 2000
@@ -279,8 +280,11 @@ class AdvisorController(QObject):
         return self._generation
 
     def ask(self, request: types.AdvisorRequest, inventory,
-            ctx: types.GoalContext) -> int:
+            ctx: types.GoalContext, debounce_ms: int | None = None) -> int:
         """Ask this question, after the debounce. Hands back its generation.
+
+        `debounce_ms` overrides this controller's own for this asking: a
+        question nobody can be overtaking while they type needs none (AK-424).
 
         Two fields of the request are filled in here rather than trusted from
         the caller, and both for the same reason -- they are not about what is
@@ -295,7 +299,7 @@ class AdvisorController(QObject):
         reading exactly what it started with, and the living object stays
         where it belongs.
         """
-        self._wait_for(self._question_from(request, inventory, ctx))
+        self._wait_for(self._question_from(request, inventory, ctx), debounce_ms)
         return self._generation
 
     def ask_and_answer_if_known(self, request: types.AdvisorRequest,
@@ -334,6 +338,18 @@ class AdvisorController(QObject):
         self._interrupt_the_running_worker()
         return known
 
+    def known_answer(self, request: types.AdvisorRequest,
+                     inventory) -> object | None:
+        """The answer if it is already known, and on a miss nothing at all.
+
+        Not `ask_and_answer_if_known`, which asks on a miss: opening a vessel
+        starts no run, whatever the comparison holds (AK-435, AK-454). And no
+        asking at all: nothing is frozen, and the counter stays where it is.
+        """
+        return self._cache.get(dataclasses.replace(
+            request, inventory_fingerprint=advisor_run.inventory_fingerprint(
+                inventory)))
+
     def _question_from(self, request: types.AdvisorRequest, inventory,
                        ctx: types.GoalContext) -> Question:
         """This asking, whole: the two fields only this object can fill in.
@@ -353,11 +369,13 @@ class AdvisorController(QObject):
             inventory=frozen,
             ctx=ctx)
 
-    def _wait_for(self, question: Question) -> None:
+    def _wait_for(self, question: Question,
+                  debounce_ms: int | None = None) -> None:
         """Let this question be the pending one, after the debounce."""
         self._pending = question
         self._interrupt_the_running_worker()
-        self._timer.start(self._debounce_ms)
+        self._timer.start(self._debounce_ms if debounce_ms is None
+                          else debounce_ms)
 
     def cancel(self) -> bool:
         """Abandon whatever is running or waiting. Says so at once (AK-11).
@@ -396,9 +414,9 @@ class AdvisorController(QObject):
     def shutdown(self, timeout_ms: int = SHUTDOWN_WAIT_MS) -> None:
         """Stop the run and wait for it. Only when the window is closing.
 
-        The one place a `wait()` in the main thread is right: the alternative
-        is a `QThread` deleted while its run is still going, which ends the
-        process rather than the run.
+        The one place a `wait()` for a run in the main thread is right: the
+        alternative is a `QThread` deleted while its run is still going, which
+        ends the process rather than the run.
 
         **The generation goes up first, exactly as in `cancel`** (Nachtrag
         X-1). A worker that sent its answer between its last check and the
@@ -472,8 +490,18 @@ class AdvisorController(QObject):
         during a run would otherwise start the moment the old run ended, and
         the whole point of the debounce is that a player who is still
         changing their mind is not answered yet (AD-006 point 5).
+
+        **`wait()` first, and no `deleteLater` on the worker.** `finished` is
+        said while the thread is still ending, and that ending delivers the
+        deletions it finds. A worker deleted there calls `disconnectNotify` on
+        its sender, the `QThread`, whose wrapper the main thread may be
+        deleting at that moment, and the process dies (0xC0000005, 0xC0000374).
+        A `deleteLater` that comes too late is never delivered and keeps the
+        snapshot for good. So the worker goes here, with the thread over, when
+        the last reference to it does. There is no run left to wait for, only
+        the end of a thread.
         """
-        self._worker.deleteLater()
+        self._thread.wait()
         self._thread.deleteLater()
         self._worker = None
         self._thread = None
@@ -505,4 +533,80 @@ class AdvisorController(QObject):
         """
         if self._running.request.generation != self._generation:
             return
+        self.failed.emit(reason)
+
+
+class VesselComparison(QObject):
+    """The same question about every vessel, one after the other (AD-062).
+
+    A third `AdvisorController`, sharing the bar's cache: the chosen vessel is
+    asked first and is the hit on the answer just given, and a row is by
+    construction what `Optimize` says there, because it is `run.run`'s answer.
+    One at a time, never side by side: they would share one GIL (AD-062).
+    """
+
+    #: One `VesselRow`, as soon as its answer is there (AK-433).
+    row_ready = Signal(object)
+    #: All of them, in the order they were asked.
+    finished = Signal(object)
+    #: One line, the run's own (AK-453). The comparison ends with it.
+    failed = Signal(str)
+
+    def __init__(self, cache: advisor_run.ResultCache,
+                 parent: QObject | None = None, *,
+                 answer: Answer = advisor_run.run,
+                 goals: Mapping[str, types.Goal] = GOALS) -> None:
+        super().__init__(parent)
+        self._controller = AdvisorController(self, answer=answer, goals=goals,
+                                             cache=cache, debounce_ms=0)
+        self._controller.ready.connect(self._on_answer)
+        self._controller.failed.connect(self._on_failed)
+        self._waiting: list[types.VesselQuestion] = []
+        self._rows: list[types.VesselRow] = []
+        self._material: tuple = ()
+
+    def start(self, questions, inventory, ctx: types.GoalContext) -> None:
+        """Ask these, taking over from whatever was still being asked."""
+        self._controller.cancel()
+        self._waiting = list(questions)
+        self._rows = []
+        self._material = (inventory, ctx)
+        self._ask_the_next()
+
+    def cancel(self) -> None:
+        """Stop. Nothing more arrives, whatever the worker was carrying."""
+        self._waiting = []
+        self._controller.cancel()
+
+    def before_the_data_changes(self) -> None:
+        """Stop and forget the answers (AD-006 point 7, AD-062.4)."""
+        self._waiting = []
+        self._controller.before_the_data_changes()
+
+    def shutdown(self) -> None:
+        """Stop and wait for the thread. Only when the window is closing."""
+        self._waiting = []
+        self._controller.shutdown()
+
+    def _ask_the_next(self) -> None:
+        while self._waiting and self._waiting[0].request is None:
+            unfit = self._waiting.pop(0)
+            self._add(types.VesselRow(unfit.vessel_id,
+                                      unfit_holds=unfit.unfit_holds))
+        if self._waiting:
+            self._controller.ask(self._waiting[0].request, *self._material)
+        else:
+            self.finished.emit(tuple(self._rows))
+
+    def _add(self, row: types.VesselRow) -> None:
+        self._rows.append(row)
+        self.row_ready.emit(row)
+
+    def _on_answer(self, result: types.AdvisorResult) -> None:
+        asked = self._waiting.pop(0)
+        self._add(advisor_run.vessel_row(asked.vessel_id, result))
+        self._ask_the_next()
+
+    def _on_failed(self, reason: str) -> None:
+        self._waiting = []
         self.failed.emit(reason)

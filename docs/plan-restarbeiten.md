@@ -251,7 +251,7 @@ Spielinstallation.
 **Die Loesung.** Ein einmal gebauter Abzug liegt fest unter
 
 ```
-C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug
+%LOCALAPPDATA%\NightreignHelper-Testabzug
 ```
 
 **841 Dateien, 19,8 MB**, `nightreign_data.json` 8 484 651 B, gebaut am
@@ -264,7 +264,7 @@ das umgelenkte `LOCALAPPDATA` **kopieren** (nicht darauf zeigen lassen — das
 Programm schreibt hinein):
 
 ```
-Copy-Item "C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug" `
+Copy-Item "%LOCALAPPDATA%\NightreignHelper-Testabzug" `
           "<dein LOCALAPPDATA>\NightreignHelper" -Recurse
 ```
 
@@ -333,7 +333,7 @@ Geprueft an `nrdata/extract.py`/`nrplanner/datasource.py`: nur die
 T-324a-Quittung uebernommen, kein neuer Extraktorlauf noetig). Stand der
 Vorlage: 841 Dateien, **21 139 391 B**, Ort unveraendert. Alte v15-JSON
 gesichert unter
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug-v15`
+`<ClaudeCode>\NightreignHelper-Testabzug-v15`
 (8 803 996 B). `pytest -n auto` gegen den neuen Abzug: **1849 passed, 9
 skipped in 135,16 s**. `CLAUDE.md` Z. 74-79 ist auf diesen Stand gezogen
 (Zahlen, Herkunft T-324b, Grenze "ueber 16").
@@ -359,6 +359,25 @@ der Vorlage: **1027 Dateien, 23 468 416 B**, Ort unveraendert. Alte v17-JSON
 gesichert unter `...\Desktop\ClaudeCode\NightreignHelper-Testabzug-v17`
 (9 025 778 B). `CLAUDE.md` "Fester Testabzug" ist nachgezogen (Grenze
 "ueber 18").
+
+*Ersetzt am 07.11.2026 (T-340, developer):* `EXTRACT_VERSION` **20** und
+`ICON_VERSION` **5** (`icon` an `effects[]`, Event-`buffs[]`/`states[]` und
+`drops`, `deep_of_night.sigil_icon`; Slotlicht, Zelle, Death Blight, 165
+Status-Symbole, Talismane, Goods und Powers im Satz). Beides neu gebaut an der
+echten Installation: `nightreign_data.json` 9 884 065 B (+417 865 B, 52,8 s),
+Symbolsatz 47,6 s (1240 von 1356 Item-Symbolen). Stand der Vorlage: **1545
+Dateien, 27 006 981 B**, Ort unveraendert. Alte v19-Vorlage ganz gesichert unter
+`<ClaudeCode>\NightreignHelper-Testabzug-v19`. `CLAUDE.md` "Fester Testabzug"
+nachgezogen (Grenze "ueber 20" bzw. `ICON_VERSION` "ueber 5").
+
+*Ersetzt am 01.11.2026 (developer, Zustandsquellen im Berater):*
+`EXTRACT_VERSION` **19** (`arts[].inflicts`, `spells[].inflicts` ueber
+AtkParam/Bullet `spEffectId0..4`; `inflicts_on_hit` auch ueber
+`onHitSpEffect`). Nur `nightreign_data.json` neu (`extract.write_snapshot` an
+der echten Installation, 61,7 s): 9 466 200 B (+1 883 B); `ICON_VERSION`
+bleibt 4. Stand der Vorlage: **1027 Dateien, 23 470 299 B**, Ort unveraendert.
+Alte v18-JSON gesichert unter `...\Desktop\ClaudeCode\NightreignHelper-Testabzug-v18`
+(9 464 317 B). `CLAUDE.md` "Fester Testabzug" nachgezogen (Grenze "ueber 19").
 
 **Nicht ins Repository.** Der Abzug ist aus der Spielinstallation gewonnen —
 NH-002 und die Zusage aus A-003 verbieten das. Er liegt bewusst ausserhalb des
@@ -675,3 +694,22 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
   Nutzer 31.10.); gebaut ohne Stufenfaktor. Messung nur im Lauf moeglich.
 - R1 zweihaendig nach Stamp (Wylder Lv15): Puppe 126, Programm 125 (T-335v).
 - Bau nur mit `PYTHONHASHSEED=0` und `SOURCE_DATE_EPOCH` bitgleich (T-335bau); in Bauskript/`release.yml` aufnehmen.
+- Waffentyp-Bonus, Restfall (1.19.1): Dolch auf der markierten Kachel ->
+  "Improved Greatsword Attack Power" zaehlt fuer Wylder weiter, weil
+  `model.compute` gegen die Startwaffe prueft (AD-038). Aendern hiesse
+  `ctx.weapons_held` fuellen, beruehrt A17-Waechter. GOAL.md A17 und AD-Doku
+  nennen die neue Ausnahme (markierte Kachel) noch nicht: architect.
+- Vessel-Liste bei schmalem Fenster: Namen abgeschnitten ("Soot-Covered Wy"),
+  waagerechter Rollbalken (Nutzertest 1.19.0, 01.11.2026).
+- QA 1.19.1, besteht schon in 1.19.0, gegen Spec ungeprueft: Recluse,
+  Gebetsfamilie "Thorn" liefert "Spell damage (Glintstone Pebble)";
+  "Hit with Weapon art" liefert fuer Recluse und Revenant keinen Vorschlag.
+- Zustandsquellen, Datenluecke (EXTRACT_VERSION 19, 01.11.2026): Hoarfrost
+  Stomp, Chilling Mist, Poisonous Mist, Blood Blade (Zustand nicht auf der
+  genannten AtkParam-Zeile), 7034600 Ironeye Art Charge Poison und 6500000
+  Wylder Skill Blood Loss (Kette ohne Zustand) liefern keine Quelle. Trifft
+  eigene Relikte des Nutzers (z. B. 3229614166).
+- Hand-Erklaerung gilt je Effekt: wer die "+1"-Stufe erklaert, schaltet den
+  Grund-Frost-Bonus 7260400 nicht mit frei (QA 1.20.0).
+- Why bei einer Zustandsquelle nennt nur "-15 % counted against it", nicht den
+  freigeschalteten Gewinn (Reliktwahl zeigt +1.1 AR): ui-ux-designer.

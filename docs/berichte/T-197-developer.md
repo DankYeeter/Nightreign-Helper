@@ -86,7 +86,7 @@ pytest tests/test_extraction.py -v         → 7 passed in 57.08s
 
 - Extraktionscode (`nrdata/*.py`) nicht angefasst — keine Regel verletzt, kein echter Fehler dort gefunden.
 - Keine `--ignore` in `pytest.ini`, keine `skipif`-Marke ergaenzt.
-- `C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug` nicht angefasst (nicht existent laut QA-231/T-196, ich habe nichts dort erzeugt oder gelesen).
+- `%LOCALAPPDATA%\NightreignHelper-Testabzug` nicht angefasst (nicht existent laut QA-231/T-196, ich habe nichts dort erzeugt oder gelesen).
 - `tests/conftest.py` (nicht meine Datei, nur gelesen) lenkt `NIGHTREIGN_SETTINGS_ORG`/`_APP` bereits automatisch fuer die ganze Suite um; ich habe keinen Fensterlauf des Programms selbst gestartet, nur `pytest`.
 
 ## DoD

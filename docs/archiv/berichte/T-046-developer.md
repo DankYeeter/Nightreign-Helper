@@ -19,7 +19,7 @@ GELESEN: docs/tasks/T-046.md; docs/berichte/T-043-qa-engineer.md;
          test_weapon_damage_golden.py, test_move_scoped_effects.py,
          test_extraction.py, test_hostile_gamedata.py; README.md;
          UI_SPEC.md (§3.3, AK-34); installierte regulation.bin
-         (data_version 10350000); `C:\Users\Daniel\Desktop\Nightreign Weapon
+         (data_version 10350000); `%USERPROFILE%\Desktop\Nightreign Weapon
          Scaling.xlsx`, Blatt "Weapon Attack Power", Zeilen 294-321; GOAL.md;
          docs/state.md. Nicht auffindbar und deshalb nicht gelesen:
          `rps_nightreign_weapons.tsv`, die Quelle der 28 Referenzzahlen
@@ -257,7 +257,7 @@ Test belegt und nicht von mir behauptet.
 ## 5. Die Datenlage — was Messung ist und was Abschrift (L-001)
 
 **Die 84 Zellen sind fuer diese Datei neu aus der Tabelle gelesen**, nicht aus
-T-043 abgeschrieben: `C:\Users\Daniel\Desktop\Nightreign Weapon Scaling.xlsx`,
+T-043 abgeschrieben: `%USERPROFILE%\Desktop\Nightreign Weapon Scaling.xlsx`,
 Blatt "Weapon Attack Power", Zeilen 294-321, Spalten Duchess (4), Revenant (6),
 Recluse (7). Gelesen mit einem Wegwerf-Parser aus `zipfile` +
 `xml.etree.ElementTree` im Scratchpad — **keine neue Abhaengigkeit**, das venv

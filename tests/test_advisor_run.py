@@ -28,7 +28,8 @@ import dataclasses
 
 import pytest
 
-from nrplanner.advisor import goals, run, search, types
+from nrplanner import damage, model
+from nrplanner.advisor import explain, goals, run, search, types
 from nrplanner.advisor.evaluate import evaluate
 
 from tests import advisor_cases as advisor
@@ -37,6 +38,7 @@ from tests import weapon_damage_cases as cases
 DAMAGE = "max_damage"
 SURVIVAL = "min_damage_taken"
 ATTRIBUTES = "max_attributes"
+BALANCED = goals.BALANCED.id
 
 
 @pytest.fixture(scope="module")
@@ -165,11 +167,12 @@ NO_CARRIER_SENTENCE = (
     "or weapon art that does.")
 
 
-def _recluse_sorceries(game_data, damage_type, hit_with=None):
+def _recluse_sorceries(game_data, damage_type, hit_with=None, favourite=False):
     """Recluse under `Sorceries` x `damage_type`, owning four relics that
     each raise magic damage and nothing else a sorcery could use.
 
-    `hit_with=""` leaves the art unchosen, so the type is the only choice."""
+    `hit_with=""` leaves the art unchosen, so the type is the only choice.
+    `favourite` marks their effect as a `Favourite`."""
     from nrplanner import damage, model
 
     if hit_with is None:
@@ -183,7 +186,9 @@ def _recluse_sorceries(game_data, damage_type, hit_with=None):
                     if w["id"] == recluse["starting_weapon"]),
         tier=1, slot_index=damage.STARTING_SLOT)
     owned = advisor.make_inventory(game_data, recluse, count=4, rolls=[magic])
-    slot_problem = advisor.problem([advisor.RED, advisor.RED, advisor.RED])
+    slot_problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED, advisor.RED]),
+        required=frozenset(magic if favourite else ()))
     ctx = dataclasses.replace(
         advisor.context(game_data, recluse, reference=reference),
         hit_with=hit_with, damage_type=damage_type)
@@ -204,6 +209,16 @@ def test_a_chosen_kind_nothing_owned_reaches_says_so(game_data):
     assert result.suggestions == ()
     assert result.no_carrier_for == "fire damage with Sorceries"
     assert NO_CARRIER_SENTENCE in result.unknowns
+
+
+def test_a_dropped_suggestion_leaves_no_favourite_left_out(game_data):
+    """AD-057.4: under AK-365 the whole suggestion falls and that one sentence
+    says why. A favourite was not what kept it out, so none is named."""
+    result = _recluse_sorceries(game_data, "Fire", favourite=True)
+
+    assert result.suggestions == ()
+    assert result.no_carrier_for
+    assert result.required_left_out == ()
 
 
 def test_a_chosen_type_alone_keeps_its_label(game_data):
@@ -227,22 +242,21 @@ def test_a_chosen_kind_something_owned_reaches_says_nothing_of_it(game_data):
     assert NO_CARRIER_SENTENCE not in result.unknowns
 
 
-def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
+def test_an_excluded_effect_takes_its_carrier_out_of_the_whole_run(
         monkeypatch, game_data, wylder):
-    """`GOAL.md` A18, the Qt-free proof: exclude the effect one copy lives
-    on, and the whole run -- pre-sort, beam, base, reasons -- computes as if
-    that copy carried nothing. Read at `model.compute`, the one place every
-    figure of the run is formed, and against a second run on an inventory
-    where the copy really carries nothing: same copies, same order, same
-    figures. With an empty exclusion the run is the baseline run.
+    """`GOAL.md` A18 (06.11.2026), the Qt-free proof: exclude the effect one
+    copy lives on, and the whole run -- pre-sort, beam, base, reasons -- is
+    the run over an inventory **without that copy**: same copies, same order,
+    same figures. Read at `model.compute`, the one place every figure of the
+    run is formed. With an empty exclusion the run is the baseline run.
     """
-    from nrplanner import model
+    from nrplanner import inventory, model
 
     rolls = advisor.raising_effects(game_data, wylder, 5)
     struck_out = rolls[0][0]
     owned = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
-    bare = advisor.make_inventory(game_data, wylder, count=4,
-                                  rolls=[[]] + rolls[1:])
+    carrier = owned.relics[0].handle
+    bare = inventory.Inventory(source="test", relics=owned.relics[1:])
     problem = advisor.problem([advisor.RED, advisor.RED])
     excluding = dataclasses.replace(problem,
                                     excluded=frozenset({struck_out}))
@@ -276,23 +290,43 @@ def test_an_excluded_effect_counts_in_no_suggestion_and_no_ranking(
     assert _ranking(a_run(dataclasses.replace(problem,
                                               excluded=frozenset()),
                           owned)) == _ranking(baseline)
+    assert not any(carrier == choice.handle
+                   for suggestion in excluded.suggestions
+                   for choice in suggestion.choices)
 
-    name = " ".join(game_data["effects"][str(struck_out)]["name"].split())
-    carrier = owned.relics[0].handle
-    for suggestion in excluded.suggestions:
-        if carrier not in {choice.handle for choice in suggestion.choices}:
-            continue
-        said = [line.text for group in suggestion.reasons
-                for line in group.lines
-                if line.silence == types.SILENT_EXCLUDED]
-        assert said == [f"{name}: you avoided it, so it is not counted."]
+
+def test_avoid_beats_a_favourite_on_the_one_copy_that_carries_both(game_data,
+                                                                   wylder):
+    """A18 against A19 on one relic: the only carrier of a favourited effect
+    also carries an avoided one. "Never suggested" holds whatever else it
+    carries, so no suggestion names that copy."""
+    rolls = advisor.raising_effects(game_data, wylder, 5)
+    wanted, avoided = rolls[0][0], rolls[4][0]
+    owned = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
+    carrier = owned.relics[0]
+    carrier.effect_ids = [wanted, avoided]
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    question = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED]),
+        excluded=frozenset({avoided}), required=frozenset({wanted}))
+    frozen = run.frozen_inventory(owned, question)
+
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    assert not any(choice.handle == carrier.handle
+                   for suggestion in result.suggestions
+                   for choice in suggestion.choices)
 
 
 def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
-    """A19/A7 through `run.run`, AK-281's sentence: the beam is empty and the
-    answer says which effect no owned copy carries -- and, with a carrier
-    for each but no constellation for the free slots, that no combination
-    does. Decided on the pools, so the sentence is about what is owned.
+    """A19/A7 through `run.run`, AK-281's sentence: the suggestion fills what
+    it can (A28, AD-058.1), and the answer says which effect no owned copy
+    carries -- and, with a carrier for each but no constellation for the free
+    slots, that no combination does. Decided on the pools, so the sentence is
+    about what is owned.
     """
     rolls = advisor.raising_effects(game_data, wylder, 5)
     nobody_carries = rolls[4][0]
@@ -312,23 +346,24 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
     problem = advisor.problem([advisor.RED, advisor.RED])
     result = a_run(dataclasses.replace(
         problem, required=frozenset({nobody_carries, rolls[0][0]})))
-    assert result.suggestions == ()
+    assert len(result.suggestions[0].choices) == 2
+    assert all(owned.relics[0].handle in {c.handle for c in s.choices}
+               for s in result.suggestions), (
+        "the favourite that can be met went missing with the one that cannot")
     assert result.unknowns[-1] == (
-        f"No copy you own carries {name(nobody_carries)}, which you "
+        f"No copy you own carries “{name(nobody_carries)}”, which you "
         f"favourited — no suggestion can meet that.")
-    # AK-294: the status line's second clause reads this flag, and it is
-    # only ever true when the sentence above was written.
-    assert result.blocked_by_a_requirement
+    assert result.required_left_out == (nobody_carries,)
 
     one_slot = advisor.problem([advisor.RED])
     result = a_run(dataclasses.replace(
         one_slot, required=frozenset({rolls[0][0], rolls[1][0]})))
-    assert result.suggestions == ()
+    assert len(result.suggestions[0].choices) == 1
+    left_out, = result.required_left_out
+    assert left_out in {rolls[0][0], rolls[1][0]}
     assert result.unknowns[-1] == (
-        f"No combination of the copies you own carries "
-        f"{', '.join(sorted(name(eid) for eid in (rolls[0][0], rolls[1][0])))}"
-        f", which you favourited — no suggestion can meet that.")
-    assert result.blocked_by_a_requirement
+        f"Your copies can carry “{name(left_out)}”, which you favourited, "
+        f"but not together with the favourites this suggestion already meets.")
 
     met = a_run(dataclasses.replace(problem,
                                     required=frozenset({rolls[0][0]})))
@@ -336,7 +371,41 @@ def test_a_required_effect_no_copy_carries_is_said_by_name(game_data, wylder):
         owned.relics[0].handle in {c.handle for c in s.choices}
         for s in met.suggestions)
     assert not any("required" in line for line in met.unknowns)
-    assert not met.blocked_by_a_requirement
+    assert met.required_left_out == ()
+
+
+def test_the_search_falls_back_when_the_budget_misses_a_carrier(monkeypatch,
+                                                                game_data,
+                                                                wylder):
+    """AD-058.4, "never blocks" against the K limit of the forced branches:
+    with the beam empty under the attainable favourites, the free search
+    answers, and what the suggestion then lacks is named."""
+    from nrplanner.advisor import candidates
+
+    owned = advisor.make_inventory(game_data, wylder, count=4)
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    free = advisor.problem([advisor.RED])
+    weakest = candidates.pool(owned, free, 0, ctx, goals.GOALS,
+                              DAMAGE).candidates[-1]
+    wanted = weakest.effect_ids[0]
+    question = dataclasses.replace(free, required=frozenset({wanted}))
+    frozen = run.frozen_inventory(owned, question)
+    real = search.beam
+    asked = []
+
+    def misses_the_carrier(problem, *args, **kwargs):
+        asked.append(problem.required)
+        return () if problem.required else real(problem, *args, **kwargs)
+
+    monkeypatch.setattr(search, "beam", misses_the_carrier)
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    assert asked == [frozenset({wanted}), frozenset()]
+    assert result.suggestions[0].choices[0].handle != weakest.handle
+    assert result.required_left_out == (wanted,)
 
 
 def test_a_required_effect_a_held_relic_carries_is_said_to_be_there(
@@ -372,11 +441,36 @@ def test_a_required_effect_a_held_relic_carries_is_said_to_be_there(
     assert (f"{name(on_the_hold)}, which you favourited, is carried by "
             f"{holding.name} held in Slot 1.") in result.unknowns
     assert not any(name(in_the_open) in line for line in result.unknowns)
-    assert not result.blocked_by_a_requirement
+    assert result.required_left_out == ()
     # AK-314.1: the card's own line is the same single sentence, unabridged.
     assert result.favourites_met_line == (
         f"{name(on_the_hold)}, which you favourited, is carried by "
         f"{holding.name} held in Slot 1.")
+
+
+def test_an_avoided_effect_on_a_held_relic_is_said_in_the_answer(game_data,
+                                                                 wylder):
+    """QA-325, AK-458: no other place can ever say it. A suggestion carries no
+    avoided effect (AD-057), and `Why` lists no held slot (AD-014.6)."""
+    rolls = advisor.raising_effects(game_data, wylder, 3)
+    owned = advisor.make_inventory(game_data, wylder, count=3, rolls=rolls)
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    holding = owned.relics[0]
+    avoided = rolls[0][0]
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED],
+                        held={0: advisor.held_relic(holding)}),
+        excluded=frozenset({avoided}))
+    frozen = run.frozen_inventory(owned, problem)
+    result = run.run(advisor.request_for(problem, ctx, frozen), frozen,
+                     ctx, goals.GOALS)
+
+    name = " ".join(game_data["effects"][str(avoided)]["name"].split())
+    assert (f"{holding.name}, held in Slot 1 — {name}: you avoided it. This "
+            f"relic is in the build because you chose it, and the effect is "
+            f"left out of the figure.") in result.unknowns
 
 
 def test_two_favourites_met_by_a_hold_summarise_on_the_card(game_data,
@@ -432,11 +526,11 @@ def test_a_required_effect_owned_only_deep_says_so_when_deep_is_off(
     result = run.run(advisor.request_for(question, ctx, frozen), frozen,
                      ctx, goals.GOALS)
 
-    assert result.suggestions == ()
+    assert len(result.suggestions[0].choices) == 2
     assert result.unknowns[-1] == (
-        f"You own 2 copies carrying {name(deep_effect)}, but none fits the "
+        f"You own 2 copies carrying “{name(deep_effect)}”, but none fits the "
         f"open slots (Deep of Night is off).")
-    assert result.blocked_by_a_requirement
+    assert result.required_left_out == (deep_effect,)
 
 
 def _ranking(result) -> list[tuple[tuple[int, ...], float]]:
@@ -806,13 +900,13 @@ def test_a_copy_the_save_gives_no_handle_for_is_still_in_the_fingerprint(
 
 # -- the cache --------------------------------------------------------------
 
-@pytest.mark.parametrize("goal_id", [DAMAGE, SURVIVAL, ATTRIBUTES])
+@pytest.mark.parametrize("goal_id", [DAMAGE, SURVIVAL, BALANCED, ATTRIBUTES])
 @pytest.mark.parametrize("deep", [False, True])
 def test_a_hit_is_what_a_fresh_run_would_have_said(game_data, wylder,
                                                    goal_id, deep):
     """AD-007: the cache is a speed-up and not a second way to compute.
 
-    Six combinations, and the denominator is the point: three directions
+    Eight combinations, and the denominator is the point: four directions
     times both Deep settings. Held against a **fresh** run of the same
     question rather than against the stored object, so the claim is that the
     cache does not answer differently from computing again -- which is also
@@ -838,18 +932,18 @@ def test_a_hit_is_what_a_fresh_run_would_have_said(game_data, wylder,
         "float that only one of them rounded")
 
 
-def test_all_six_combinations_of_direction_and_deep_are_covered():
+def test_all_eight_combinations_of_direction_and_deep_are_covered():
     """The denominator of the case above, so that dropping one is visible.
 
     It did its work when AD-032 added the third direction (T-191): the
     parametrization above went on covering two and this case said so.
     """
     combinations = [(goal_id, deep)
-                    for goal_id in (DAMAGE, SURVIVAL, ATTRIBUTES)
+                    for goal_id in (DAMAGE, SURVIVAL, BALANCED, ATTRIBUTES)
                     for deep in (False, True)]
 
-    assert len(combinations) == 6
-    assert set(goals.GOALS) == {DAMAGE, SURVIVAL, ATTRIBUTES}, (
+    assert len(combinations) == 8
+    assert set(goals.GOALS) == {DAMAGE, SURVIVAL, BALANCED, ATTRIBUTES}, (
         f"the registry holds {sorted(goals.GOALS)}, so the case above no "
         f"longer covers every direction")
 
@@ -963,3 +1057,567 @@ def test_a_cache_that_can_never_hit_is_refused():
     """
     with pytest.raises(ValueError, match="at least one"):
         run.ResultCache(size=0)
+
+
+def test_a_slot_the_marks_emptied_says_why_through_the_run(game_data, wylder):
+    """AD-057.4: one copy left for two slots, the others avoided. The answer
+    names the empty slot and its reason, and the filled one is not in it."""
+    rolls = advisor.raising_effects(game_data, wylder, 3)
+    owned = advisor.make_inventory(game_data, wylder, count=3, rolls=rolls)
+    avoided = {rolls[0][0], rolls[1][0]}
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    question = dataclasses.replace(advisor.problem([advisor.RED, advisor.RED]),
+                                   excluded=frozenset(avoided))
+    frozen = run.frozen_inventory(owned, question)
+
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    assert [choice.slot_index for choice in result.suggestions[0].choices] == [0]
+    empty, = result.empty_slots
+    assert empty.slot_index == 1
+    assert empty.reason == types.EMPTY_AVOIDED, (
+        "slot 0 spent the one copy left, so what is left here is avoided")
+
+
+def test_a_dropped_suggestion_has_no_empty_slot_entries(game_data):
+    """AD-057.4: AK-365 is the seventh reason, outside the list."""
+    result = _recluse_sorceries(game_data, "Fire")
+
+    assert result.no_carrier_for
+    assert result.empty_slots == ()
+
+
+# -- the star (A28, AD-059) --------------------------------------------------
+
+def _starred(game_data, wylder, owned, colours, *, stars, **marks):
+    """One run with these copies starred, and the question and frozen save."""
+    held = marks.pop("held", None)
+    question = dataclasses.replace(
+        advisor.problem(colours, held=held), **marks,
+        pinned=tuple(sorted(types.roll_of(copy) for copy in stars)))
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data, wylder))
+    frozen = run.frozen_inventory(owned, question)
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+    return result, question, ctx, frozen
+
+
+def _weakest_copy(game_data, wylder, owned, colours):
+    """A copy the plain search leaves out, so that only a star puts it in."""
+    plain, *_ = _starred(game_data, wylder, owned, colours, stars=())
+    named = {choice.handle for choice in plain.suggestions[0].choices}
+    return next(copy for copy in reversed(owned.relics)
+                if copy.handle not in named and copy.colour == colours[0])
+
+
+def test_a_star_goes_in_although_the_search_would_not_take_it(game_data,
+                                                              wylder):
+    owned = advisor.make_inventory(game_data, wylder, count=4)
+    colours = [advisor.RED, advisor.RED]
+    star = _weakest_copy(game_data, wylder, owned, colours)
+
+    result, *_ = _starred(game_data, wylder, owned, colours, stars=[star])
+
+    best = result.suggestions[0]
+    assert star.handle in {choice.handle for choice in best.choices}
+    assert [choice.slot_index for choice in best.choices] == [0, 1]
+    assert result.pins_placed == (0,)
+    assert result.held == ()
+    assert result.pins_left_out == ()
+
+
+def test_the_gain_and_the_reasons_count_the_star(game_data, wylder):
+    """Handing `searched` to the explanation would measure the star against a
+    base state that already holds it: no gain, and no line for it."""
+    owned = advisor.make_inventory(game_data, wylder, count=4)
+    colours = [advisor.RED, advisor.RED]
+    star = _weakest_copy(game_data, wylder, owned, colours)
+
+    result, question, ctx, frozen = _starred(game_data, wylder, owned, colours,
+                                             stars=[star])
+
+    best = result.suggestions[0]
+    by_handle = {copy.handle: copy for copy in frozen.relics}
+    chosen = tuple(
+        types.Candidate(choice.slot_index, choice.handle, choice.relic_id,
+                        choice.name, advisor.RED, False,
+                        by_handle[choice.handle].effect_ids,
+                        by_handle[choice.handle].curse_ids)
+        for choice in best.choices)
+    goal = goals.GOALS[DAMAGE]
+    base = evaluate(question, (), ctx, goal=goal)
+    built = evaluate(question, chosen, ctx, goal=goal)
+    gain = {line.goal_id: line.gain for line in result.gain}
+
+    assert gain[DAMAGE] == (goal.score(built, ctx).value
+                            - goal.score(base, ctx).value)
+    assert best.score.value == goal.score(built, ctx).value
+    group = next(group for group in best.reasons
+                 if group.slot_index == result.pins_placed[0])
+    assert group.relic_name == star.name
+    assert any(line.silence == types.CARRIES_A_FIGURE for line in group.lines)
+
+
+def test_a_slot_a_star_emptied_says_so(game_data, wylder):
+    """`EMPTY_PIN` out of a real run: the one copy of the colour is laid, and
+    the other slot has nothing left to be offered."""
+    owned = advisor.make_inventory(game_data, wylder, count=1)
+    star = owned.relics[0]
+
+    result, *_ = _starred(game_data, wylder, owned,
+                          [advisor.RED, advisor.RED], stars=[star])
+
+    assert result.pins_placed == (0,)
+    assert [(empty.slot_index, empty.reason, empty.relic_name)
+            for empty in result.empty_slots] == [
+        (1, types.EMPTY_PIN, star.name)]
+
+
+def test_a_star_is_part_of_the_question(game_data, wylder):
+    """A hit across two sets of stars would hand back the other build."""
+    owned = advisor.make_inventory(game_data, wylder, count=2)
+    plain = advisor.problem([advisor.RED])
+    starred = dataclasses.replace(
+        plain, pinned=(types.roll_of(owned.relics[0]),))
+    ctx = advisor.context(game_data, wylder)
+    frozen = run.frozen_inventory(owned, plain)
+
+    assert (run.cache_key(advisor.request_for(plain, ctx, frozen))
+            != run.cache_key(advisor.request_for(starred, ctx, frozen)))
+
+
+def test_a_star_nobody_owns_says_nothing(game_data, wylder):
+    """It is nowhere on screen and cannot be taken off, so a line about it
+    would stand for ever (AD-059.5)."""
+    owned = advisor.make_inventory(game_data, wylder, count=2)
+    question = dataclasses.replace(advisor.problem([advisor.RED]),
+                                   pinned=((1, (2,), ()),))
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data, wylder))
+    frozen = run.frozen_inventory(owned, question)
+
+    result = run.run(advisor.request_for(question, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    assert result.pins_left_out == ()
+    assert result.pins_placed == ()
+
+
+def test_a_star_the_player_holds_is_met_and_not_laid_again(game_data, wylder):
+    """Two copies of one roll: the held one is the star."""
+    rolls = advisor.raising_effects(game_data, wylder, 1) * 4
+    owned = advisor.make_inventory(game_data, wylder, count=3, rolls=rolls)
+    first = owned.relics[0]
+
+    result, *_ = _starred(
+        game_data, wylder, owned, [advisor.RED, advisor.RED], stars=[first],
+        held={0: advisor.held_relic(first)})
+
+    assert result.pins_placed == ()
+    assert result.pins_left_out == ()
+
+
+def _one_left_out(result) -> types.PinLeftOut:
+    assert len(result.pins_left_out) == 1
+    return result.pins_left_out[0]
+
+
+def test_an_avoided_star_stays_out_and_names_the_effect(game_data, wylder):
+    """`PIN_AVOIDED`: A18 beats the star, and the star stays set."""
+    owned = advisor.make_inventory(game_data, wylder, count=2)
+    star = owned.relics[0]
+    avoided = star.effect_ids[0]
+
+    result, _, ctx, _ = _starred(game_data, wylder, owned, [advisor.RED],
+                                 stars=[star], excluded=frozenset({avoided}))
+
+    left = _one_left_out(result)
+    name = run.explain._effect_name(ctx, avoided)
+    assert left.reason == types.PIN_AVOIDED
+    assert left.because == f"it carries “{name}”, which you avoided"
+    assert result.pins_placed == ()
+
+
+def test_a_rejected_star_stays_out(game_data, wylder):
+    """`PIN_REJECTED`."""
+    owned = advisor.make_inventory(game_data, wylder, count=2)
+    star = owned.relics[0]
+
+    result, *_ = _starred(game_data, wylder, owned, [advisor.RED], stars=[star],
+                          rejected=frozenset({types.roll_of(star)}))
+
+    left = _one_left_out(result)
+    assert left.reason == types.PIN_REJECTED
+    assert left.because == "you rejected it for this build"
+
+
+def test_a_star_without_a_handle_cannot_be_laid(game_data, wylder):
+    """`PIN_NO_COPY`: applying it would have no copy to name (AD-013.4)."""
+    owned = advisor.make_inventory(game_data, wylder, count=2,
+                                   handles=[None, 101])
+
+    result, *_ = _starred(game_data, wylder, owned, [advisor.RED],
+                          stars=[owned.relics[0]])
+
+    left = _one_left_out(result)
+    assert left.reason == types.PIN_NO_COPY
+    assert left.because == "you own no copy that is free"
+
+
+def test_a_star_of_a_colour_the_vessel_lacks_says_so(game_data, wylder):
+    """`PIN_NO_SLOT`, the ordinary form."""
+    owned = advisor.make_inventory(game_data, wylder, count=1,
+                                   other_colour=advisor.BLUE)
+    star = next(copy for copy in owned.relics if copy.colour == advisor.BLUE)
+
+    result, *_ = _starred(game_data, wylder, owned, [advisor.RED], stars=[star])
+
+    left = _one_left_out(result)
+    assert left.reason == types.PIN_NO_SLOT
+    assert left.because == "this vessel has no slot that fits its colour"
+
+
+def test_a_deep_star_with_deep_of_night_off_says_that(game_data, wylder):
+    """`PIN_NO_SLOT`, the Deep form (AK-456)."""
+    owned = advisor.make_inventory(game_data, wylder, count=1, deep_count=1)
+    star = next(copy for copy in owned.relics if copy.is_deep)
+
+    result, *_ = _starred(game_data, wylder, owned, [advisor.RED], stars=[star])
+
+    left = _one_left_out(result)
+    assert left.reason == types.PIN_NO_SLOT
+    assert left.because == ("it is a Deep of Night relic and Deep of Night is "
+                            "off")
+
+
+def test_a_hold_beats_a_star(game_data, wylder):
+    """`PIN_SLOTS_HELD`, AD-059.6: a slot held empty is no more free than a
+    filled one."""
+    owned = advisor.make_inventory(game_data, wylder, count=2)
+    star = owned.relics[0]
+
+    result, *_ = _starred(game_data, wylder, owned, [advisor.RED], stars=[star],
+                          held={0: None})
+
+    left = _one_left_out(result)
+    assert left.reason == types.PIN_SLOTS_HELD
+    assert left.because == "every slot it could go in is held"
+    assert result.pins_placed == ()
+    assert [entry.relic for entry in result.held] == [None]
+
+
+def test_the_stronger_star_takes_the_only_slot(game_data, wylder):
+    """`PIN_OTHER_PIN`, and who is left over is the weakest (AD-059.3)."""
+    owned = advisor.make_inventory(game_data, wylder, count=4)
+    colours = [advisor.RED]
+    plain, *_ = _starred(game_data, wylder, owned, colours, stars=())
+    strongest = plain.suggestions[0].choices[0].handle
+    strong = next(copy for copy in owned.relics if copy.handle == strongest)
+    weak = next(copy for copy in owned.relics if copy.handle != strongest)
+
+    result, *_ = _starred(game_data, wylder, owned, colours,
+                          stars=[weak, strong])
+
+    assert result.suggestions[0].choices[0].handle == strongest
+    left = _one_left_out(result)
+    assert left.reason == types.PIN_OTHER_PIN
+    assert left.name == weak.name
+    assert left.other == strong.name
+    assert left.because == (
+        "another favourited copy takes the only slot it could use")
+
+
+def test_a_favourite_effect_beats_a_star(game_data, wylder):
+    """`PIN_BLOCKS_REQUIREMENT`, AK-440: one slot, one relic carrying the
+    favourite, a star that does not. The favourite goes in."""
+    owned = advisor.make_inventory(game_data, wylder, count=2)
+    star, carrier = owned.relics[0], owned.relics[1]
+    wanted = carrier.effect_ids[0]
+
+    result, _, ctx, _ = _starred(game_data, wylder, owned, [advisor.RED],
+                                 stars=[star], required=frozenset({wanted}))
+
+    left = _one_left_out(result)
+    name = run.explain._effect_name(ctx, wanted)
+    assert left.reason == types.PIN_BLOCKS_REQUIREMENT
+    assert left.because == f"placing it would leave “{name}” (Favourite) unmet"
+    assert result.suggestions[0].choices[0].handle == carrier.handle
+    assert result.required_left_out == ()
+
+
+def test_a_star_that_carries_the_favourite_is_laid(game_data, wylder):
+    """The same slot, but the star is itself the carrier: nothing is lost."""
+    owned = advisor.make_inventory(game_data, wylder, count=2)
+    star = owned.relics[0]
+
+    result, *_ = _starred(game_data, wylder, owned, [advisor.RED], stars=[star],
+                          required=frozenset({star.effect_ids[0]}))
+
+    assert result.pins_placed == (0,)
+    assert result.required_left_out == ()
+
+
+def test_the_why_row_of_a_star_left_out_names_its_effects(game_data, wylder):
+    """AK-456: `{relic name} ({effect}, {effect}) — {reason}`."""
+    owned = advisor.make_inventory(game_data, wylder, count=2)
+    star = owned.relics[0]
+
+    result, _, ctx, _ = _starred(game_data, wylder, owned, [advisor.RED],
+                                 stars=[star],
+                                 rejected=frozenset({types.roll_of(star)}))
+
+    names = ", ".join(run.explain._effect_name(ctx, eid)
+                      for eid in star.effect_ids)
+    assert _one_left_out(result).line == (
+        f"{star.name} ({names}) — you rejected it for this build")
+
+
+def test_an_unknown_star_reason_is_an_error(game_data, wylder):
+    """AK-456: no quiet fallback sentence."""
+    left = types.PinLeftOut("Urn", (1, (), ()), "something new")
+    ctx = advisor.context(game_data, wylder)
+
+    with pytest.raises(KeyError):
+        run.explain.pins_left_out((left,), advisor.problem([advisor.RED]), ctx)
+
+
+# -- every vessel, the same question (AD-062) --------------------------------
+
+A_VESSEL = {"id": 1, "slots": [advisor.RED, advisor.RED], "deep_slots": []}
+BLUE_VESSEL = {"id": 2, "slots": [advisor.BLUE, advisor.BLUE], "deep_slots": []}
+WHITE_VESSEL = {"id": 3, "slots": [advisor.BLUE, model.WHITE_SLOT],
+                "deep_slots": []}
+
+
+def _a_held(name="Held", colour=advisor.RED, is_deep=False):
+    return types.HeldRelic(relic_id=1, name=name, colour=colour,
+                           is_deep=is_deep, handle=5)
+
+
+def _asked_with_holds(*held):
+    return types.AdvisorRequest(
+        hero_id=1, level=15, goal_id=DAMAGE, weighting_id="even",
+        problem=types.SlotProblem(
+            slots=(types.Slot(0, advisor.RED, False),
+                   types.Slot(1, advisor.RED, False)),
+            held=held, rejected=frozenset({(9, (), ())})))
+
+
+def test_a_row_says_what_optimize_says_there(game_data, wylder):
+    """The guard of AD-062: one number, whichever screen reads it."""
+    inventory, _problem, ctx, request = advisor.a_question(game_data, wylder)
+    result = run.run(request, inventory, ctx, goals.GOALS)
+    row = run.vessel_row(7, result)
+    best = result.suggestions[0].score
+    assert (row.vessel_id, row.figure, row.value) == (7, best.display,
+                                                      best.value)
+    assert row.other_value == goals.MIN_DAMAGE_TAKEN.score(
+        evaluate(request.problem, _chosen(
+            result, inventory, request.problem, ctx), ctx,
+            goal=goals.MIN_DAMAGE_TAKEN), ctx).value
+
+
+def test_a_row_knows_the_figure_without_relics_held_ones_left_out(game_data,
+                                                                  wylder):
+    """GOAL.md A28: the sheet's grey `Base`, from the same reckoning; a held
+    relic does not count towards it, while the base state of the search does."""
+    inventory, problem, ctx, request = advisor.a_question(game_data, wylder)
+    empty = evaluate(problem, (), ctx, goal=goals.MAX_DAMAGE)
+    bare, _now = damage.equipped(ctx.reference, ctx.reference.slot_index, empty,
+                                 ctx.hero, ctx.data)
+    expected = f"Attack rating {damage.displayed(bare.final_headline)}"
+
+    result = run.run(request, inventory, ctx, goals.GOALS)
+    assert run.vessel_row(7, result).base_figure == expected
+
+    choice = result.suggestions[0].choices[0]
+    held_problem = dataclasses.replace(problem, held=(types.HeldSlot(
+        index=choice.slot_index,
+        relic=next(types.HeldRelic(
+            relic_id=copy.relic_id, name=copy.name,
+            effect_ids=tuple(copy.effect_ids), handle=copy.handle,
+            colour=copy.colour, is_deep=copy.is_deep)
+            for copy in inventory.relics if copy.handle == choice.handle)),))
+    held = run.run(advisor.request_for(held_problem, ctx, inventory), inventory,
+                   ctx, goals.GOALS)
+    assert held.baseline_display != expected, "the hold has to move the base"
+    assert run.vessel_row(7, held).base_figure == expected
+
+
+def test_a_vessel_with_no_suggestion_shows_its_base_state(game_data):
+    """AK-449: the base state's own figure, formatted once, by the goal."""
+    result = _recluse_sorceries(game_data, "Fire")
+    assert result.suggestions == ()
+    base = next(line for line in result.baseline if line.goal_id == DAMAGE)
+    row = run.vessel_row(7, result)
+    assert row.value == base.value
+    assert row.figure == result.baseline_display != ""
+
+
+@pytest.mark.parametrize("better, worse", [
+    (types.VesselRow(1, value=1.0, other_value=1.0),
+     types.VesselRow(2, value=9.0, other_value=9.0, required_left_out=(4,))),
+    (types.VesselRow(1, value=1.0, other_value=1.0),
+     types.VesselRow(2, value=9.0, other_value=9.0, pins_left_out=("Urn",))),
+    (types.VesselRow(1, value=2.0, other_value=1.0),
+     types.VesselRow(2, value=1.0, other_value=9.0)),
+    (types.VesselRow(1, value=1.0, other_value=2.0),
+     types.VesselRow(2, value=1.0, other_value=1.0)),
+    (types.VesselRow(1, value=0.0, required_left_out=(4, 5)),
+     types.VesselRow(2, value=9.0, unfit_holds=("Urn",))),
+], ids=["effects", "stars", "this direction", "the other", "unfit"])
+def test_one_key_of_the_rank_decides_alone(better, worse):
+    """AK-463, each key on its own: the list's order would say the opposite."""
+    assert run.ranked((worse, better), (2, 1))[0] is better
+
+
+def test_favourite_effects_outrank_stars():
+    """AK-463: effects before stars, whatever the counts."""
+    effect = types.VesselRow(1, required_left_out=(4,))
+    stars = types.VesselRow(2, pins_left_out=("Urn", "Goblet"))
+    assert run.ranked((effect, stars), (1, 2))[0] is stars
+
+
+def test_the_list_decides_only_when_every_key_is_level():
+    first, second = types.VesselRow(1, value=1.0), types.VesselRow(2, value=1.0)
+    assert run.rank_key(first) == run.rank_key(second)
+    assert run.ranked((first, second), (2, 1))[0] is second
+
+
+def test_the_chosen_vessel_is_asked_first_and_unchanged():
+    """AD-062.3: its question is the one just answered, so it is a hit."""
+    asked = _asked_with_holds(types.HeldSlot(1, _a_held()), types.HeldSlot(0))
+    questions = run.vessel_questions(
+        asked, (WHITE_VESSEL, A_VESSEL), A_VESSEL["id"], False)
+    assert questions[0] == types.VesselQuestion(A_VESSEL["id"], asked)
+    assert [question.vessel_id for question in questions] == [1, 3]
+
+
+def test_a_hold_travels_to_its_own_colour_before_a_white_slot():
+    relic = _a_held(colour=advisor.BLUE)
+    asked = _asked_with_holds(types.HeldSlot(1, relic))
+    _chosen_one, other = run.vessel_questions(
+        asked, (A_VESSEL, WHITE_VESSEL), A_VESSEL["id"], False)
+    problem = other.request.problem
+    assert problem.held == (types.HeldSlot(0, relic),)
+    assert problem.slots == run.vessel_slots(WHITE_VESSEL, False)
+    assert problem.rejected == asked.problem.rejected
+
+
+def test_a_slot_held_empty_stays_with_its_vessel():
+    asked = _asked_with_holds(types.HeldSlot(0))
+    _chosen_one, other = run.vessel_questions(
+        asked, (A_VESSEL, BLUE_VESSEL), A_VESSEL["id"], False)
+    assert other.request.problem.held == ()
+
+
+def test_a_vessel_that_cannot_take_the_holds_is_not_asked():
+    """AD-062.5: the row says so instead of a figure that is not comparable."""
+    asked = _asked_with_holds(types.HeldSlot(0, _a_held("Red one")))
+    _chosen_one, other = run.vessel_questions(
+        asked, (A_VESSEL, BLUE_VESSEL), A_VESSEL["id"], False)
+    assert other == types.VesselQuestion(BLUE_VESSEL["id"],
+                                         unfit_holds=("Red one",))
+
+
+def test_a_custom_relic_of_a_white_slot_fits_any_slot_of_its_kind():
+    """AD-062.5: built in a white slot it has no colour to ask for."""
+    custom = _a_held("Custom relic", colour=model.WHITE_SLOT)
+    asked = _asked_with_holds(types.HeldSlot(0, custom))
+    _chosen_one, other = run.vessel_questions(
+        asked, (A_VESSEL, BLUE_VESSEL), A_VESSEL["id"], False)
+    assert other.request.problem.held == (types.HeldSlot(0, custom),)
+
+
+def test_a_deep_relic_does_not_travel_to_an_ordinary_slot():
+    asked = _asked_with_holds(types.HeldSlot(0, _a_held(is_deep=True)))
+    _chosen_one, off, on = run.vessel_questions(
+        asked, (A_VESSEL, {**WHITE_VESSEL, "id": 4},
+                {**WHITE_VESSEL, "id": 5}), A_VESSEL["id"], False)
+    assert off.unfit_holds and on.unfit_holds
+    deep = {"id": 6, "slots": [advisor.BLUE], "deep_slots": [advisor.RED]}
+    _chosen_one, there = run.vessel_questions(
+        asked, (A_VESSEL, deep), A_VESSEL["id"], True)
+    assert there.request.problem.held[0].index == 1
+
+
+def test_the_moved_holds_say_where_each_came_from():
+    """`Switch to it` reads this to carry the slot's own stored key along."""
+    first, second = _a_held("First"), _a_held("Second", colour=advisor.BLUE)
+    moved, unfit = run.held_moved_to(
+        (types.HeldSlot(1, first), types.HeldSlot(0, second)),
+        run.vessel_slots({"slots": [advisor.BLUE, advisor.RED]}, False))
+    assert moved == ((1, types.HeldSlot(1, first)),
+                     (0, types.HeldSlot(0, second)))
+    assert unfit == ()
+
+
+# -- every owned carrier turned down (AK-461, the same for `Reject`) ----------
+
+EFFECTS = {"data": {"effects": {
+    str(eid): {"name": name} for eid, name in (
+        (1, "Wanted"), (2, "Zebra"), (3, "Apple"), (4, "Mango"))}}}
+
+
+def _a_copy(*effect_ids, relic_id=1, curse_ids=()):
+    return run.OfferedCopy(handle=relic_id, relic_id=relic_id, name="Relic",
+                           colour=0, is_deep=False, effect_ids=effect_ids,
+                           curse_ids=curse_ids)
+
+
+def _unmet(*copies, avoid=(), rejected=(), pools=()):
+    problem = types.SlotProblem(excluded=frozenset(avoid),
+                                rejected=frozenset(rejected))
+    ctx = types.GoalContext(data=EFFECTS["data"], hero={}, level=1,
+                            reference=None, weighting=goals.DEFAULT_WEIGHTING)
+    inventory = run.FrozenInventory(relics=copies, offers={})
+    line, = explain.required_but_unmet((1,), problem, pools, ctx, inventory)
+    return line
+
+
+def test_one_carrier_avoided_names_the_way_back():
+    assert _unmet(_a_copy(1, 2), avoid={2}) == (
+        "You own 1 copy carrying “Wanted”, which you favourited, but it also "
+        "carries an effect you avoided: “Zebra”. Remove the avoid under "
+        "Filters to use it.")
+
+
+def test_several_carriers_avoided_names_them_alphabetically():
+    assert _unmet(_a_copy(1, 2, relic_id=1), _a_copy(1, 3, relic_id=2),
+                  _a_copy(1, relic_id=3, curse_ids=(4,)),
+                  avoid={2, 3, 4}) == (
+        "You own 3 copies carrying “Wanted”, which you favourited, but each "
+        "also carries an effect you avoided: “Apple”, “Mango” and 1 more. "
+        "Remove the avoid under Filters to use them.")
+
+
+def test_a_carrier_left_that_merely_does_not_fit_keeps_the_old_sentence():
+    assert _unmet(_a_copy(1, 2, relic_id=1), _a_copy(1, relic_id=2),
+                  avoid={2}) == (
+        "You own 2 copies carrying “Wanted”, but none fits the open slots.")
+
+
+def test_a_rejected_carrier_points_at_suggest_again():
+    one = _a_copy(1, relic_id=1)
+    other = _a_copy(1, 3, relic_id=2)
+    assert _unmet(one, rejected={types.roll_of(one)}) == (
+        "You own 1 copy carrying “Wanted”, which you favourited, but you "
+        "rejected it for this build. Use Suggest again to bring it back.")
+    assert _unmet(one, other, rejected={types.roll_of(one),
+                                        types.roll_of(other)}) == (
+        "You own 2 copies carrying “Wanted”, which you favourited, but you "
+        "rejected them for this build. Use Suggest again to bring them back.")
+
+
+def test_carriers_avoided_and_rejected_name_both_ways_back():
+    one = _a_copy(1, relic_id=1)
+    assert _unmet(one, _a_copy(1, 2, relic_id=2),
+                  rejected={types.roll_of(one)}, avoid={2}) == (
+        "You own 2 copies carrying “Wanted”, which you favourited, but each is "
+        "rejected for this build or also carries an effect you avoided: "
+        "“Zebra”. Use Suggest again, or remove the avoid under Filters, to use "
+        "them.")

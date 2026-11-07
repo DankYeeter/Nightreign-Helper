@@ -351,4 +351,4 @@ die Prosa verteuern, die in diesem Projekt die eigentliche Dokumentation ist.
 `docs/lessons.md` — fortgeschrieben, nichts ueberschrieben; neuer Abschnitt
 "Zyklus 12–13 — 2026-09-05" mit Wirkungskontrolle, L-008 bis L-011 und vier
 Beobachtungen. Absoluter Pfad:
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\docs\lessons.md`
+`<Hauptbaum>\docs\lessons.md`

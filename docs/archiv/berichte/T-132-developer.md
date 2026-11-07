@@ -172,7 +172,7 @@ value block asks 138 x 31, minimum width 138, card body has 174
 **Messumgebung (L-009):** Windows 10 x64 (Windows-10-10.0.19045-SP0), Qt-
 Plugin `offscreen`, Stil `fusion`, `devicePixelRatio 1.0` — logische =
 physische px. Gemessen gegen den festen Testabzug
-(`C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug`), Slot 1 des
+(`%LOCALAPPDATA%\NightreignHelper-Testabzug`), Slot 1 des
 Basis-Vessels, 54 zutreffende Relikte.
 
 `second_sample()` (vier Oeffnungen: Wylder Slot/Deep-Slot, Guardian
@@ -247,7 +247,7 @@ Testabzug-Registry-Isolation (`DankYeeterT-132`) und die drei Scratch-
 Verzeichnisse liegen unter `scratchpad/T-132/`; die Registry-Nebenwirkung
 (`HKCU\Software\DankYeeterT-132`) habe ich nach der Messung entfernt
 (`Remove-Item`, bestaetigt geloescht). Der reale Nutzer-Cache
-(`C:\Users\Daniel\AppData\Local\NightreignHelper\nightreign_data.json`,
+(`%LOCALAPPDATA%\NightreignHelper\nightreign_data.json`,
 Aenderungsdatum 2026-09-05) ist unveraendert — geprueft mit
 `Get-Item ... LastWriteTime`, nicht nur behauptet.
 

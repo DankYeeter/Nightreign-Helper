@@ -24,6 +24,7 @@ disagree.
 
 from __future__ import annotations
 
+from nrplanner import statsheet
 from tests import advisor_cases
 from tests import weapon_damage_cases as cases
 
@@ -75,3 +76,35 @@ def test_a_condition_switch_reaches_declared_through_the_window(
     planner.selected_effects = lambda: []
     planner.recompute()
     assert planner.declared == {}, "a declaration outlived its effect"
+
+
+def test_the_sheet_stops_a_count_at_the_effect_limit_and_nonsense_stays_one(
+        planner, game_data):
+    """100000 of an attack effect took 1.4 s and made the attack rating
+    infinite, and `damage.displayed` raised in the middle of drawing the page
+    (T-336h). `declared` only ever holds what the row says, so the row is the
+    one place to stop it."""
+    night_invader = 7060200
+    planner.selected_effects = lambda: [
+        cases.effect_by_id(game_data, night_invader)]
+    planner.recompute()
+    row = planner.stat_sheet.situational_rows[night_invader]
+    row.check.setChecked(True)
+
+    def left_with(text: str) -> tuple:
+        row.count.setText(text)
+        row.count.editingFinished.emit()
+        return row.count.text(), planner.declared[night_invader]
+
+    assert left_with("100000") == ("4", 4)
+    assert left_with("5") == ("4", 4)
+    assert left_with("3") == ("3", 3)
+    for nonsense in ("abc", "", "-5", "0", "2.5"):
+        assert left_with(nonsense) == ("1", 1), nonsense
+
+    entry = next(entry for entry in planner.current_build().situational
+                 if entry.effect_id == night_invader)
+    seeded = statsheet.SituationalRow(entry, 100000, lambda: None)
+    assert seeded.count.text() == "4"
+    assert seeded.value() == 4
+    assert seeded.count.toolTip().endswith("at most 4")

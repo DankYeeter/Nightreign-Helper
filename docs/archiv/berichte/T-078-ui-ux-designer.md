@@ -358,5 +358,5 @@ Sie stehen wortgleich in `UI_SPEC.md`, Abschnitt 11:
    in this build.` und schweigt darueber, welche zwei nichts bewegt haben.
 3. **`Optimize` oder doch `Suggest`?** Siehe Abschnitt 8 Punkt 3.
 
-**Pfad zur Spec:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\UI_SPEC.md`
+**Pfad zur Spec:** `<Hauptbaum>\UI_SPEC.md`
 (neuer Abschnitt am Ende, ab Zeile 3153).

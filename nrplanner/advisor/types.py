@@ -114,6 +114,10 @@ class HeldRelic:
     because they go into the same `model.compute` call as ordinary effects
     (AD-015): there is no second reckoning for a curse anywhere under
     `advisor/`.
+
+    `colour` and `is_deep` say which slots of another vessel it would fit
+    (AD-062.5). White on a custom relic built in a white slot: any slot of its
+    Deep kind.
     """
 
     relic_id: int
@@ -121,6 +125,8 @@ class HeldRelic:
     effect_ids: tuple[int, ...] = ()
     curse_ids: tuple[int, ...] = ()
     handle: int | None = None
+    colour: int = model.WHITE_SLOT
+    is_deep: bool = False
 
 
 @dataclass(frozen=True)
@@ -135,6 +141,11 @@ class HeldSlot:
 
     index: int
     relic: HeldRelic | None = None
+
+
+#: A copy by what it rolled, not by its handle: relic id, effects, curses. Two
+#: copies of one roll are the same relic to a player (`favourites.key`).
+Roll = tuple[int, tuple[int, ...], tuple[int, ...]]
 
 
 @dataclass(frozen=True)
@@ -152,26 +163,42 @@ class SlotProblem:
     Deep ones. A vessel with Deep of Night switched off contributes three.
 
     `excluded` are the effect ids the player marked `Avoid` (`GOAL.md`
-    A18, AD-036): a boundary condition of the same kind as holding. Such an
-    id -- effect or curse -- is struck before the calculation sees it
-    (`evaluate.effect_ids_of`), so every state, pool, beam and picker ranking
-    of this problem is built without it, and the `Why` says it was excluded
-    rather than that it carried no number. The relic stays a candidate; it
-    is worth whatever its other effects are worth.
+    A18, AD-036, AD-057): a boundary condition of the same kind as holding. A
+    copy carrying such an id -- effect or curse -- is never offered
+    (`candidates.pool`). A relic the player put there themselves stays where
+    it is, with the id struck before the calculation sees it
+    (`evaluate.effect_ids_of`), and the `Why` says it was excluded rather
+    than that it carried no number.
 
-    `required` are the effect ids the player marked `Favourite` (A19,
-    AD-036.4): every suggestion carries each of them on a held relic or a
-    chosen copy, or there is no suggestion and the run says which effect no
-    copy could supply (A7). A boundary condition of the beam, like holding
+    `rejected` are the rolls the player turned down for this question (A28,
+    AD-060): no copy of such a roll is offered, whichever copy was shown.
+    What the player holds is untouched, as it is for `excluded`.
+
+    `required` are the effect ids the player marked `Favourite` (A19, A28,
+    AD-036.4, AD-058): every suggestion carries each of them the vessel can
+    carry at once, on a held relic or a chosen copy, and the run says which
+    it had to leave out (A7). A boundary condition of the beam, like holding
     (AD-014.5) -- never a filter over its result. An id in both sets is
     refused: the window keeps them apart, and a problem that asked for both
     would have no answer that is not a lie about one of them.
+
+    `favourites_of_others` are the marks left out of `required` because they
+    do nothing on this Nightfarer (user decision 07.11.2026): no slot, never
+    missing. Only `Why` reads them, for a copy in the build that carries one.
+
+    `pinned` are the rolls the player starred for this Nightfarer (A28,
+    AD-059), sorted: each goes into the suggestion when it fits, and the run
+    says why when it does not. Not `favourites`' text form: this package is
+    Qt-free, and the window reads the store.
     """
 
     slots: tuple[Slot, ...] = ()
     held: tuple[HeldSlot, ...] = ()
     excluded: frozenset[int] = frozenset()
     required: frozenset[int] = frozenset()
+    favourites_of_others: frozenset[int] = frozenset()
+    rejected: frozenset[Roll] = frozenset()
+    pinned: tuple[Roll, ...] = ()
 
     def __post_init__(self) -> None:
         both = self.excluded & self.required
@@ -252,6 +279,11 @@ class AdvisorRequest:
     #: `GoalContext.assumed_armament_counts`: they follow the selected
     #: armament tile, so two tiles of two types are two questions.
     assumed_armament_counts: tuple[int, ...] = ()
+    #: `GoalContext.pick_ailment` and `.pick_swap`: the selected tile's rolls
+    #: are not in the key, so `declared` alone does not say whether a
+    #: condition rests on a swappable pick (QA-322).
+    pick_ailment: tuple[int, ...] = ()
+    pick_swap: str = ""
     #: `GoalContext.selected_catalyst`'s id: a spell asked of another staff
     #: is another question.
     selected_catalyst_id: int | None = None
@@ -294,6 +326,10 @@ class AdvisorRequest:
 
 
 # --- the answer ------------------------------------------------------------
+
+#: Between the figures of a `GoalScore.display` that holds two (`goals.BALANCED`).
+FIGURES_JOIN = " / "
+
 
 @dataclass(frozen=True)
 class GoalScore:
@@ -441,6 +477,24 @@ class GoalContext:
     #: replaces them, and a declaration by hand is never narrowed. In the key
     #: as `AdvisorRequest.assumed_armament_counts`.
     assumed_armament_counts: tuple[int, ...] = ()
+    #: Conditions on an enemy ailment (`effecttext.ailment_awaited`) the
+    #: baseline counts in a build only where one of its relics makes the
+    #: attacks inflict the ailment (`inflicts_on_hit`, user decision
+    #: 01.11.2026), sorted. Those the selected tile's armament inflicts
+    #: (its rolls, art or spell included) are in `declared` instead; an
+    #: armament on another tile is no source. Not in the key: they are the conditions of that
+    #: kind `declared` leaves out, so `declared` decides them.
+    awaiting_ailment: tuple[int, ...] = ()
+    #: Conditions of that kind only the art or spell of the selected tile
+    #: inflicts, where a swap relic reaches it (the starting armament's art,
+    #: the starting catalyst's spell), sorted. They count in a build without
+    #: such a relic and are awaited in one with it: a swap beats the pick
+    #: (AD-056.4, QA-322). In the key as `AdvisorRequest.pick_ailment`.
+    pick_ailment: tuple[int, ...] = ()
+    #: Which swap takes them: `arts` or `spells`, the block of
+    #: `evaluate._swapped_in`; empty where `pick_ailment` is. In the key as
+    #: `AdvisorRequest.pick_swap`.
+    pick_swap: str = ""
     #: The staff or seal on the selected tile, `None` where it holds none:
     #: the spell cells cast from it before the starting catalyst
     #: (`damage.spell_catalyst`, T-335b). In the key as
@@ -597,6 +651,13 @@ class SlotPool:
     #: carries 0 and two pools of the same question compare equal whatever
     #: was asked in between.
     generation: int = 0
+    #: Why this pool may be short (AD-057.4): the `Avoid` ids that took copies
+    #: out of it, sorted; how many copies a Reject took; the names of the
+    #: favourite relics whose copy fits here and is already placed. Read by
+    #: `explain.empty_slots` and by nothing else.
+    avoided_by: tuple[int, ...] = ()
+    rejected_out: int = 0
+    pin_taken: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -662,6 +723,9 @@ SILENT_REQUIRED = "required"
 #: build counts another type's or none: a build meets the condition of only
 #: one type (AD-036.6, addendum 12.10.2026), the selected tile's unless one
 #: is declared by hand (28.10.2026), so this one moved nothing (AK-383).
+#: Likewise a weapon-type bonus of another type and a condition on an enemy
+#: ailment the build does not inflict (01.11.2026, QA-321), and an effect that
+#: acts on the enemy (07.11.2026, QA-321).
 SILENT_REQUIRED_OTHER_TYPE = "required_other_type"
 
 
@@ -740,6 +804,71 @@ class Suggestion:
     reasons: tuple[SlotReasons, ...] = ()
 
 
+#: Why a free slot has no choice in the best suggestion (AD-057.4), in the
+#: order `explain.empty_slots` asks. The copies were there and another slot
+#: spent them, one of them a carrier of a `Favourite` effect:
+EMPTY_REQUIREMENT = "requirement"
+#: Nothing was left because a favourite relic's copy is placed elsewhere:
+EMPTY_PIN = "pin"
+#: Nothing was left because of the player's marks, one or the other or both:
+EMPTY_AVOIDED_AND_REJECTED = "avoided_and_rejected"
+EMPTY_AVOIDED = "avoided"
+EMPTY_REJECTED = "rejected"
+#: Nothing of the kind: the save holds no unused relic for this slot.
+EMPTY_NOTHING = "nothing"
+
+
+@dataclass(frozen=True)
+class EmptySlot:
+    """A free slot the best suggestion leaves empty, and why (AK-441).
+
+    `line` is the card's whole sentence, written by `explain.py` because it
+    takes the dataset to name an effect. `effect_ids` belongs to
+    `EMPTY_AVOIDED` and `EMPTY_REQUIREMENT`, `relic_name` to `EMPTY_PIN`.
+    """
+
+    slot_index: int
+    reason: str
+    effect_ids: tuple[int, ...] = ()
+    relic_name: str = ""
+    line: str = ""
+
+
+#: Why a starred relic is not in the suggestion (AD-059.5), in the order
+#: `candidates.pin` asks. A roll that carries an avoided id or was rejected:
+PIN_AVOIDED = "avoided"
+PIN_REJECTED = "rejected"
+#: Every copy of the roll lacks a handle, so none can be applied (AD-013.4):
+PIN_NO_COPY = "no_copy"
+#: This vessel has no slot of its colour and Deep kind, or all of them are held:
+PIN_NO_SLOT = "no_slot"
+PIN_SLOTS_HELD = "slots_held"
+#: A stronger starred relic took the last slot it fits:
+PIN_OTHER_PIN = "other_pin"
+#: Placing it would lower how many `Favourite` effects the vessel can carry:
+PIN_BLOCKS_REQUIREMENT = "blocks_requirement"
+
+
+@dataclass(frozen=True)
+class PinLeftOut:
+    """A starred relic the suggestion does not carry, and why (AK-439, AK-456).
+
+    `effect_id` belongs to `PIN_AVOIDED` and `PIN_BLOCKS_REQUIREMENT`, `other`
+    to `PIN_OTHER_PIN`. `because` and `line` are the bar's half sentence and
+    the `Why` dialog's row, written by `explain.py`: it takes the dataset to
+    name an effect, and the window has none to read.
+    """
+
+    name: str
+    roll: Roll
+    reason: str
+    is_deep: bool = False
+    effect_id: int | None = None
+    other: str = ""
+    because: str = ""
+    line: str = ""
+
+
 @dataclass(frozen=True)
 class AdvisorResult:
     """What one run hands back, with everything it does not know (AD-010).
@@ -760,6 +889,12 @@ class AdvisorResult:
     goal_label: str
     suggestions: tuple[Suggestion, ...] = ()
     baseline: tuple[Baseline, ...] = ()
+    #: The base state's `GoalScore.display` under the asked direction: what a
+    #: vessel with no suggestion shows in the comparison (AK-449).
+    baseline_display: str = ""
+    #: The same display with no relic at all, held ones left out: what the
+    #: figure is read against (`GOAL.md` A28), the stat sheet's grey `Base`.
+    no_relics_display: str = ""
     gain: tuple[Marginal, ...] = ()
     held: tuple[HeldSlot, ...] = ()
     unknowns: tuple[str, ...] = ()
@@ -794,18 +929,55 @@ class AdvisorResult:
     data_note: str = ""
     budget_note: str = ""
     generation: int = 0
-    #: The beam came back empty because a `Favourite` effect could be met
-    #: by no owned constellation -- `explain.required_but_unmet` wrote the
-    #: sentence for it (AK-291.1). The status line reads this to say "blocked
-    #: by a requirement you marked" instead of "nothing to choose from"
-    #: (AK-294): the pools were not empty, the requirement was unmeetable.
-    blocked_by_a_requirement: bool = False
+    #: The `Favourite` effects the best suggestion does not carry, sorted
+    #: (AD-058.5). `explain.required_but_unmet` wrote one sentence for each.
+    required_left_out: tuple[int, ...] = ()
+    #: The same sentences `unknowns` carries for them, for the bar's tooltip
+    #: (AK-455: one source, and the bar does not pick through `unknowns`).
+    required_unmet: tuple[str, ...] = ()
+    #: Every free slot the best suggestion leaves empty, in slot order. Empty
+    #: under `no_carrier_for`: the whole suggestion fell, and that is the
+    #: reason given (AD-057.4).
+    empty_slots: tuple[EmptySlot, ...] = ()
+    #: The slots a starred relic was laid in before the search, and the stars
+    #: left out by name and reason, sorted by name (AD-059.4, .5). `held` stays
+    #: what the player holds: a star comes back as an ordinary choice, so
+    #: `Apply all` writes it and the slot count is untouched (QA-284).
+    pins_placed: tuple[int, ...] = ()
+    pins_left_out: tuple[PinLeftOut, ...] = ()
     #: The chosen damage type or attack art, lowered as it stands mid-sentence,
     #: when every suggestion was dropped because nothing owned moves the
     #: ranked figure under it (QA-290); empty otherwise. The status line reads
     #: it to name that cause instead of the bare "nothing to choose from"
     #: (AK-365).
     no_carrier_for: str = ""
+
+
+@dataclass(frozen=True)
+class VesselQuestion:
+    """One vessel of the comparison (AD-062): what to ask about it, or, with
+    `request` `None`, the held relics that keep it from being asked at all."""
+
+    vessel_id: int
+    request: AdvisorRequest | None = None
+    unfit_holds: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class VesselRow:
+    """What the vessel list says of one vessel, read off its whole answer
+    (AD-062.6). Every figure is the run's: `figure` and `value` under the
+    asked direction, `other_value` under the other (AK-463), `base_figure` the
+    asked direction with no relic at all (`GOAL.md` A28)."""
+
+    vessel_id: int
+    figure: str = ""
+    value: float = 0.0
+    other_value: float = 0.0
+    required_left_out: tuple[int, ...] = ()
+    pins_left_out: tuple[str, ...] = ()
+    unfit_holds: tuple[str, ...] = ()
+    base_figure: str = ""
 
 
 # --- lookups over the shapes above -----------------------------------------
@@ -856,6 +1028,22 @@ def held_handles(problem: SlotProblem) -> frozenset[int]:
     """
     return frozenset(relic.handle for relic in held_relics(problem)
                      if relic.handle is not None)
+
+
+def roll_of(copy) -> Roll:
+    """This copy's roll: anything that carries the three fields."""
+    return copy.relic_id, tuple(copy.effect_ids), tuple(copy.curse_ids)
+
+
+def unwanted(problem: SlotProblem, copy) -> bool:
+    """May no suggestion use this copy (A18, A28, AD-057.1)?
+
+    It carries an id marked `Avoid`, effect or curse, or its roll was turned
+    down.
+    """
+    return (not problem.excluded.isdisjoint(copy.effect_ids)
+            or not problem.excluded.isdisjoint(copy.curse_ids)
+            or roll_of(copy) in problem.rejected)
 
 
 def marginal_for(candidate: Candidate, goal_id: str) -> float:

@@ -1,9 +1,9 @@
 """Per-Nightfarer relic favourites.
 
 A favourite is a relic the player has marked as wanted for one or more
-Nightfarers. It changes nothing about the build; it only pulls that relic to
-the front of the picker so a good roll does not have to be hunted for again in
-a grid of two hundred.
+Nightfarers. It leads the picker, so a good roll does not have to be hunted for
+again in a grid of two hundred, and Optimize puts it in the build when it fits
+(A28, `advisor.types.SlotProblem.pinned`).
 
 Kept in the same QSettings the artwork variants use, so it survives restarts
 without adding a file of its own.
@@ -89,9 +89,9 @@ def distinct(items) -> list:
     return out
 
 
-def heroes_for(item) -> set[int]:
-    """Nightfarer ids this relic is favourited for."""
-    raw = settings().value(f"{GROUP}/{key(item)}", "", type=str)
+def _heroes_in(raw) -> set[int]:
+    """The Nightfarer ids of one stored entry. Out of the settings store, so
+    what is not a number is passed over rather than trusted."""
     out = set()
     for part in str(raw).split(","):
         part = part.strip()
@@ -101,6 +101,29 @@ def heroes_for(item) -> set[int]:
             except ValueError:
                 continue
     return out
+
+
+def heroes_for(item) -> set[int]:
+    """Nightfarer ids this relic is favourited for."""
+    return _heroes_in(settings().value(f"{GROUP}/{key(item)}", "", type=str))
+
+
+def marked_for(hero_id: int) -> tuple[tuple[int, tuple[int, ...],
+                                            tuple[int, ...]], ...]:
+    """Every roll favourited for this Nightfarer, sorted (AD-059.1).
+
+    The form `advisor.types.Roll` has: that package is Qt-free and may not read
+    this store, so the window hands it these.
+    """
+    store = settings()
+    store.beginGroup(GROUP)
+    found = []
+    for roll in store.childKeys():
+        read = parts(roll)
+        if read is not None and hero_id in _heroes_in(
+                store.value(roll, "", type=str)):
+            found.append((read[0], tuple(read[1]), tuple(read[2])))
+    return tuple(sorted(found))
 
 
 def is_favourite(item, hero_id: int) -> bool:

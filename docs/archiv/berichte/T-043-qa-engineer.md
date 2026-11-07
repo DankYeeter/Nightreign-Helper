@@ -498,7 +498,7 @@ Zahl 90 selbst, und die ist als offen markiert, nicht weggerundet.
 Alles ausserhalb des Repos. Klon `<scratchpad>\nr-t043` auf **89015aa** (eigener
 Klon, weil `nr-t038` von einem parallelen Lauf mitbenutzt wird und dort ein
 `checkout` waehrend meiner Messung den Baum verschoben haette). Python
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\.venv\Scripts\python.exe`.
+`<Hauptbaum>\.venv\Scripts\python.exe`.
 Spieldaten ausschliesslich lesend.
 
 Wiederverwendet aus T-038: `<scratchpad>\t038\assignment.json` (Fan-Zuordnung),

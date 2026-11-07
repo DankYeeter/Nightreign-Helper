@@ -234,7 +234,7 @@ Sync-Schritt noetig). Zum Registrieren folgenden Eintrag in das
   "hooks": [
     {
       "type": "command",
-      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"C:/Users/Daniel/.claude/hooks/state-line-budget.ps1\"",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"%USERPROFILE%/.claude/hooks/state-line-budget.ps1\"",
       "shell": "powershell",
       "timeout": 15
     }

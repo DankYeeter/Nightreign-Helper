@@ -109,9 +109,9 @@ Schreibpfad in diesem Modul).
 ## Ergebnis, real: 234 und 309 Relikte
 
 ```
-…\76561198073567627\NR0000.sl2 -> relics: 234, read_the_slow_way: False,
+…\<Konto-B>\NR0000.sl2 -> relics: 234, read_the_slow_way: False,
     loadouts: 0, loadout_error: "equipped-loadout table not found …"
-…\76561198179244962\NR0000.sl2 -> relics: 309, read_the_slow_way: False,
+…\<Konto-A>\NR0000.sl2 -> relics: 309, read_the_slow_way: False,
     loadouts: 110, loadout_error: ""
 ```
 

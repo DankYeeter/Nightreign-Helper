@@ -26,7 +26,7 @@ und alles wird gezeigt.
 
 ## Bodenwahrheit
 
-Spielstand `...\76561198179244962\NR0000.sl2`, **nur gelesen**. Das Spiel
+Spielstand `...\<Konto-A>\NR0000.sl2`, **nur gelesen**. Das Spiel
 lief waehrend des Auftrags (`nightreign.exe` PID 28120), die Datei wurde
 19:20:52, 19:42:28 und 19:43:11 geschrieben; die erste Zaehlung ergab 334
 Kopien, das Fenster sechs Minuten spaeter 315. Deshalb eingefroren: Kopie

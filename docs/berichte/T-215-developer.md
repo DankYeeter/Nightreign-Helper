@@ -1,6 +1,6 @@
 STATUS: erledigt
 AUFTRAG: T-215 — Die dritte und letzte Fundstelle der Zyklusende-Aussage
-GELESEN: docs/tasks/T-215.md (vollstaendig); C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team\agents\_rahmen.md (Zeilen 1-14, 320-359, vollstaendig gezaehlt); C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team\commands\director.md (Zeilen 875-910, die T-214-Markierung als Formvorlage); docs/berichte/T-214-developer.md (Vorgehen der Schwesterkorrektur)
+GELESEN: docs/tasks/T-215.md (vollstaendig); <ClaudeCode>\claude-agent-team\agents\_rahmen.md (Zeilen 1-14, 320-359, vollstaendig gezaehlt); <ClaudeCode>\claude-agent-team\commands\director.md (Zeilen 875-910, die T-214-Markierung als Formvorlage); docs/berichte/T-214-developer.md (Vorgehen der Schwesterkorrektur)
 GEÄNDERT: claude-agent-team/agents/_rahmen.md (geaendert und committet, Repo claude-agent-team); Nightreign-Helper/docs/berichte/T-215-developer.md (dieser Bericht)
 ANNAHMEN: keine — der Auftrag war eindeutig, die Direktor-Zahl (10 Treffer, 1 offen) wurde vor der Aenderung nachgerechnet.
 NÄCHSTER: director

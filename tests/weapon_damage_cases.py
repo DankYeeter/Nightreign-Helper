@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 
 from nrplanner import damage, model, weaponslots, weapons
+from tests import tabtext
 
 
 def hero_by_name(data: dict, name: str) -> dict:
@@ -563,7 +564,7 @@ def run(planner, data: dict, case: dict) -> dict:
         "last_ar": rounded(planner.stat_sheet.last_ar),
         # And the text itself, which catches a change in what is shown even
         # when every number behind it stayed the same.
-        "panel": planner.stat_sheet.ar_label.text(),
+        "panel": tabtext.unsymboled(planner.stat_sheet.ar_label.text()),
         # Every tile, including the five that are not ringed. The active one
         # was already held between the golden total and checkpoint 19; the
         # other five were held by nothing at all.
@@ -572,7 +573,8 @@ def run(planner, data: dict, case: dict) -> dict:
         # What a click on the total actually puts on screen. `last_ar` above
         # is this display's input; without its output a swap of two of those
         # figures changes what the player reads and nothing notices.
-        "breakdown": planner.stat_sheet._ar_breakdown_text(),
+        "breakdown": tabtext.unsymboled(
+            planner.stat_sheet._ar_breakdown_text()),
     }
     # Only when the case asks. A case without an `arsenal` block gets exactly
     # the four keys above, which is what keeps the golden file -- whose cases

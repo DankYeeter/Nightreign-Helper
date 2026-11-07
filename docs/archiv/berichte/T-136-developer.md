@@ -236,9 +236,9 @@ Gleichheitsprobe-Metadaten, `inventory._decrypt_slots` fuer die Slots
 selbst; kein Schreibzugriff irgendwo auf den Pfad).
 
 **Gegenprobe nach dem Lauf:**
-- `NR0000.sl2` (Konto 76561198073567627): mtime `1758385293.067532` vor und
+- `NR0000.sl2` (Konto <Konto-B>): mtime `1758385293.067532` vor und
   nach dem Lauf identisch.
-- `NR0000.sl2` (Konto 76561198179244962): mtime `1788286942.0` vor und nach
+- `NR0000.sl2` (Konto <Konto-A>): mtime `1788286942.0` vor und nach
   dem Lauf identisch.
 - Umgelenktes `…\T-136\roaming`: keine neue `Nightreign`-Verknuepfung, keine
   QSettings-Datei (das Skript importiert `nrplanner.inventory`, nicht

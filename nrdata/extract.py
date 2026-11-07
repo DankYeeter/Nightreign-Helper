@@ -114,7 +114,18 @@ MAX_LEVEL = 15
 #      (`id // 10000 * 10000`, AD-056 P.7): a Magic Longsword is found with
 #      the Longsword's arts. A cache left on 17 would fix every found
 #      variant on one art.
-EXTRACT_VERSION = 18
+#  19  the status buildup an art or a spell applies to what it hits,
+#      `arts[].inflicts` and `spells[].inflicts`, over AtkParam/Bullet
+#      spEffectId0..4, and `effects[].inflicts_on_hit` also over the attach
+#      row's onHitSpEffect ("Attacks Inflict Rot" 8110400-402). A cache left
+#      on 18 would leave the advisor without those sources of an ailment
+#      (user decision 01.11.2026).
+#  20  the symbols the game shows for what had none here (T-340): `icon` on
+#      `effects[]` (`AttachEffectParam.statusIconId`), on the world events'
+#      `buffs[]` and `states[]` (`SpEffectParam.iconId`) and on every entry of
+#      `drops`, and `deep_of_night.sigil_icon`. A cache left on 19 draws those
+#      names without a symbol.
+EXTRACT_VERSION = 20
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -167,7 +178,14 @@ VARIANT_SPAN = 10000
 # 2 is a special effect and carries no damage of its own.
 MAGIC_REF_ATTACK = 0
 MAGIC_REF_BULLET = 1
+MAGIC_REF_SPEFFECT = 2
 MAGIC_REF_SLOTS = 10
+
+# The SpEffect rows an AtkParam or Bullet row applies to what it hits: where
+# an art's or a spell's status buildup sits (Zamor Ice Storm's frost 35 on
+# its bullet's spEffectId0, Poison Moth Flight's poison on its attack row's
+# spEffectId1).
+HIT_SP_EFFECT_FIELDS = tuple(f"spEffectId{i}" for i in range(5))
 
 # A bullet that spawns another (HitBulletID) is how a charged or delayed hit
 # is built, and the strongest figure of a spell often sits on such a child:
@@ -631,6 +649,11 @@ def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
     return out
 
 
+def _icon(value: Any) -> int | None:
+    """A symbol id as a param row states it; 0 and -1 mean there is none."""
+    return value if isinstance(value, int) and value > 0 else None
+
+
 def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
                    text: dict[str, dict[int, str]],
                    subbosses: dict[str, Any]) -> dict:
@@ -845,6 +868,10 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
     # "<?image@4500##17?>", which is a button glyph the app cannot render.
     sigil_name = (text.get("AntiqueName", {}).get(SOVEREIGN_SIGIL_ID) or "").strip()
     sigil_info = (text.get("AntiqueInfo", {}).get(SOVEREIGN_SIGIL_ID) or "").strip()
+    sigil_icon = next(
+        (_icon(row.values.get("iconId")) for row in param.read(
+            members["EquipParamAntique"], defs.get("EquipParamAntique")).rows
+         if row.id == SOVEREIGN_SIGIL_ID), None)
 
     rating_text = re.sub(
         r"<\?[^>]*\?>", "",
@@ -867,6 +894,7 @@ def _deep_of_night(members: dict, defs: dict, menu_text: dict[int, str],
         "rating_text": rating_text,
         "sigil_name": sigil_name,
         "sigil_info": sigil_info,
+        "sigil_icon": sigil_icon,
         "depth_count": DEPTH_COUNT,
         "rewards": rewards,
         "scaling": list(profiles.values()),
@@ -1037,6 +1065,7 @@ def _event_buffs(members: dict, defs: dict,
             "info": (info.get(row.id) or "").strip(),
             "caption": (caption.get(row.id) or "").strip(),
             "sp_id": row.values["spEffectId"],
+            "icon": _icon(root.get("iconId")),
             # -1 means no timer at all: it lasts the rest of the expedition.
             "duration": root.get("effectEndurance"),
             # None means the files do not say. See the docstring: the
@@ -1104,6 +1133,7 @@ def _event_states(members: dict, defs: dict,
         out.append({
             "sp_id": row.id,
             "name": label,
+            "icon": _icon(row.values.get("iconId")),
             "duration": row.values.get("effectEndurance"),
             "lines": lines,
             "shares_with_allies": _states_allies(label),
@@ -1410,6 +1440,38 @@ def _event_drops(members: dict, defs: dict,
             return (label or f"weapon {item_id}").strip(), "weapon"
         return f"[{category}:{item_id}]", "unknown"
 
+    def symbol_rows(name: str) -> dict[int, Any]:
+        return {r.id: r.values.get("iconId")
+                for r in param.read(members[name], defs.get(name)).rows}
+
+    goods_symbols = symbol_rows("EquipParamGoods")
+    weapon_symbols = symbol_rows("EquipParamWeapon")
+    talisman_symbols = symbol_rows("EquipParamAccessory")
+    power_symbols = symbol_rows("PermanentBuffParam")
+
+    def symbol_of(category: int, item_id: int) -> int | None:
+        """The drop's symbol, by the same two id forms `name_of` tries."""
+        if category == LOT_GOODS:
+            if (item_id - 1 in buffs and buffs[item_id - 1]) or buffs.get(item_id):
+                return _icon(power_symbols.get(
+                    item_id - 1 if buffs.get(item_id - 1) else item_id))
+            return _icon(goods_symbols.get(item_id))
+        if category == LOT_WEAPON:
+            return _icon(weapon_symbols.get(item_id))
+        if category == LOT_ACCESSORY:
+            return _icon(talisman_symbols.get(item_id))
+        if category == LOT_CUSTOM_WEAPON:
+            return _icon(weapon_symbols.get(custom_target.get(item_id)))
+        return None
+
+    symbols: dict[tuple[str, str], int | None] = {}
+
+    def named(category: int, item_id: int) -> tuple[str, str]:
+        """`name_of`, noting which symbol that name is drawn with."""
+        key = name_of(category, item_id)
+        symbols.setdefault(key, symbol_of(category, item_id))
+        return key
+
     def walk(table_id: int, weight: float, depth: int,
              out: dict[tuple[str, str], float]) -> None:
         entries = groups.get(table_id)
@@ -1426,7 +1488,7 @@ def _event_drops(members: dict, defs: dict,
             if category == LOT_TABLE:
                 walk(item_id, share, depth + 1, out)
             else:
-                key = name_of(category, item_id)
+                key = named(category, item_id)
                 out[key] = out.get(key, 0.0) + share
 
     npc = param.read(members["NpcParam"], defs.get("NpcParam"))
@@ -1456,7 +1518,7 @@ def _event_drops(members: dict, defs: dict,
                 if category == LOT_TABLE:
                     walk(item_id, 1.0, 0, collected)
                 else:
-                    key = name_of(category, item_id)
+                    key = named(category, item_id)
                     collected[key] = collected.get(key, 0.0) + 1.0
 
         if not collected:
@@ -1473,7 +1535,8 @@ def _event_drops(members: dict, defs: dict,
             if share <= 0:
                 omitted += 1
                 continue
-            entries.append({"name": name, "kind": kind, "share": share})
+            entries.append({"name": name, "kind": kind, "share": share,
+                            "icon": symbols.get((name, kind))})
         entries.sort(key=lambda e: (-e["share"], e["name"]))
         if omitted:
             entries.append({"name": f"{omitted} entries rarer than 0.005%",
@@ -2349,7 +2412,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         # the wearer. The difference is the field the chain starts from --
         # atkOccurrenceSpEffectId fires on an attack landing, the other chain
         # fields fire on a timer or on being hit.
-        on_hit_ids = [modifiers.get(ATTACK_CHAIN_FIELD)]
+        # The attach row's own onHitSpEffect is the other door: "Attacks
+        # Inflict Rot" 8110400-402 carries nothing else, and its payload
+        # is the very row 8110410 reaches through atkOccurrenceSpEffectId.
+        on_hit_ids = [modifiers.get(ATTACK_CHAIN_FIELD),
+                      row.values.get("onHitSpEffect")]
         on_hit_ids += [sp_by_id[i].values.get(ATTACK_CHAIN_FIELD)
                        for i in sp_ids if i in sp_by_id]
         inflicts_on_hit: dict[str, Any] = {}
@@ -2384,6 +2451,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
 
         effects[key] = {
             "id": effect_id,
+            "icon": _icon(row.values.get("statusIconId")),
             "name": (effect_name.get(text_id) or effect_name.get(effect_id)
                      or buff_name or f"Effect {effect_id}"),
             # Mirror the name lookup's fallback. The name tries the text id
@@ -2938,7 +3006,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     atk_table = param.read(
         members["AtkParam_Pc"],
         only(atk_def, {*SPELL_DAMAGE_FIELDS.values(), *ART_MOTION_FIELDS.values(),
-                       ART_ELEMENT_CORRECT_FIELD}),
+                       ART_ELEMENT_CORRECT_FIELD, *HIT_SP_EFFECT_FIELDS}),
     )
     if not atk_table.rows or not atk_table.rows[0].values:
         raise NotWhatItClaims(
@@ -2951,12 +3019,29 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         r.id: r
         for r in param.read(
             members["Bullet"],
-            only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID"}),
+            only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID",
+                                      *HIT_SP_EFFECT_FIELDS}),
         ).rows
     }
+    statuses = set(STATUS_POWER.values())
 
-    def spell_damage(row: param.ParamRow) -> tuple[dict[str, int], int]:
-        """The spell's strongest single hit, per damage type, and its row.
+    def hit_inflicts(sp_ids) -> dict[str, Any]:
+        """The status buildup these SpEffect rows apply to what is hit."""
+        found: dict[str, Any] = {}
+        for sp_id in sp_ids:
+            if isinstance(sp_id, int) and sp_id > 0:
+                for label, value in follow_chain(sp_id).items():
+                    if label in statuses:
+                        found.setdefault(label, value)
+        return found
+
+    def hit_sp_ids(row) -> list:
+        return [row.values.get(field) for field in HIT_SP_EFFECT_FIELDS]
+
+    def spell_damage(row: param.ParamRow
+                     ) -> tuple[dict[str, int], int, dict[str, Any]]:
+        """The spell's strongest single hit, per damage type, its row, and
+        the status buildup any of its hits applies.
 
         Strongest rather than first: across the shipped data both name the
         same set of damage types, so the choice moves no ranking, and the
@@ -2965,6 +3050,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         a charged form this is the charged figure -- Beast Claw 362, not 323.
         """
         atk_ids: list[int] = []
+        on_hit: list = []
         seen: set[int] = set()
 
         def follow_bullet(bullet_id, depth: int) -> None:
@@ -2980,6 +3066,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             if bullet is None:
                 return
             atk_ids.append(bullet.values.get("atkId_Bullet", -1))
+            on_hit.extend(hit_sp_ids(bullet))
             follow_bullet(bullet.values.get("HitBulletID", -1), depth + 1)
 
         for slot in range(1, MAGIC_REF_SLOTS + 1):
@@ -2991,6 +3078,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 follow_bullet(ref, 0)
             elif category == MAGIC_REF_ATTACK:
                 atk_ids.append(ref)
+            elif category == MAGIC_REF_SPEFFECT and ref in sp_by_id:
+                # A buff on the caster ("Poison Armament"): only what it
+                # makes the caster's attacks apply, never what it does to
+                # the caster.
+                on_hit.append(sp_by_id[ref].values.get(ATTACK_CHAIN_FIELD))
 
         best: dict[str, int] = {}
         best_atk = -1
@@ -2998,6 +3090,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             atk_row = atk_by_id.get(atk_id)
             if atk_row is None:
                 continue
+            on_hit.extend(hit_sp_ids(atk_row))
             # Whole numbers above zero only. A type a hit does not deal has
             # no place in the mapping, and a value that is not an integer is
             # not this field -- NaN would go into the snapshot as a token no
@@ -3010,7 +3103,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             }
             if sum(hit.values()) > sum(best.values()):
                 best, best_atk = hit, atk_row.id
-        return best, best_atk
+        return best, best_atk, hit_inflicts(on_hit)
 
     # Families the buffs do not name: mine the spell descriptions, which say
     # things like "one of the primeval sorceries". Only accept a phrase that
@@ -3066,7 +3159,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         if category is None:
             continue
         sub = r.values.get("subCategory1")
-        damage_by_type, damage_atk = spell_damage(r)
+        damage_by_type, damage_atk, inflicts = spell_damage(r)
         spells.append(
             {
                 "id": r.id,
@@ -3090,6 +3183,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 # spell that damages nothing -- a heal, a buff, a shield.
                 **({"damage": damage_by_type, "damage_atk": damage_atk}
                    if damage_by_type else {}),
+                # Status buildup per hit; absent where no hit applies one.
+                **({"inflicts": inflicts} if inflicts else {}),
             }
         )
 
@@ -3116,7 +3211,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         flat: dict[str, int] = {}
         motion: dict[str, int] = {}
         element_correct_id = -1
+        inflicts = {}
         if atk_row is not None:
+            inflicts = hit_inflicts(hit_sp_ids(atk_row))
             element_correct_id = atk_row.values.get(
                 ART_ELEMENT_CORRECT_FIELD, -1)
             flat = {damage: atk_row.values[field]
@@ -3139,6 +3236,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # (AD-056 P.7.2); absent where the art keeps the armament's.
             **({"element_correct_id": element_correct_id}
                if element_correct_id != -1 else {}),
+            # Status buildup of the row the art names; absent where none.
+            # Hoarfrost Stomp's frost is not on it (01.11.2026).
+            **({"inflicts": inflicts} if inflicts else {}),
         })
 
     # ---- Chances the engine keeps in PlayerCommonParam's undescribed tail --

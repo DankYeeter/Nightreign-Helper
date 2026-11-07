@@ -46,14 +46,14 @@ sondern etwas anderes — das steht im Hook-Code selbst
   (den Junction-Pfad), löst per `Get-Item -Force` die Reparse-Point-Target
   auf und ersetzt `$hookDir` durch das reale Ziel.
 - Auf dieser Maschine zeigt die Junction `~/.claude/hooks` auf
-  `C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team\hooks` (bestätigt:
-  `ls -la ~/.claude` zeigt `hooks -> /c/Users/Daniel/Desktop/ClaudeCode/
+  `<ClaudeCode>\claude-agent-team\hooks` (bestätigt:
+  `ls -la ~/.claude` zeigt `hooks -> <ClaudeCode>/
   claude-agent-team/hooks`, ebenso `agents` und `commands`).
 - `$agentRepo = Split-Path -Parent $hookDir` ergibt also
-  `C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team` — und nur wenn
+  `<ClaudeCode>\claude-agent-team` — und nur wenn
   dort **kein** `.git` läge, fiele der Hook auf
   `$env:USERPROFILE\claude-agent-team` zurück (Zeilen 128–129).
-- `C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team\.git` existiert
+- `<ClaudeCode>\claude-agent-team\.git` existiert
   (bestätigt per `git -C ... rev-parse --is-inside-work-tree` → `true`,
   Remote `https://github.com/DankYeeter/claude-agent-team.git`). Der
   Fallback greift also nicht — der Hook hat dieses Repo geprüft, nicht das
@@ -61,7 +61,7 @@ sondern etwas anderes — das steht im Hook-Code selbst
 
 Damit ist "agent-team (main): synchron" korrekt und belegt, nur bezogen auf
 den falschen (im Auftrag und im Rollenrahmen genannten) Pfad. Ich habe
-`C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team` selbst geprüft
+`<ClaudeCode>\claude-agent-team` selbst geprüft
 (`git branch --show-current` = `main`, `git status --porcelain --branch` =
 `## main...origin/main` ohne weitere Zeilen, `git stash list` leer, kein
 `MERGE_HEAD`/`rebase-merge`, `git fetch --all --prune` dann
@@ -71,7 +71,7 @@ synchron, nichts zu committen, nichts zu pushen.**
 **Vorschlag (nicht ausgeführt, nur Befund):** Die Rollenbeschreibung des
 Archivist und dieser Auftrag nennen `%USERPROFILE%\claude-agent-team` als
 festen Pfad für das Agenten-Repo. Tatsächlich liegt es unter
-`C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team`, erreichbar über die
+`<ClaudeCode>\claude-agent-team`, erreichbar über die
 Junctions in `~/.claude`. Auf einer Maschine ohne diese spezielle
 Junction-Auflösung (oder wenn der reale Pfad wechselt) würde ein Archivist,
 der stur nach `%USERPROFILE%\claude-agent-team` sucht, fälschlich "existiert
@@ -86,7 +86,7 @@ Beschreibungen übereinstimmen.
 - Projekt-Repo: 16 Commits gepusht auf `docs/audit-and-advisor-design`,
   synchron mit `origin/docs/audit-and-advisor-design`. PR #16 offen,
   Merge beim Nutzer.
-- Agenten-Repo (real: `C:\Users\Daniel\Desktop\ClaudeCode\claude-agent-team`):
+- Agenten-Repo (real: `<ClaudeCode>\claude-agent-team`):
   bereits synchron, nichts zu tun.
 - Kein Merge, kein Tag, kein `--force`, keine `.gitignore`-Änderung
   vorgenommen.

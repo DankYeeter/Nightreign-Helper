@@ -31,7 +31,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.249.345 Byte (56,50 MiB) |
 | **SHA-256** | `D136FB2DCAA9F4C44C9D23557F05ED2206C75BBF7D71128EA47F4065BA120101` |
 | **Code-Stand des Artefakts** | `f24376b` (HEAD, Branch `docs/audit-and-advisor-design`) |
@@ -114,7 +114,7 @@ Bau-Wirt; keine neue Abhaengigkeit (`requirements.txt`/`requirements-dev.txt`/
 
 ## Testabzug
 
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` unabhaengig
+`<ClaudeCode>\NightreignHelper-Testabzug` unabhaengig
 nachgezaehlt vor dem Kopieren: **841 Dateien, 21.139.391 Byte** - deckungsgleich
 mit dem im Auftrag genannten Stand v16 (`EXTRACT_VERSION` 15 in `CLAUDE.md`
 ist damit veraltet; dieser Lauf verwendet den im Auftrag genannten neueren
@@ -195,7 +195,7 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.249.345 Byte (56,50 MiB)
 - **SHA-256:** `D136FB2DCAA9F4C44C9D23557F05ED2206C75BBF7D71128EA47F4065BA120101`
 - **Versionsressource:** 1.17.0, am Fenstertitel bestaetigt (Startprobe).
@@ -277,7 +277,7 @@ Version bleibt 1.17.0 (kein neuer Versionsbump im Auftrag genannt,
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.250.281 Byte (56,51 MiB) |
 | **SHA-256** | `BFEEB0270D16C88FDEC67DF10F2D5C76FD29AB5002F6EEC2E14691F321E7C4B4` |
 | **Code-Stand des Artefakts** | `2aaf114` (HEAD, Branch `docs/audit-and-advisor-design`); Anwendungscode identisch mit `eaf9ea9` |
@@ -354,7 +354,7 @@ frueheren Bauten; keine neue, unerklaerte Warnung.
 
 ## Testabzug
 
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` unabhaengig
+`<ClaudeCode>\NightreignHelper-Testabzug` unabhaengig
 nachgezaehlt vor dem Kopieren: **841 Dateien, 21.139.391 Byte** - deckungsgleich
 mit dem in T-325f verwendeten Stand v16 (`EXTRACT_VERSION` 15 in `CLAUDE.md`
 bleibt veraltet, wie dort bereits gemeldet; keine neue Meldung noetig, da
@@ -436,7 +436,7 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt fuer T-325m, ueber T-325l)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.250.281 Byte (56,51 MiB)
 - **SHA-256:** `BFEEB0270D16C88FDEC67DF10F2D5C76FD29AB5002F6EEC2E14691F321E7C4B4`
 - **Versionsressource:** 1.17.0, am Fenstertitel bestaetigt (Startprobe).

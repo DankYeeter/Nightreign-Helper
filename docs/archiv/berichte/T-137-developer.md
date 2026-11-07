@@ -236,7 +236,7 @@ den echten Ort zeigt):
 
 | Variable | ohne Umlenkung | mit Umlenkung |
 |---|---|---|
-| `LOCALAPPDATA` → `paths.cache_dir()` | `C:\Users\Daniel\AppData\Local\NightreignHelper` | `…\scratchpad\T-137\localappdata\NightreignHelper` |
+| `LOCALAPPDATA` → `paths.cache_dir()` | `%LOCALAPPDATA%\NightreignHelper` | `…\scratchpad\T-137\localappdata\NightreignHelper` |
 | `APPDATA` → `shortcut.shortcut_path()` | `…\Roaming\…\Start Menu\Programs\Nightreign Helper.lnk` | `…\scratchpad\T-137\appdata\…\Programs\Nightreign Helper.lnk` |
 | `NIGHTREIGN_SETTINGS_ORG` → `favourites.ORG` | `DankYeeter` | `DankYeeterT-137` |
 

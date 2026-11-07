@@ -111,7 +111,11 @@ def block(qapp):
 #: mark, in the shape `Planner.effects` has.
 EFFECTS = {"1": {"name": "Improved Melee Attack Power"},
            "2": {"name": "Roar Reduces Damage Taken"},
-           "3": {"name": "Ultimate Art Charging Impaired"}}
+           "3": {"name": "Ultimate Art Charging Impaired"},
+           "4": {"name": "Attack up for each kill",
+                 "modifiers": {"saveCategory": 9}},
+           "5": {"name": "Max HP up for each kill",
+                 "modifiers": {"saveCategory": 9}}}
 
 
 @pytest.fixture
@@ -135,6 +139,12 @@ def a_dialog(qapp, result, filters=None, **head) -> advisorblock.WhyDialog:
         heading, result,
         filters=effectfilters.EffectFilters() if filters is None else filters,
         effects=EFFECTS)
+
+
+def block_text(block) -> str:
+    """What the block's lines say, bullets and all, one line each."""
+    return "\n".join(f"{drawn.bullet.text()} {drawn.label.text()}"
+                     for drawn in block.drawn_lines)
 
 
 def drawn_in(dialog) -> str:
@@ -165,7 +175,7 @@ def test_the_block_leaves_the_silent_effects_to_the_why_dialog(block):
     group = a_mixed_group()
     block.show_the_suggestion("Maximise damage", group)
 
-    drawn = block.lines.text()
+    drawn = block_text(block)
     assert "Improved Melee Attack Power" in drawn
     assert "Ultimate Art Charging Impaired" in drawn
     assert "Taking Damage Causes Madness Buildup" in drawn
@@ -183,7 +193,7 @@ def test_every_curse_of_the_copy_stands_in_the_block(block):
     """
     block.show_the_suggestion("Maximise damage", a_mixed_group())
 
-    drawn = block.lines.text()
+    drawn = block_text(block)
     assert drawn.count(advisorblock.CURSE_BULLET) == 2
     assert "Taking Damage Causes Madness Buildup" in drawn
 
@@ -209,9 +219,9 @@ def test_the_block_names_the_goal_and_the_relic(block):
     assert block.relic_name.text() == "The Will of the Balancers"
 
 
-def test_the_block_carries_exactly_use_and_why(block):
-    """§3.2 plus AK-274: `Use` and `Why`, at the right end of the heading,
-    and nothing else.
+def test_the_block_carries_exactly_use_why_and_reject(block):
+    """§3.2 plus AK-274 and AK-427: `Use`, `Why`, `Reject`, at the right end
+    of the heading, and besides those only the X per line.
 
     Asked of every button the block owns rather than of the two this case
     remembers: `Apply all` and `Undo apply` still belong to the bar alone,
@@ -222,8 +232,10 @@ def test_the_block_carries_exactly_use_and_why(block):
     """
     block.show_the_suggestion("Maximise damage", a_mixed_group())
 
-    buttons = block.findChildren(QAbstractButton)
-    assert [button.text() for button in buttons] == ["Use", "Why this relic"]
+    buttons = [button for button in block.findChildren(QAbstractButton)
+               if not isinstance(button, advisorblock.AvoidButton)]
+    assert [button.text() for button in buttons] == ["Use", "Why this relic",
+                                                     "Reject"]
     assert all(button.isVisibleTo(block) for button in buttons)
 
 
@@ -338,13 +350,21 @@ def test_the_held_favourite_line_falls_away_with_already_equipped(block):
     assert not block.held_favourite.isVisibleTo(block)
 
 
+def test_no_x_takes_the_focus_while_already_equipped_hides_the_lines(block):
+    """QA-328, AK-426: the focus never falls on nothing."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
+                              already_equipped=True)
+
+    assert block.first_x() is None
+
+
 def test_a_block_put_away_shows_nothing(block):
     """An answer that has gone takes its block with it (AK-12)."""
     block.show_the_suggestion("Maximise damage", a_mixed_group())
     block.put_the_suggestion_away()
 
     assert not block.isVisible()
-    assert block.lines.text() == ""
+    assert block.drawn_lines == []
     assert block.lines.toolTip() == ""
 
 
@@ -375,13 +395,13 @@ def test_an_effect_of_another_nightfarer_is_drawn_as_the_program_draws_one():
     """
     from nrplanner.theme import BAD, MUTED
 
-    markup = advisorblock.line_markup(
+    style = advisorblock._styled(
         a_line("X: works only for Duchess, and you are Wylder.",
-               silence=types.SILENT_ANOTHER_NIGHTFARER))
+               silence=types.SILENT_ANOTHER_NIGHTFARER), None)
 
-    assert "<s>" in markup and "</s>" in markup
-    assert BAD in markup
-    assert MUTED not in markup
+    assert style.struck
+    assert style.colour == BAD
+    assert style.colour != MUTED
 
 
 def test_every_other_silent_line_is_muted_and_unmarked():
@@ -397,13 +417,11 @@ def test_every_other_silent_line_is_muted_and_unmarked():
                     types.SILENT_ARMAMENT_BOUND,
                     types.SILENT_NO_NUMBER_HERE,
                     types.SILENT_NOT_IN_THE_DATA):
-        markup = advisorblock.line_markup(a_line("X: nothing.",
-                                                 silence=silence))
-        assert MUTED in markup
-        assert BAD not in markup
-        assert "✦" not in markup
-        assert "⚠" not in markup
-        assert "<s>" not in markup
+        style = advisorblock._styled(a_line("X: nothing.", silence=silence),
+                                     None)
+        assert style.colour == MUTED
+        assert style.bullet == advisorblock.EFFECT_BULLET
+        assert not style.struck
 
 
 def test_a_curse_keeps_its_mark_whether_or_not_a_figure_covers_it():
@@ -411,9 +429,9 @@ def test_a_curse_keeps_its_mark_whether_or_not_a_figure_covers_it():
     from nrplanner.theme import CURSE
 
     for silence in (types.CARRIES_A_FIGURE, types.SILENT_NO_NUMBER_HERE):
-        markup = advisorblock.line_markup(
-            a_line("A curse: something.", curse=True, silence=silence))
-        assert markup.startswith(f"<div style='color:{CURSE}'>✦ ")
+        style = advisorblock._styled(
+            a_line("A curse: something.", curse=True, silence=silence), None)
+        assert (style.bullet, style.colour) == ("✦", CURSE)
 
 
 # --- the `Why` dialog ------------------------------------------------------
@@ -574,9 +592,8 @@ def test_a_hostile_name_is_shown_letter_for_letter(qapp, block):
                                             f"{HOSTILE_NAME}")
     dialog = a_dialog(qapp, an_answer(group, not_counted=(HOSTILE_NAME,)))
 
-    assert "<b>Gladius</b>" not in block.lines.text()
-    assert "&lt;b&gt;Gladius&lt;/b&gt;" in block.lines.text()
-    assert "<img" not in block.lines.text()
+    assert block.drawn_lines[0].label.textFormat() == Qt.PlainText
+    assert HOSTILE_NAME in block.drawn_lines[0].label.text()
     assert "<b>Gladius</b>" not in block.lines.toolTip()
     assert "&lt;b&gt;Gladius&lt;/b&gt;" in block.lines.toolTip()
     # The relic name and the conditional list draw no markup of their own, so
@@ -653,9 +670,9 @@ def test_a_line_reaches_the_card_its_slot_names(planner):
         a_group(a_line("Second: Physical Attack +2", slot=1), slot=1,
                 relic="Increased Maximum HP")))
 
-    assert "First: Physical Attack +1" in cards[0].suggestion.lines.text()
-    assert "Second: Physical Attack +2" in cards[1].suggestion.lines.text()
-    assert "Second" not in cards[0].suggestion.lines.text()
+    assert "First: Physical Attack +1" in block_text(cards[0].suggestion)
+    assert "Second: Physical Attack +2" in block_text(cards[1].suggestion)
+    assert "Second" not in block_text(cards[0].suggestion)
 
 
 def test_the_held_favourite_line_stands_on_the_lowest_open_card_only(
@@ -1241,3 +1258,293 @@ def test_the_three_boxes_of_the_bar_carry_a_name(planner):
         "Goal", "Hit with", "Damage type"]
     assert not any(label.text() == "Goal"
                    for label in bar.findChildren(QLabel))
+
+
+def test_a_slot_with_no_suggestion_says_why_and_offers_nothing(block):
+    """AK-441: same dashed block, its own heading, one muted reason of at most
+    two lines with the whole text in the tooltip, and nothing to press."""
+    reason = "Every relic left for this slot is one you rejected."
+
+    block.show_no_suggestion(reason)
+
+    assert not block.isHidden()
+    assert block.heading.text() == "NO SUGGESTION"
+    assert block.empty_reason.text() == reason
+    assert reason in block.empty_reason.toolTip()
+    block.empty_reason.ensurePolished()
+    assert block.empty_reason.maximumHeight() == (
+        2 * block.empty_reason.fontMetrics().lineSpacing())
+    assert not block.empty_reason.isHidden()
+    for part in (block.use_button, block.why_button, block.relic_name,
+                 block.count_line, block.lines, block.held_favourite,
+                 block.already_equipped):
+        assert part.isHidden()
+
+
+def test_a_suggestion_after_no_suggestion_loses_the_reason(block):
+    block.show_no_suggestion("A reason.")
+
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+
+    assert block.empty_reason.isHidden()
+    assert not block.use_button.isHidden()
+
+    block.show_no_suggestion("A reason.")
+    block.put_the_suggestion_away()
+
+    assert block.isHidden()
+    assert block.empty_reason.text() == ""
+    assert block.empty_reason.toolTip() == ""
+
+
+# --- the star on the block and in the dialog (AK-437, AK-439) ----------------
+
+def test_a_relic_laid_for_its_star_says_so(block):
+    """AK-437: under the name, in the star's colour, nothing to press."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group(), pinned=True)
+
+    assert block.pinned_line.isVisibleTo(block)
+    assert block.pinned_line.text() == (
+        "★ Your favourite — included because it fits.")
+    assert advisorblock.FAVOURITE in block.pinned_line.styleSheet()
+
+
+def test_a_relic_the_search_chose_does_not(block):
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+
+    assert not block.pinned_line.isVisibleTo(block)
+
+
+def test_the_star_line_goes_with_the_block_it_stood_in(block):
+    block.show_the_suggestion("Maximise damage", a_mixed_group(), pinned=True)
+
+    block.show_no_suggestion("Nothing.")
+    assert not block.pinned_line.isVisibleTo(block)
+
+    block.show_the_suggestion("Maximise damage", a_mixed_group(), pinned=True,
+                              already_equipped=True)
+    assert not block.pinned_line.isVisibleTo(block)
+
+
+def test_the_dialog_lists_the_stars_left_out_over_the_groups(qapp):
+    """AK-439, AK-456: one row per relic, above the slot groups."""
+    pin = types.PinLeftOut(
+        "Urn", (1, (2,), ()), types.PIN_REJECTED,
+        because="you rejected it for this build",
+        line="Urn (Strength +1) — you rejected it for this build")
+    dialog = a_dialog(qapp, an_answer(a_mixed_group(), pins_left_out=(pin,)))
+    try:
+        assert not dialog.pins_left_out.isHidden()
+        assert dialog.pins_left_out.text() == (
+            "Favourited relics left out:\n"
+            "Urn (Strength +1) — you rejected it for this build")
+        column = dialog.pins_left_out.parentWidget().layout()
+        assert (column.indexOf(dialog.pins_left_out)
+                < column.indexOf(dialog.groups[0][0]))
+    finally:
+        dialog.deleteLater()
+
+
+def test_a_dialog_with_every_star_in_has_no_such_section(qapp):
+    dialog = a_dialog(qapp, an_answer(a_mixed_group()))
+    try:
+        assert dialog.pins_left_out.isHidden()
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_card_draws_the_star_of_the_slot_the_run_laid_it_in(planner):
+    """`pins_placed` reaches the one card it names."""
+    cards = planner.active_slots()
+    answer = an_answer(a_group(a_line("First."), slot=0, relic="First"),
+                       a_group(a_line("Second.", slot=1), slot=1,
+                               relic="Second"),
+                       pins_placed=(1,))
+    planner.show_the_suggestion(answer)
+    try:
+        assert not cards[0].suggestion.pinned_line.isVisibleTo(cards[0].suggestion)
+        assert cards[1].suggestion.pinned_line.isVisibleTo(cards[1].suggestion)
+    finally:
+        planner.show_the_suggestion(None)
+
+
+# --- the X at a line, `Reject` (AK-420 to AK-423, AK-427) --------------------
+
+def test_every_drawn_line_ends_in_an_x_and_nothing_else_does(block):
+    """AK-420: what the block draws, and no X for the silent lines of `Why`."""
+    group = a_mixed_group()
+    block.show_the_suggestion("Maximise damage", group)
+
+    drawn = [line for line in group.lines if types.drawn_in_the_block(line)]
+    assert [one.line for one in block.drawn_lines] == drawn
+    assert all(one.avoid.text() == "✕" for one in block.drawn_lines)
+    assert all(one.label.textFormat() == Qt.PlainText
+               for one in block.drawn_lines)
+    assert len(block.findChildren(advisorblock.AvoidButton)) == len(drawn)
+
+
+def test_the_x_is_a_target_of_the_size_laid_down(block):
+    """AK-421: 24 x 24 logical pixels, 4 between text and button."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+
+    one = block.drawn_lines[0]
+    assert (one.avoid.width(), one.avoid.height()) == (24, 24)
+    assert one.layout().spacing() == 4
+
+
+def test_the_x_says_what_it_will_do(block):
+    """AK-422, the three sentences, and the name for a screen reader."""
+    effect = types.ReasonLine(slot_index=0, effect_id=1, text="Line.")
+    wanted = types.ReasonLine(slot_index=0, effect_id=2, text="Wanted line.")
+    curse = types.ReasonLine(slot_index=0, effect_id=3, text="Curse line.",
+                             is_curse=True)
+    block.show_the_suggestion(
+        "Maximise damage", a_group(effect, wanted, curse),
+        names={1: "Strength", 2: "Vigor", 3: "<b>Gloom</b>"},
+        favourited=frozenset({2}))
+    avoid = [one.avoid for one in block.drawn_lines]
+
+    assert avoid[0].accessibleName() == "Avoid Strength"
+    assert avoid[0].accessibleDescription() == (
+        "Avoid “Strength” — no suggestion will use a relic that carries it. "
+        "Undo in Filters.")
+    assert avoid[1].accessibleDescription() == (
+        "Avoid “Vigor” — this replaces your Favourite for it. Undo in Filters.")
+    assert avoid[2].accessibleDescription() == (
+        "Avoid the curse “<b>Gloom</b>” — no suggestion will use a relic that "
+        "carries it. Undo in Filters.")
+    assert "&lt;b&gt;Gloom&lt;/b&gt;" in avoid[2].toolTip()
+
+
+def test_pressing_an_x_says_which_effect(block):
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+    seen = []
+    block.avoid_requested.connect(seen.append)
+
+    block.drawn_lines[1].avoid.click()
+
+    assert seen == [block.drawn_lines[1].line.effect_id]
+
+
+def test_the_xs_of_a_block_are_one_tab_stop(block):
+    """AK-423: the first takes `Tab`, the arrows move the stop, Enter presses."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+    avoid = [one.avoid for one in block.drawn_lines]
+    assert len(avoid) >= 2
+    seen = []
+    block.avoid_requested.connect(seen.append)
+
+    def stops():
+        return [button for button in avoid
+                if button.focusPolicy() & Qt.TabFocus]
+
+    assert stops() == [avoid[0]]
+    QTest.keyClick(avoid[0], Qt.Key_Down)
+    assert stops() == [avoid[1]]
+    QTest.keyClick(avoid[1], Qt.Key_Up)
+    assert stops() == [avoid[0]]
+    QTest.keyClick(avoid[0], Qt.Key_Up)
+    assert stops() == [avoid[-1]]
+    QTest.keyClick(avoid[-1], Qt.Key_Return)
+    assert seen == [block.drawn_lines[-1].line.effect_id]
+
+
+def test_the_x_group_follows_reject_in_the_tab_order(block):
+    """AK-423: `Use`, `Why this relic`, `Reject`, the X's."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+
+    def next_stop(widget):
+        widget = widget.nextInFocusChain()
+        while not widget.focusPolicy() & Qt.TabFocus:
+            widget = widget.nextInFocusChain()
+        return widget
+
+    assert next_stop(block.use_button) is block.why_button
+    assert next_stop(block.why_button) is block.reject_button
+    assert next_stop(block.reject_button) is block.first_x()
+
+
+def test_reject_stands_where_use_stands(block):
+    """AK-427: seen exactly when `Use` is, and it says what it does."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+    assert block.reject_button.isVisibleTo(block)
+    assert block.reject_button.toolTip() == advisorblock.as_a_tooltip(
+        "Do not suggest this relic, or any copy with the same effects, for "
+        "this build.")
+
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
+                              may_be_used=False)
+    assert not block.reject_button.isVisibleTo(block)
+
+    block.show_the_suggestion("Maximise damage", a_mixed_group(),
+                              already_equipped=True)
+    assert not block.reject_button.isVisibleTo(block)
+
+    block.show_no_suggestion("Nothing.")
+    assert not block.reject_button.isVisibleTo(block)
+    assert block.drawn_lines == []
+
+
+def test_rejecting_a_starred_relic_says_the_star_stays(block):
+    block.show_the_suggestion("Maximise damage", a_mixed_group(), pinned=True)
+
+    assert block.reject_button.toolTip().endswith(
+        "for this build. Your favourite stays marked.</html>")
+
+
+def test_reject_asks_and_changes_nothing_itself(block):
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+    seen = []
+    block.reject_requested.connect(lambda: seen.append(True))
+
+    block.reject_button.click()
+
+    assert seen == [True]
+
+
+def test_the_heading_gives_way_before_a_button_does(block):
+    """AK-427: the heading breaks, no button is cut."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+
+    assert block.heading.wordWrap()
+    head = block.layout().itemAt(0).layout()
+    assert head.stretch(head.indexOf(block.heading)) == 1
+    assert all(head.stretch(head.indexOf(button)) == 0
+               for button in (block.use_button, block.why_button,
+                              block.reject_button))
+
+
+def test_the_stacks_set_are_listed_with_their_value(qapp, filters):
+    """The answer says the value it used, 0 included, and hears a change."""
+    dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
+    assert not dialog.stacks_list.isVisibleTo(dialog)
+    try:
+        filters.set_stacks(4, 2)
+        filters.set_stacks(5, 0)
+        assert dialog.stacks_list.text() == (
+            "Stacks you set in the effect filter:\nAttack up for each kill: 2\n"
+            "Max HP up for each kill: 0")
+        assert dialog.stacks_list.textFormat() == Qt.PlainText
+        assert dialog.stacks_list.isVisibleTo(dialog)
+    finally:
+        filters.set_stacks(4, None)
+        filters.set_stacks(5, None)
+    assert not dialog.stacks_list.isVisibleTo(dialog)
+    dialog.deleteLater()
+
+
+def test_why_lists_no_stored_stacks_the_question_does_not_use(qapp, filters):
+    """QA-337, a hand in the registry: an id that is no stack effect and one
+    the dataset lost. `asking_from` leaves both out, so Why does too."""
+    dialog = a_dialog(qapp, an_answer(a_mixed_group()), filters)
+    try:
+        filters.set_stacks(3, 5)
+        filters.set_stacks(99999999, 3)
+        assert not dialog.stacks_list.isVisibleTo(dialog)
+        filters.set_stacks(4, 2)
+        assert dialog.stacks_list.text() == (
+            "Stacks you set in the effect filter:\nAttack up for each kill: 2")
+    finally:
+        for effect_id in (3, 99999999, 4):
+            filters.set_stacks(effect_id, None)
+    dialog.deleteLater()

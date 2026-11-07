@@ -119,8 +119,8 @@ Sondierungsskript druckt `paths.cache_dir()`, `paths.snapshot_path()`,
 des Spielers zeigt, wenn nichts umlenkt):
 
 ```
-cache_dir()      -> C:\Users\Daniel\AppData\Local\NightreignHelper
-shortcut_path()  -> C:\Users\Daniel\AppData\Roaming\…\Programs\Nightreign Helper.lnk
+cache_dir()      -> %LOCALAPPDATA%\NightreignHelper
+shortcut_path()  -> %APPDATA%\…\Programs\Nightreign Helper.lnk
 favourites.ORG   -> DankYeeter
 ```
 

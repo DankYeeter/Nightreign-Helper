@@ -20,6 +20,13 @@ the third direction the same way: the attribute points a relic brings became
 `MAX_ATTRIBUTES` below rather than a summand in `_max_damage`, so the damage
 figure goes on saying what it always said.
 
+**The one mixed figure is the player's own** (user decision 2026-11-07, T-339,
+which adds to AD-023 and OF-13): `BALANCED` is the damage figure times the
+survival figure. A product of two positive figures needs no rate between them
+and no base, one percent more of either counts the same, and the two directions
+above go on saying what they said. It has no dial and no threshold: fine-tuning
+between the two the player does by hand.
+
 **What a goal here does and does not do.** It reads a finished
 `model.Build` and the context. It never sees the base state and never forms a
 difference -- the marginal contribution is the caller's subtraction (do-not
@@ -31,16 +38,16 @@ holds for this package as it does for every tab (AD-021).
 **Adding a goal** is one function and one registry entry. It must not need a
 change in `candidates.py`, `evaluate.py` or the search; if it does, the shape
 here is wrong and belongs in `ARCHITECTURE.md` before it is built. The third
-one, `MAX_ATTRIBUTES`, was built that way and needed neither -- what it did
-need is a place on the screen, and that is not here: `advisorbar.GOAL_ORDER`
+one, `MAX_ATTRIBUTES`, was built that way and needed neither, and so was `BALANCED`
+-- what they did need is a place on the screen, and that is not here:
+`advisorbar.GOAL_ORDER`
 is the list a player reads and its order is a decision of the
 `ui-ux-designer`. Its **membership** is not a decision any more (AK-256
 point 1): every direction this registry scores stands in that tuple, because
 a direction scored and cached with no way to choose it is one the player pays
 for and cannot reach -- the state this file left behind between T-191 and
-T-194 (QA-228). So a fourth entry here is a fourth entry there, a fourth
-`Sort by` line and a fourth value row on every card, and the guard that says
-so is
+T-194 (QA-228). So an entry here is an entry there, a `Sort by` line and a
+value row on every card, and the guard that says so is
 `tests/test_advisor_bar.py::test_every_direction_the_registry_scores_can_be_chosen`.
 """
 
@@ -213,6 +220,16 @@ _DAMAGE_TAKEN_SCOPE = (
     "Ailment and status resistance are not part of this figure.",
     "Only the damage reduction the equipped effects carry is counted; "
     "nothing else that lowers damage in play is in this figure.",
+)
+
+#: What both halves cannot know, less the art sentence: this direction rates no
+#: art. The first sentence is what the product itself assumes.
+_BALANCED_SCOPE = (
+    "Balanced multiplies the attack rating by effective HP, so one percent "
+    "more of either counts the same. It reads the whole armament, whatever "
+    "Hit with and Damage type say.",
+    *_ATTACK_RATING_SCOPE[:-1],
+    *_DAMAGE_TAKEN_SCOPE,
 )
 
 
@@ -785,6 +802,31 @@ def _min_damage_taken(build: model.Build,
     )
 
 
+def _balanced(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
+    """Damage and survival at once: `_max_damage` times `_min_damage_taken`.
+
+    Both are positive where this reads them, so the product ranks without a
+    rate: effective HP is HP over factors `_min_damage_taken` refuses below or
+    at zero, and an attack rating is that of the whole armament. It has to be:
+    the `Hit with` and `Damage type` boxes are hidden under this direction
+    (AK-337), and a damage type this armament deals none of would make the
+    whole product zero. So this reads neither, and `display` holds the two
+    figures rather than a product nobody can read (`advisorbar` takes it apart
+    for the vessel list).
+    """
+    damage_figure = _max_damage(
+        build, dataclasses.replace(ctx, hit_with="", damage_type=""))
+    survival = _min_damage_taken(build, ctx)
+    return types.GoalScore(
+        value=damage_figure.value * survival.value,
+        display=f"{damage_figure.display}{types.FIGURES_JOIN}{survival.display}",
+        unit="",
+        unknowns=damage_figure.unknowns,
+        weights_note=" ".join(filter(None, (damage_figure.weights_note,
+                                            survival.weights_note))),
+    )
+
+
 def _max_attributes(build: model.Build,
                     ctx: types.GoalContext) -> types.GoalScore:
     """The offensive attribute points this build stands at (AD-032, C).
@@ -841,6 +883,13 @@ MIN_DAMAGE_TAKEN = types.Goal(
     score=_min_damage_taken,
 )
 
+BALANCED = types.Goal(
+    id="balanced",
+    label="Balanced",
+    scope=_BALANCED_SCOPE,
+    score=_balanced,
+)
+
 #: **`label` is the wording AK-257 settled**, and it is on screen: the
 #: `Sort by` box and the Advisor bar both draw it from here, so this line is
 #: a promise to a player rather than a name in a registry. It is not
@@ -859,7 +908,19 @@ MAX_ATTRIBUTES = types.Goal(
 GOALS = MappingProxyType({
     MAX_DAMAGE.id: MAX_DAMAGE,
     MIN_DAMAGE_TAKEN.id: MIN_DAMAGE_TAKEN,
+    BALANCED.id: BALANCED,
     MAX_ATTRIBUTES.id: MAX_ATTRIBUTES,
+})
+
+#: Whose figure settles a vessel comparison the asked direction leaves level
+#: (AK-463: "Schaden bzw. Abwehr"). Attributes are neither, and hand on to
+#: damage, the direction they exist for; `BALANCED` is both, and hands on to the
+#: first of them.
+OTHER_GOAL = MappingProxyType({
+    MAX_DAMAGE.id: MIN_DAMAGE_TAKEN.id,
+    MIN_DAMAGE_TAKEN.id: MAX_DAMAGE.id,
+    BALANCED.id: MAX_DAMAGE.id,
+    MAX_ATTRIBUTES.id: MAX_DAMAGE.id,
 })
 
 #: The direction a slot pool is **put in order** under when the question is

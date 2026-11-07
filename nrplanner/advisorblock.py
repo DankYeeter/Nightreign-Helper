@@ -18,21 +18,19 @@ line on `: ` or looking for `works only for` is what `UI_SPEC` AK-147 forbids
 and what QA-107 cost this project once already -- one field of this dataset
 is called `Regain -- HP won back by attacking after a hit`.
 
-**Every text element states its format** (AK-29, D-10). Where a label draws no
-markup of its own it is `Qt.PlainText`, which is the whole of the escaping
-question for that label; where it draws the bullets and colours of
-`RelicSlot._sync_mode` it is `Qt.RichText` and **every** string out of the
-save or the game files goes through `html.escape` first. A tooltip has no
-text format in Qt, so it is wrapped as rich text and escaped, which is the
-only form that shows a name carrying `<b>` letter for letter (AK-30).
+**Every text element states its format** (AK-29, D-10). Every label is
+`Qt.PlainText`, which is the whole of the escaping question for it. A tooltip
+has no text format in Qt, so it is wrapped as rich text and escaped, which is
+the only form that shows a name carrying `<b>` letter for letter (AK-30).
 
-**The `Use` button, and nothing else.** Applying is one thing with one undo
-model, so the block asks for it and does not do it: `use_requested` says the
-player pressed it and the window is what puts the relic in the slot. The
-button is drawn only where there is something to press it for -- a suggestion
-that is already lying in the slot draws the one line of §3.2 and no control.
+**The block asks, the window does.** Applying is one thing with one undo model,
+and `Reject` and the X at a line (AK-420, AK-427) change the question: each
+signal says the player pressed it, and the window acts. `Use` and `Reject` are
+drawn only where there is something to press them for -- a suggestion that is
+already lying in the slot draws the one line of §3.2 and no control.
 
-**The dialog shows the marks, it does not set them** (AK-301). A line whose
+**The dialog shows the marks, it does not set them** (AK-301), the X in the
+block is the one other place that sets one. A line whose
 effect the player favourited or avoided (`effectfilters`) is drawn in that
 state -- `▲` and bold, or struck through -- as a `WhyLine`, a `QLabel` bullet
 beside a `QLabel` text with no control on it: marks are set in the effect
@@ -52,15 +50,34 @@ from PySide6.QtWidgets import (QDialog, QFrame, QHBoxLayout, QLabel,
                                QPushButton, QScrollArea, QSizePolicy,
                                QToolButton, QVBoxLayout, QWidget)
 
-from . import effectfilters, effecttext
+from . import effectfilters, effecttext, iconpack
 from .advisor import goals as advisor_goals
 from .advisor import types
-from .theme import ACCENT, BAD, CURSE, MUTED, PANEL
+from .theme import ACCENT, BAD, CURSE, FAVOURITE, MUTED, PANEL
+
+#: How tall a relic's symbol stands beside its name.
+RELIC_SYMBOL = 18
 
 #: The one line a block shows when the suggestion is already lying in the slot
 #: (`UI_SPEC` §3.2). Everything else falls away with it: there is nothing to
 #: weigh and nothing to change.
 ALREADY_EQUIPPED = "Already equipped — nothing to change here."
+
+#: The line under the name of a relic that is here because it is starred
+#: (AK-437).
+PINNED_LINE = "★ Your favourite — included because it fits."
+
+#: The heading of the stars left out, over the slot groups (AK-439).
+PINS_LEFT_OUT_HEADING = "Favourited relics left out:"
+
+#: What `Reject` does (AK-427), and the sentence a starred relic adds.
+REJECT_TOOLTIP = ("Do not suggest this relic, or any copy with the same "
+                  "effects, for this build.")
+REJECT_PINNED_TOOLTIP = "Your favourite stays marked."
+
+#: The X at the end of a line in the block (AK-420, AK-421).
+AVOID_CAPTION = "✕"
+AVOID_BUTTON_SIZE = 24
 
 #: The legend for `✦`, once per `Why` dialog and in no block (AK-141).
 CURSE_LEGEND = ("✦ marks a curse. A cost with no number beside it is still a "
@@ -88,6 +105,7 @@ MARK_LEGEND = ("▲ marks an effect you favourited. A struck-through effect does
 #: wording AK-300).
 EXCLUDED_HEADING = "Effects you've avoided:"
 REQUIRED_HEADING = "Effects you've favourited:"
+STACKS_HEADING = "Stacks you set in the effect filter:"
 
 #: The colour `RelicSlot._sync_mode` gives a working rolled effect. A literal
 #: there and a literal here on purpose: naming it in one place while the other
@@ -112,9 +130,9 @@ FOLD_HEIGHT = 24
 
 @dataclass(frozen=True)
 class LineStyle:
-    """How one line is drawn: the facts `line_markup` turns into markup and
-    `WhyLine` into a font and a stylesheet, so the two cannot disagree.
-    `small` is the 11 px of a silent effect (AK-156)."""
+    """How one line is drawn: the facts `_dress` turns into a font and a
+    stylesheet, for the block and the dialog alike. `small` is the 11 px of a
+    silent effect (AK-156)."""
 
     bullet: str
     colour: str
@@ -158,21 +176,26 @@ def _styled(line: types.ReasonLine, kind: str | None) -> LineStyle:
     return LineStyle(bullet, EFFECT_TEXT)
 
 
-def line_markup(line: types.ReasonLine) -> str:
-    """One drawn line in its neutral shape, bullet and all -- the block's
-    form, which carries no control."""
-    style = _styled(line, None)
-    text = html.escape(line.text)
-    if style.struck:
-        text = f"<s>{text}</s>"
-    css = f"color:{style.colour}" + (f"; font-size:{SMALL_TEXT}px"
-                                     if style.small else "")
-    return f"<div style='{css}'>{style.bullet} {text}</div>"
+def _dress(style: LineStyle, bullet: QLabel, label: QLabel,
+           base_font: QFont) -> None:
+    """Put one style on a bullet and its text. From the base font every time,
+    so a state that ends takes its mark with it."""
+    css = f"border: none; color: {style.colour};"
+    bullet.setText(style.bullet)
+    bullet.setStyleSheet(css)
+    label.setStyleSheet(css)
+    font = QFont(base_font)
+    if style.small:
+        font.setPixelSize(SMALL_TEXT)
+    font.setStrikeOut(style.struck)
+    font.setBold(style.bold)
+    label.setFont(font)
 
 
-def lines_markup(lines) -> str:
-    """A run of drawn lines, in the order they were handed over."""
-    return "".join(line_markup(line) for line in lines)
+def effect_name(effects: dict, effect_id: int) -> str:
+    """The display name, or the id for one the dataset has lost."""
+    effect = effects.get(str(effect_id))
+    return effecttext.name(effect) if effect else f"effect {effect_id}"
 
 
 def as_a_tooltip(text: str) -> str:
@@ -209,13 +232,12 @@ def _plain(text: str = "", *, colour: str = "", size: int = 0) -> QLabel:
     return label
 
 
-def _rich() -> QLabel:
-    """A label that draws the bullets and colours itself, and says so."""
-    label = QLabel()
-    label.setTextFormat(Qt.RichText)
-    label.setWordWrap(True)
-    label.setStyleSheet("border: none;")
-    return label
+def _add_named(column: QVBoxLayout, symbols: tuple, label: QLabel) -> None:
+    """A heading of the dialog, in a row with its symbols if it has any."""
+    if any(symbol is not None for symbol in symbols):
+        column.addLayout(iconpack.beside(list(symbols), label, RELIC_SYMBOL))
+    else:
+        column.addWidget(label)
 
 
 def _stacked(widgets) -> QWidget:
@@ -258,6 +280,11 @@ class FoldButton(QToolButton):
         self.setChecked(opened)
         self._fold(opened)
 
+    def say(self, closed_text: str, open_text: str) -> None:
+        """Other words for the same fold, where it counts something."""
+        self._texts = (closed_text, open_text)
+        self._fold(self.isChecked())
+
     def _fold(self, opened: bool) -> None:
         self._target.setVisible(opened)
         text = self._texts[opened]
@@ -289,7 +316,7 @@ class WhyLine(QWidget):
 
     def __init__(self, line: types.ReasonLine,
                  filters: effectfilters.EffectFilters,
-                 parent: QWidget | None = None) -> None:
+                 parent: QWidget | None = None, *, symbol=None) -> None:
         super().__init__(parent)
         self.line = line
         self._filters = filters
@@ -301,6 +328,8 @@ class WhyLine(QWidget):
         self.label = _plain(line.text)
         self._base_font = QFont(self.label.font())
         row.addWidget(self.bullet, 0, Qt.AlignTop)
+        if symbol is not None:
+            row.addWidget(iconpack.symbol_label(symbol), 0, Qt.AlignTop)
         row.addWidget(self.label, 1)
         filters.changed.connect(self._redraw)
         self._redraw()
@@ -317,19 +346,78 @@ class WhyLine(QWidget):
         return None
 
     def _redraw(self) -> None:
-        style = _styled(self.line, self.kind())
-        css = f"border: none; color: {style.colour};"
-        self.bullet.setText(style.bullet)
-        self.bullet.setStyleSheet(css)
-        self.label.setStyleSheet(css)
-        # From the base font every time, so a state that ends takes its
-        # mark with it.
-        font = QFont(self._base_font)
-        if style.small:
-            font.setPixelSize(SMALL_TEXT)
-        font.setStrikeOut(style.struck)
-        font.setBold(style.bold)
-        self.label.setFont(font)
+        _dress(_styled(self.line, self.kind()), self.bullet, self.label,
+               self._base_font)
+
+
+def _avoid_tooltip(line: types.ReasonLine, name: str, favourited: bool) -> str:
+    """AK-422: what the X will do, and where it is taken back."""
+    if favourited:
+        first = f"Avoid “{name}” — this replaces your Favourite for it."
+    else:
+        first = (f"Avoid {'the curse ' if line.is_curse else ''}“{name}” — no "
+                 f"suggestion will use a relic that carries it.")
+    return f"{first} Undo in Filters."
+
+
+class AvoidButton(QToolButton):
+    """The X at the end of one line (AK-420, AK-421).
+
+    All of a block's are one tab stop (AK-423): `walk` asks the block to move
+    along them, and only the one standing on the stop takes `Tab`.
+    """
+
+    def __init__(self, line: types.ReasonLine, name: str, favourited: bool,
+                 walk, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.effect_id = line.effect_id
+        self._walk = walk
+        tooltip = _avoid_tooltip(line, name, favourited)
+        self.setText(AVOID_CAPTION)
+        self.setFixedSize(AVOID_BUTTON_SIZE, AVOID_BUTTON_SIZE)
+        self.setAutoRaise(True)
+        self.setFocusPolicy(Qt.ClickFocus)
+        self.setToolTip(as_a_tooltip(tooltip))
+        self.setAccessibleName(f"Avoid {name}")
+        self.setAccessibleDescription(tooltip)
+        self.setStyleSheet(
+            f"QToolButton {{ color: {MUTED}; border: 1px solid transparent; }}"
+            f" QToolButton:hover {{ color: {BAD}; }}"
+            f" QToolButton:focus {{ color: {BAD};"
+            f" border: 1px solid {ACCENT}; }}")
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() in (Qt.Key_Return, Qt.Key_Enter):
+            self.click()
+        elif event.key() == Qt.Key_Up:
+            self._walk(self, -1)
+        elif event.key() == Qt.Key_Down:
+            self._walk(self, 1)
+        else:
+            super().keyPressEvent(event)
+
+
+class BlockLine(QWidget):
+    """One line of the block: bullet, text, X (AK-420), plain text throughout."""
+
+    def __init__(self, line: types.ReasonLine, name: str, favourited: bool,
+                 walk, parent: QWidget | None = None, *,
+                 symbol=None) -> None:
+        super().__init__(parent)
+        self.line = line
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(4)
+        self.bullet = _plain()
+        self.bullet.setWordWrap(False)
+        self.label = _plain(line.text)
+        _dress(_styled(line, None), self.bullet, self.label, self.label.font())
+        self.avoid = AvoidButton(line, name, favourited, walk)
+        row.addWidget(self.bullet, 0, Qt.AlignTop)
+        if symbol is not None:
+            row.addWidget(iconpack.symbol_label(symbol), 0, Qt.AlignTop)
+        row.addWidget(self.label, 1)
+        row.addWidget(self.avoid, 0, Qt.AlignTop)
 
 
 # --- the block in the slot card --------------------------------------------
@@ -341,9 +429,9 @@ class SuggestionBlock(QFrame):
     program dashed means "planned, not real", which is exactly what a
     suggestion is until it is applied (`UI_SPEC` §3.2).
 
-    Two controls, `Use` and `Why this relic` (AK-274, AK-378), and neither
-    changes anything here: the block holds no relics, so it says the player
-    asked and the window does the rest.
+    `Use`, `Why this relic`, `Reject` and an X per line (AK-274, AK-378,
+    AK-420, AK-427), and none changes anything here: the block holds no relics,
+    so it says the player asked and the window does the rest.
     """
 
     #: `Use` was pressed on this block (`UI_SPEC` §3.2: only this one slot).
@@ -352,10 +440,16 @@ class SuggestionBlock(QFrame):
     #: `Why` opens, with the same, whole content -- AK-274 forbids a second,
     #: card-only account of the answer.
     why_requested = Signal()
+    #: `Reject` was pressed on this block (AK-427).
+    reject_requested = Signal()
+    #: An X was pressed: avoid this effect or curse (AK-424).
+    avoid_requested = Signal(int)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, *, icons=None) -> None:
         super().__init__(parent)
         from .app import _heading
+
+        self._icons = icons
 
         self.setStyleSheet(
             f"QFrame {{ background: {PANEL};"
@@ -379,14 +473,14 @@ class SuggestionBlock(QFrame):
         # the block has to stand for itself once the bar has scrolled away.
         self.heading = _heading("Suggested")
         self.heading.setTextFormat(Qt.PlainText)
-        # §3.2 draws the heading, `Use` and `Why` on one line, the buttons at
-        # the right end of it. The stretch is what keeps them there and is
-        # also why the row asks for no width of its own beyond the buttons
-        # themselves: the heading is a `_heading`, which does not grow.
+        # AK-427: the heading gives way when the width runs out, the buttons
+        # never do.
+        self.heading.setWordWrap(True)
+        # §3.2 draws the heading and the buttons on one line, the buttons at
+        # the right end of it, because the heading takes what they leave.
         head = QHBoxLayout()
         head.setContentsMargins(0, 0, 0, 0)
-        head.addWidget(self.heading)
-        head.addStretch()
+        head.addWidget(self.heading, 1)
         self.use_button = QPushButton("Use")
         self.use_button.clicked.connect(self.use_requested)
         head.addWidget(self.use_button)
@@ -395,15 +489,34 @@ class SuggestionBlock(QFrame):
         self.why_button.setToolTip("Why this relic is suggested for this slot")
         self.why_button.clicked.connect(self.why_requested)
         head.addWidget(self.why_button)
+        self.reject_button = QPushButton("Reject")
+        self.reject_button.clicked.connect(self.reject_requested)
+        head.addWidget(self.reject_button)
         column.addLayout(head)
 
         self.relic_name = _plain()
-        column.addWidget(self.relic_name)
+        self.relic_symbol = QLabel()
+        self.relic_symbol.setTextFormat(Qt.PlainText)
+        self.relic_symbol.setFixedSize(RELIC_SYMBOL, RELIC_SYMBOL)
+        self.relic_symbol.setStyleSheet("border: none;")
+        naming = QHBoxLayout()
+        naming.setContentsMargins(0, 0, 0, 0)
+        naming.setSpacing(4)
+        naming.addWidget(self.relic_symbol, 0, Qt.AlignTop)
+        naming.addWidget(self.relic_name, 1)
+        column.addLayout(naming)
+
+        self.pinned_line = _plain(PINNED_LINE, colour=FAVOURITE, size=SMALL_TEXT)
+        column.addWidget(self.pinned_line)
 
         self.count_line = _plain(colour=MUTED, size=SMALL_TEXT)
         column.addWidget(self.count_line)
 
-        self.lines = _rich()
+        self.lines = QWidget()
+        self._line_column = QVBoxLayout(self.lines)
+        self._line_column.setContentsMargins(0, 0, 0, 0)
+        self._line_column.setSpacing(0)
+        self.drawn_lines: list[BlockLine] = []
         column.addWidget(self.lines)
 
         # A held favourite's own line (AK-314), between the effect/curse
@@ -421,6 +534,10 @@ class SuggestionBlock(QFrame):
                                        size=SMALL_TEXT)
         column.addWidget(self.already_equipped)
 
+        self.empty_reason = _plain(colour=MUTED, size=SMALL_TEXT)
+        self.empty_reason.setVisible(False)
+        column.addWidget(self.empty_reason)
+
         self.setVisible(False)
 
     def show_the_suggestion(self, goal_label: str,
@@ -429,7 +546,12 @@ class SuggestionBlock(QFrame):
                             may_be_used: bool = True,
                             may_explain: bool = True,
                             curse_tooltip: str = "",
-                            held_favourite_line: str = "") -> None:
+                            held_favourite_line: str = "",
+                            pinned: bool = False,
+                            names=None,
+                            favourited: frozenset[int] = frozenset(),
+                            relic_icon: int | None = None,
+                            symbol_of=None) -> None:
         """Draw one slot group, or the one line that replaces it.
 
         `already_equipped` is the window's answer, not this block's: whether
@@ -441,18 +563,31 @@ class SuggestionBlock(QFrame):
         the window's: whether the bar's own `Why` is offered right now
         (`advisorbar.ACTING_STATES`, AK-274). A held slot still explains
         itself -- holding is about applying, not about reading the account --
-        so this never follows `may_be_used`.
+        so this never follows `may_be_used`. `pinned`: the run laid this relic
+        because it is starred (AK-437). `names` and `favourited` are the X's
+        words (AK-422): the block has no dataset and no marks to read.
         """
         self.heading.setText(f"Suggested — {goal_label}".upper())
         self.heading.setVisible(not already_equipped)
         self.use_button.setVisible(may_be_used and not already_equipped)
         self.why_button.setVisible(may_explain and not already_equipped)
+        self.reject_button.setVisible(may_be_used and not already_equipped)
+        self.reject_button.setToolTip(as_a_tooltip(
+            f"{REJECT_TOOLTIP} {REJECT_PINNED_TOOLTIP}" if pinned
+            else REJECT_TOOLTIP))
+        self._symbol_of = symbol_of or (lambda _effect_id: None)
         self.relic_name.setText(group.relic_name)
         self.relic_name.setVisible(not already_equipped)
+        art = self._icons.item(relic_icon) if self._icons is not None else None
+        if art is not None:
+            self.relic_symbol.setPixmap(iconpack.sharp(art, RELIC_SYMBOL))
+        self.relic_symbol.setVisible(art is not None and not already_equipped)
+        self.pinned_line.setVisible(pinned and not already_equipped)
         self.count_line.setText(group.count_line)
         self.count_line.setVisible(not already_equipped)
-        drawn = [line for line in group.lines if types.drawn_in_the_block(line)]
-        self.lines.setText(lines_markup(drawn))
+        self._draw_the_lines(
+            [line for line in group.lines if types.drawn_in_the_block(line)],
+            names or {}, favourited)
         self.lines.setToolTip(as_a_tooltip(curse_tooltip))
         self.lines.setVisible(not already_equipped)
         self.held_favourite.setText(f"{EFFECT_BULLET} {held_favourite_line}"
@@ -460,11 +595,76 @@ class SuggestionBlock(QFrame):
         self.held_favourite.setVisible(not already_equipped
                                        and bool(held_favourite_line))
         self.already_equipped.setVisible(already_equipped)
+        self.empty_reason.setVisible(False)
+        self.setVisible(True)
+
+    def _draw_the_lines(self, lines, names, favourited) -> None:
+        """One `BlockLine` each. The X's follow `Reject` in the tab order, the
+        first of them standing on the group's one stop (AK-423)."""
+        self._clear_the_lines()
+        before = self.reject_button
+        for line in lines:
+            drawn = BlockLine(line, names.get(line.effect_id,
+                                              f"effect {line.effect_id}"),
+                              line.effect_id in favourited, self._walk_the_xs,
+                              symbol=self._symbol_of(line.effect_id))
+            drawn.avoid.clicked.connect(
+                lambda _checked=False, effect_id=line.effect_id:
+                self.avoid_requested.emit(effect_id))
+            self._line_column.addWidget(drawn)
+            self.drawn_lines.append(drawn)
+            QWidget.setTabOrder(before, drawn.avoid)
+            before = drawn.avoid
+        if self.drawn_lines:
+            self.drawn_lines[0].avoid.setFocusPolicy(Qt.StrongFocus)
+
+    def _clear_the_lines(self) -> None:
+        for drawn in self.drawn_lines:
+            self._line_column.removeWidget(drawn)
+            drawn.hide()
+            drawn.deleteLater()
+        self.drawn_lines = []
+
+    def _walk_the_xs(self, button: AvoidButton, step: int) -> None:
+        """Arrow keys along the X's, and the tab stop moves along (AK-423)."""
+        buttons = [drawn.avoid for drawn in self.drawn_lines]
+        target = buttons[(buttons.index(button) + step) % len(buttons)]
+        button.setFocusPolicy(Qt.ClickFocus)
+        target.setFocusPolicy(Qt.StrongFocus)
+        target.setFocus(Qt.TabFocusReason)
+
+    def first_x(self) -> AvoidButton | None:
+        """Where the focus goes after an X or `Reject` (AK-426): none while
+        `already_equipped` hides the lines, or the focus falls on nothing."""
+        return (self.drawn_lines[0].avoid
+                if self.drawn_lines and self.lines.isVisibleTo(self) else None)
+
+    def show_no_suggestion(self, reason: str) -> None:
+        """AK-441: this slot has no choice in the answer, and says why.
+
+        Nothing to press, and at most two lines with the whole text in the
+        tooltip: a reason names effects, and those can be long.
+        """
+        self.heading.setText("NO SUGGESTION")
+        self.heading.setVisible(True)
+        self._clear_the_lines()
+        for part in (self.use_button, self.why_button, self.reject_button,
+                     self.relic_name, self.relic_symbol, self.pinned_line, self.count_line, self.lines, self.held_favourite,
+                     self.already_equipped):
+            part.setVisible(False)
+        self.empty_reason.setText(reason)
+        self.empty_reason.setToolTip(as_a_tooltip(reason))
+        self.empty_reason.ensurePolished()
+        self.empty_reason.setMaximumHeight(
+            2 * self.empty_reason.fontMetrics().lineSpacing())
+        self.empty_reason.setVisible(True)
         self.setVisible(True)
 
     def put_the_suggestion_away(self) -> None:
         """No answer lives for this slot any more."""
-        self.lines.clear()
+        self.empty_reason.clear()
+        self.empty_reason.setToolTip("")
+        self._clear_the_lines()
         self.lines.setToolTip("")
         self.relic_name.clear()
         self.count_line.clear()
@@ -525,10 +725,13 @@ class WhyDialog(QDialog):
     def __init__(self, heading: WhyHeading, result,
                  parent: QWidget | None = None, *,
                  filters: effectfilters.EffectFilters,
-                 effects: dict, slot_index: int | None = None) -> None:
+                 effects: dict, slot_index: int | None = None,
+                 icons=None, head_symbols: tuple = (),
+                 relic_icons: dict | None = None) -> None:
         super().__init__(parent)
         self._filters = filters
         self._effects = effects
+        self._icons = icons
         self.setModal(True)
         self.setWindowTitle(f"Why this build — {heading.goal_label}")
         self.resize(640, 620)
@@ -543,7 +746,13 @@ class WhyDialog(QDialog):
         column.setSpacing(4)
 
         self.head = _plain(head_sentence(heading))
-        column.addWidget(self.head)
+        _add_named(column, head_symbols, self.head)
+
+        # Over the slot groups, one statement in one label (AK-439).
+        self.pins_left_out = _plain("\n".join(
+            (PINS_LEFT_OUT_HEADING, *(pin.line for pin in result.pins_left_out))))
+        self.pins_left_out.setVisible(bool(result.pins_left_out))
+        column.addWidget(self.pins_left_out)
 
         self.groups: list[tuple[QLabel, QLabel, list[WhyLine]]] = []
         #: Per group, its fold of the numberless lines, `None` for none.
@@ -555,7 +764,9 @@ class WhyDialog(QDialog):
             bold = title.font()
             bold.setBold(True)
             title.setFont(bold)
-            column.addWidget(title)
+            art = (icons.item((relic_icons or {}).get(group.relic_name))
+                   if icons is not None else None)
+            _add_named(column, (art,), title)
             if group.slot_index == slot_index:
                 self._slot_title = title
             count_line = _plain(group.count_line, colour=MUTED,
@@ -566,7 +777,8 @@ class WhyDialog(QDialog):
             # would make the dialog taller than that label was (T-250b).
             # The numberless ones go into a second holder under their fold
             # (AK-372), in the order they had.
-            lines = [WhyLine(line, filters) for line in group.lines]
+            lines = [WhyLine(line, filters, symbol=self._symbol_of(line.effect_id))
+                     for line in group.lines]
             column.addWidget(_stacked(
                 [line for line in lines if not is_numberless(line.line)]))
             folded = [line for line in lines if is_numberless(line.line)]
@@ -584,8 +796,10 @@ class WhyDialog(QDialog):
         # per list, heading and names as one statement, like `conditional`.
         self.excluded_list = _plain()
         self.required_list = _plain()
+        self.stacks_list = _plain()
         column.addWidget(self.excluded_list)
         column.addWidget(self.required_list)
+        column.addWidget(self.stacks_list)
 
         # One label rather than one per name: the heading and the names are
         # one statement, they are plain text throughout, and a label apiece
@@ -630,6 +844,13 @@ class WhyDialog(QDialog):
         row.addWidget(self.close_button)
         outer.addLayout(row)
 
+    def _symbol_of(self, effect_id: int):
+        """An effect's status symbol, or None."""
+        if self._icons is None:
+            return None
+        return self._icons.status(
+            iconpack.effect_icon(self._effects, effect_id))
+
     def showEvent(self, event) -> None:
         """AK-379: the card's dialog stands on its slot's group, title at the
         top -- once laid out, as only then has the title a place."""
@@ -649,12 +870,14 @@ class WhyDialog(QDialog):
             names = sorted(self._name_of(effect_id) for effect_id in ids)
             label.setText("\n".join((heading, *names)))
             label.setVisible(bool(ids))
+        stacks = self._filters.counted_stacks(self._effects)
+        self.stacks_list.setText("\n".join((STACKS_HEADING, *sorted(
+            f"{self._name_of(effect_id)}: {count}"
+            for effect_id, count in stacks.items()))))
+        self.stacks_list.setVisible(bool(stacks))
 
     def _name_of(self, effect_id: int) -> str:
-        """The display name, or the id for one the dataset has lost."""
-        effect = self._effects.get(str(effect_id))
-        return (effecttext.name(effect) if effect
-                else f"effect {effect_id}")
+        return effect_name(self._effects, effect_id)
 
 
 def _groups_of(result) -> tuple[types.SlotReasons, ...]:

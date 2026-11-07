@@ -21,6 +21,8 @@ is the difference between forty usable suggestions and none.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from nrplanner import model
@@ -269,6 +271,56 @@ def test_a_held_copy_is_not_offered_a_second_time(game_data, wylder):
 
     assert held.handle not in advisor.handles(pool)
     assert len(pool.candidates) == 2
+
+
+def test_a_copy_carrying_an_avoided_effect_is_not_offered(game_data, wylder):
+    """A18 (06.11.2026), AD-057.1: not "offered without the effect", not
+    offered at all. Only the carrier goes; the rest of the pool is what it
+    would have been."""
+    inventory = advisor.make_inventory(game_data, wylder, count=3)
+    carrier = inventory.relics[0]
+    free = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder)
+    avoiding = dataclasses.replace(
+        free, excluded=frozenset({carrier.effect_ids[0]}))
+
+    pool = pool_for(inventory, avoiding, 0, ctx)
+
+    assert advisor.handles(pool) == [
+        handle for handle in advisor.handles(pool_for(inventory, free, 0, ctx))
+        if handle != carrier.handle]
+
+
+def test_a_copy_carrying_an_avoided_curse_is_not_offered(game_data, wylder):
+    """The same for a curse: A18 names effect ids, not kinds."""
+    inventory = advisor.make_inventory(game_data, wylder, count=3)
+    carrier = inventory.relics[0]
+    curse = advisor.a_curse_of_this_dataset(game_data)
+    carrier.curse_ids = [curse]
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  excluded=frozenset({curse}))
+
+    pool = pool_for(inventory, problem, 0, advisor.context(game_data, wylder))
+
+    assert carrier.handle not in advisor.handles(pool)
+    assert len(pool.candidates) == 2
+
+
+def test_a_rejected_roll_takes_every_copy_of_it_out(game_data, wylder):
+    """AD-060: a Reject follows the roll, or the second copy of what the
+    player just turned down comes straight back. Another roll of the same
+    relic stays, because that is a different relic to the player."""
+    roll = advisor.raising_effects(game_data, wylder, 2)
+    inventory = advisor.make_inventory(game_data, wylder, count=3,
+                                       rolls=[roll[0], list(roll[0]), roll[1]])
+    first, second, other = inventory.relics
+    second.relic_id = first.relic_id
+    problem = dataclasses.replace(advisor.problem([advisor.RED]),
+                                  rejected=frozenset({types.roll_of(first)}))
+
+    pool = pool_for(inventory, problem, 0, advisor.context(game_data, wylder))
+
+    assert advisor.handles(pool) == [other.handle]
 
 
 def test_two_copies_of_one_roll_are_two_candidates(game_data, wylder):
@@ -642,3 +694,84 @@ def test_a_pool_the_advisor_produced_can_be_a_cache_key(game_data, wylder):
     for candidate in pool.candidates:
         hash(candidate)
     hash(candidates.base_state_for(advisor.problem([advisor.RED]), 0))
+
+
+def test_a_pool_counts_what_the_marks_took_out_of_it(game_data, wylder):
+    """AD-057.4: the reasons a slot may stay empty. Only copies that would
+    otherwise have been offered count: a held one was never going to be."""
+    rolls = advisor.raising_effects(game_data, wylder, 4)
+    inventory = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
+    avoided, cursed, rejected, held = inventory.relics
+    curse = advisor.a_curse_of_this_dataset(game_data)
+    cursed.curse_ids = [curse]
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED, advisor.RED],
+                        held={1: advisor.held_relic(held)}),
+        excluded=frozenset({avoided.effect_ids[0], curse, held.effect_ids[0]}),
+        rejected=frozenset({types.roll_of(rejected)}))
+
+    pool = pool_for(inventory, problem, 0, advisor.context(game_data, wylder))
+
+    assert pool.candidates == ()
+    assert pool.avoided_by == tuple(sorted({avoided.effect_ids[0], curse}))
+    assert pool.rejected_out == 1
+
+
+# -- laying a relic in a slot (AD-059.2) -------------------------------------
+
+def _laid(colour: int, is_deep: bool = False):
+    return types.Candidate(slot_index=0, handle=colour * 10 + is_deep,
+                           relic_id=1, name=f"{colour}", colour=colour,
+                           is_deep=is_deep)
+
+
+def _slot_of(index: int, colour: int, deep: bool = False) -> types.Slot:
+    return types.Slot(index=index, colour=colour, deep=deep)
+
+
+def test_a_relic_takes_its_colour_before_a_white_slot():
+    """Colour first is what makes the placing lossless: a white slot taken
+    first would turn away a second relic that had no other slot."""
+    white = _slot_of(0, model.WHITE_SLOT)
+    red = _slot_of(1, advisor.RED)
+    relic = _laid(advisor.RED)
+
+    assert candidates.place((relic,), (white, red)) == (((red, relic),), ())
+
+
+def test_placing_leaves_out_only_what_no_slot_can_take():
+    white = _slot_of(0, model.WHITE_SLOT)
+    red = _slot_of(1, advisor.RED)
+    first, second, blue = (_laid(advisor.RED), _laid(advisor.RED),
+                           _laid(advisor.BLUE))
+
+    placed, rest = candidates.place((first, second, blue), (red, white))
+
+    assert placed == ((red, first), (white, second))
+    assert rest == (blue,)
+
+
+def test_a_white_slot_takes_only_its_own_deep_kind():
+    deep_white = _slot_of(0, model.WHITE_SLOT, deep=True)
+    relic = _laid(advisor.RED)
+
+    assert candidates.place((relic,), (deep_white,)) == ((), (relic,))
+    deep_relic = _laid(advisor.RED, is_deep=True)
+    assert candidates.place((deep_relic,), (deep_white,))[0] == (
+        (deep_white, deep_relic),)
+
+
+def test_placing_agrees_with_what_a_slot_is_offered(game_data, wylder):
+    """`place` has to state the colour rule, the save's `relics_for` owns it:
+    the two may not come to differ about what fits."""
+    inventory = advisor.make_inventory(game_data, wylder, colour=advisor.RED,
+                                       count=2, deep_count=1,
+                                       other_colour=advisor.BLUE)
+    colours = (advisor.RED, advisor.BLUE, model.WHITE_SLOT)
+    for index, (colour, deep) in enumerate(
+            (colour, deep) for colour in colours for deep in (False, True)):
+        slot = _slot_of(index, colour, deep)
+        offered = {relic.handle for relic in inventory.relics_for(colour, deep)}
+        fits = {relic.handle for relic in inventory.relics
+                if candidates.place((relic,), (slot,))[0]}
+        assert fits == offered

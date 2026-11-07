@@ -36,13 +36,15 @@ from PySide6.QtWidgets import (
     QSizePolicy, QToolButton, QVBoxLayout, QWidget, QWidgetAction,
 )
 
-from . import advisorbar, advisorblock, cardgrid, effecttext, favourites, model
+from . import (advisorbar, advisorblock, cardgrid, effecttext, favourites,
+               iconpack, model)
 from .advisor import goals as advisor_goals
 from .advisor import types as advisor_types
 from .inventory import CUSTOM_RELIC_ID
+from .relicslots import HEADER_CHIP, slot_chip
 from .theme import (
-    ACCENT, BORDER, CURSE, HOVER_FILL, MUTED, NAME_POINT_SIZE, PANEL,
-    SLOT_COLOURS,
+    ACCENT, BORDER, CURSE, FAVOURITE, HOVER_FILL, MUTED, NAME_POINT_SIZE,
+    PANEL,
 )
 
 #: How many cards wide the dialog first asks to be. Not a claim about the
@@ -70,11 +72,6 @@ ICON = 56
 #: The dialog's own layout margin, one side. Named because the opening width
 #: has to add both of them back.
 MARGIN = 14
-
-# Purple against the gold of a selected card: the two states have to be told
-# apart at a glance, and gold's opposite is the one colour the rest of the
-# window never uses.
-FAVOURITE = "#a86fe0"
 
 #: The value row's own spacing between caption and figure (`ValueBlock`),
 #: read again below so `card_width` cannot drift from the layout
@@ -159,6 +156,7 @@ HERO_ICON = 44
 VALUE_CAPTIONS = {
     "max_damage": "Damage",
     "min_damage_taken": "Damage taken",
+    advisor_goals.BALANCED.id: advisor_goals.BALANCED.label,
     "max_attributes": "Offensive attributes",
 }
 
@@ -176,6 +174,7 @@ VALUE_CAPTIONS = {
 DIRECTION_NOUNS = {
     "max_damage": "damage",
     "min_damage_taken": "survival",
+    advisor_goals.BALANCED.id: "balance",
     "max_attributes": "attributes",
 }
 
@@ -391,6 +390,16 @@ class Ranking:
                 return baseline.unit
         raise KeyError(f"this pool carries no baseline for goal {goal_id!r}")
 
+    def text_of(self, gain: float, goal_id: str) -> str:
+        """A gain as a card says it. `balanced` as a percentage of its base
+        state: a product of an attack rating and effective HP is positive and
+        is no number anyone could read a difference of."""
+        if goal_id != advisor_goals.BALANCED.id:
+            return gain_text(gain, self.unit(goal_id))
+        base = next(line.value for line in self.pool.baseline
+                    if line.goal_id == goal_id)
+        return gain_text(gain / base * 100, "%")
+
     def top_handles(self, goal_id: str) -> frozenset:
         """Handles earning AK-46's chip under one direction, or none.
 
@@ -407,12 +416,11 @@ class Ranking:
                  for candidate in self.pool.candidates]
         if not pairs:
             return frozenset()
-        unit = self.unit(goal_id)
-        top = gain_text(max(gain for _handle, gain in pairs), unit)
+        top = self.text_of(max(gain for _handle, gain in pairs), goal_id)
         if top == NO_CHANGE or top.startswith("-"):
             return frozenset()
         return frozenset(handle for handle, gain in pairs
-                         if gain_text(gain, unit) == top)
+                         if self.text_of(gain, goal_id) == top)
 
     def texts_for(self, item) -> list[str]:
         """The value rows of one card, both directions, in order."""
@@ -420,7 +428,7 @@ class Ranking:
         for goal_id in VALUE_DIRECTIONS:
             gain = self.gain(item, goal_id)
             rows.append(NO_FIGURE if gain is None
-                        else gain_text(gain, self.unit(goal_id)))
+                        else self.text_of(gain, goal_id))
         return rows
 
 
@@ -514,7 +522,10 @@ class SlotAdvice:
         (AD-018.1, AD-028 point 3): the question is what fits *this* slot
         beside the build as it stands, so the rest of the build is a boundary
         condition -- and the one slot left free is how the question says which
-        slot it is about, without a field of its own in the key.
+        slot it is about, without a field of its own in the key. A Reject is
+        about the suggestion and this is the hand choice, so it stays out
+        (AD-057.3), and a star does for the same reason: it is not laid here,
+        it only leads the grid.
         """
         window = self._slot.window()
         asking = advisorbar.asking_from(
@@ -530,7 +541,8 @@ class SlotAdvice:
             asking.request.problem,
             held=tuple(advisorbar.held_slot(index, card)
                        for index, card in enumerate(cards)
-                       if index != open_index))
+                       if index != open_index),
+            rejected=frozenset(), pinned=())
         request = dataclasses.replace(asking.request, problem=problem)
         known = self._track.ask_and_answer_if_known(
             request, asking.inventory, asking.ctx)
@@ -660,7 +672,7 @@ class RelicCard(cardgrid.HoverCard):
     def __init__(self, item, effect_names: list[str], icon, selected: bool,
                  on_pick, curses: list[tuple[str, str]] | None = None,
                  tooltip: str = "", favourite: bool = False,
-                 on_favourite=None, captions=()):
+                 on_favourite=None, captions=(), hero_label: str = "", symbols=None):
         super().__init__()
         self.item = item
         self.on_favourite = on_favourite
@@ -733,6 +745,9 @@ class RelicCard(cardgrid.HoverCard):
             star = QLabel("★")
             star.setStyleSheet(
                 f"border: none; color: {FAVOURITE}; font-size: 13px;")
+            star.setToolTip(advisorblock.as_a_tooltip(
+                f"Favourite for {hero_label}: Optimize puts it in the build "
+                f"when it fits."))
             titling.addWidget(star, 0, Qt.AlignTop)
         naming.addLayout(titling, 1)
         header.addLayout(naming, 1)
@@ -756,8 +771,9 @@ class RelicCard(cardgrid.HoverCard):
             if curse_detail:
                 line.setToolTip(advisorblock.as_a_tooltip(curse_detail))
             self.lines.append(line)
-        for line in self.lines:
-            layout.addWidget(line)
+        shown = [*effect_names, *(curse[0] for curse in curses or [])]
+        for line, name in zip(self.lines, shown):
+            layout.addLayout(iconpack.beside([(symbols or {}).get(name)], line))
 
         if not curses and item.has_curse:
             count = getattr(item, "curse_count", 0) or 0
@@ -822,7 +838,8 @@ class CustomRelicCard(cardgrid.HoverCard):
     relic that has somehow been acquired.
     """
 
-    def __init__(self, effect_names: list[str], selected: bool, on_pick):
+    def __init__(self, effect_names: list[str], selected: bool, on_pick,
+                 symbols=None):
         super().__init__()
         self.setFixedWidth(card_width())
         self.setCursor(Qt.PointingHandCursor)
@@ -860,7 +877,7 @@ class CustomRelicCard(cardgrid.HoverCard):
                 label.setWordWrap(True)
                 label.setStyleSheet(
                     "border: none; color: #cfcfcf; font-size: 11px;")
-                layout.addWidget(label)
+                layout.addLayout(iconpack.beside([(symbols or {}).get(name)], label))
         else:
             hint = QLabel("Pick any effects that can roll in this slot, to "
                           "plan around a relic you have not found yet.")
@@ -902,6 +919,13 @@ class FavouriteMenu(QMenu):
         title = QWidgetAction(self)
         title.setDefaultWidget(heading)
         self.addAction(title)
+
+        meaning = QLabel("Optimize puts it in the build when it fits.")
+        meaning.setStyleSheet(
+            f"color: {MUTED}; font-size: 11px; padding: 0px 8px 2px 8px;")
+        said = QWidgetAction(self)
+        said.setDefaultWidget(meaning)
+        self.addAction(said)
 
         holder = QWidget()
         grid = QGridLayout(holder)
@@ -966,8 +990,10 @@ class CustomRelicDialog(QDialog):
 
     MAX_EFFECTS = 3
 
-    def __init__(self, parent, choices: list[dict], chosen: list[int]):
+    def __init__(self, parent, choices: list[dict], chosen: list[int],
+                 icons=None):
         super().__init__(parent)
+        self.icons = icons
         self.choices = choices
         self.chosen = list(chosen)[:self.MAX_EFFECTS]
 
@@ -1032,6 +1058,10 @@ class CustomRelicDialog(QDialog):
             mark = "✓ " if eff["id"] in self.chosen else "   "
             entry = QListWidgetItem(f"{mark}{label} — {detail}")
             entry.setData(Qt.UserRole, eff["id"])
+            symbol = (self.icons.status(eff.get("icon"))
+                      if self.icons is not None else None)
+            if symbol is not None:
+                entry.setIcon(QIcon(symbol))
             entry.setToolTip(advisorblock.as_a_tooltip(detail))
             self.list.addItem(entry)
 
@@ -1115,6 +1145,10 @@ class RelicPicker(QDialog):
         #: toggled through `_open_favourites` drops its one card only: no
         #: other entry has gone stale.
         self._card_cache: dict[int, RelicCard] = {}
+        #: Where `_rescue_cached_cards` keeps the cached cards while a grid
+        #: is swapped; hidden for good, so nothing parked here shows.
+        self._card_shelf = QWidget(self)
+        self._card_shelf.hide()
         #: The cards an answered paint has not built yet, in grid order, and
         #: the zero-length timer that builds the next `CARDS_PER_PAINT` of
         #: them once the event loop has drawn what stands. Stopped by every
@@ -1145,11 +1179,9 @@ class RelicPicker(QDialog):
 
         top = QHBoxLayout()
         chip = QLabel()
-        chip.setFixedSize(16, 16)
-        chip.setStyleSheet(
-            f"background: {SLOT_COLOURS.get(slot.colour, MUTED)};"
-            f" border: 1px solid {BORDER}; border-radius: 8px;"
-        )
+        chip.setFixedSize(HEADER_CHIP, HEADER_CHIP)
+        chip.setPixmap(slot_chip(icons, slot.colour, None, HEADER_CHIP,
+                                 slot.deep))
         top.addWidget(chip)
 
         self.search = QLineEdit(search_text)
@@ -1499,6 +1531,9 @@ class RelicPicker(QDialog):
             # back on every right-click.
             self._card_cache.pop(id(item), None)
             self._refresh()
+            # A star is part of the question, like a mark (AD-059.7).
+            self.slot.window().advisor_bar.the_build_changed(
+                marking_changed=True)
 
     def _curses(self, item) -> list[tuple[str, str]]:
         """(name, full description) per curse this relic actually rolled."""
@@ -1528,6 +1563,8 @@ class RelicPicker(QDialog):
             and favourites.is_favourite(item, self.hero_id),
             on_favourite=self._open_favourites,
             captions=self._captions(),
+            hero_label=self.hero_label,
+            symbols=self.slot.effect_symbols(item),
         )
 
     def _waiting_area(self) -> QWidget:
@@ -1577,7 +1614,8 @@ class RelicPicker(QDialog):
             + (f" matching “{needle}”" if needle else "")
             + note
             + against
-            + "  ·  right-click a relic to favourite it"
+            + "  ·  right-click a relic to favourite it — Optimize puts "
+              "favourited relics in when they fit"
         )
         self._say_what_was_left_out()
 
@@ -1592,6 +1630,7 @@ class RelicPicker(QDialog):
             selected=current is not None
             and getattr(current, "relic_id", None) == CUSTOM_RELIC_ID,
             on_pick=self._open_custom,
+            symbols=self.slot.effect_symbols(custom) if custom is not None else None,
         )
         # The dialog measures itself in the order the grid has without an
         # answer (AK-216), and only at the sizing: `_room_for_three_rows`
@@ -1648,13 +1687,20 @@ class RelicPicker(QDialog):
         the card dies with it: `show_values` on the next paint then throws
         on a `QLabel` shiboken already calls deleted, and the fill stops
         there for good, well short of the count the header still states.
-        Reparenting every cached card to the dialog itself, before either
+        Reparenting every cached card to `self._card_shelf`, before either
         branch below may swap the grid, keeps all of them alive across the
         swap -- `CardGrid` reparents, and Qt reshows, the ones a paint
         actually places.
+
+        The shelf, not the dialog: `CardGrid.extend` queues a show for each
+        card it places, and a card moved out before that show runs is shown
+        by it wherever it now hangs -- on the dialog, loose beside the
+        scroll area (user test 1.20.0). Under the hidden shelf the show
+        draws nothing. `card.hide()` instead would make Qt skip the card
+        for good when a later grid places it again.
         """
         for card in self._card_cache.values():
-            card.setParent(self)
+            card.setParent(self._card_shelf)
 
     def _cards_for(self, items) -> list[tuple[object, RelicCard]]:
         """`(item, card)` per item, each card built once per opening.
@@ -1935,8 +1981,7 @@ class RelicPicker(QDialog):
         dialog = CustomRelicDialog(
             self,
             self.slot.rollable_effects(),
-            list(existing.effect_ids) if existing is not None else [],
-        )
+            list(existing.effect_ids) if existing is not None else [], icons=self.icons)
         accepted = dialog.exec()
         dialog.deleteLater()
         if not accepted:

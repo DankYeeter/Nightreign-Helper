@@ -238,8 +238,8 @@ Skript `…/scratchpad/T-147/where.py`, zweimal gefahren, unveraendert:
 ```
 --- ohne Umlenkung (Positivkontrolle) ---
 favourites.ORG          = DankYeeter
-paths.cache_dir()       = C:\Users\Daniel\AppData\Local\NightreignHelper
-shortcut.shortcut_path()= C:\Users\Daniel\AppData\Roaming\Microsoft\Windows\
+paths.cache_dir()       = %LOCALAPPDATA%\NightreignHelper
+shortcut.shortcut_path()= %APPDATA%\Microsoft\Windows\
                           Start Menu\Programs\Nightreign Helper.lnk
 --- mit Umlenkung ---
 favourites.ORG          = DankYeeterT-147

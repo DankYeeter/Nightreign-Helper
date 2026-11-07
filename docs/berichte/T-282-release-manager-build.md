@@ -25,7 +25,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.201.630 Byte (56,46 MiB) |
 | **SHA-256** | `71E8202980BA528119815C75818757668EA956480A918C0236D1C8E420E67E1C` (`Get-FileHash -Algorithm SHA256`) |
 | **Versionsbump-Commit** | `b46641c` ("chore(release): Version 1.13.1") |
@@ -144,12 +144,12 @@ Keine neuen Befunde am Anwendungscode fuer diesen Bau.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.201.630 Byte (56,46 MiB)
 - **SHA-256:** `71E8202980BA528119815C75818757668EA956480A918C0236D1C8E420E67E1C`
 - **Versionsressource:** 1.13.1, am Fenstertitel bestaetigt (Startprobe).
 - **Fuer den Update-Pfad-Test:** Vorversion 1.13.0 liegt gesichert unter
-  `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\0c1b1951-b796-49a5-9cbc-7588742f286c\scratchpad\artefakte\NightreignHelper-1.13.0.exe`,
+  `%TEMP%\claude\<Projekt>\0c1b1951-b796-49a5-9cbc-7588742f286c\scratchpad\artefakte\NightreignHelper-1.13.0.exe`,
   SHA-256 `332955EC291308334CD3E2ED6437BA90EBB6E543A4F7FCD7A4A0FA56D3701113`
   (gegen Original verifiziert).
 - Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`,

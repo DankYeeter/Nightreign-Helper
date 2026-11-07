@@ -54,6 +54,7 @@ from PySide6.QtWidgets import QLabel
 
 from nrplanner import arsenaltab, damage, model, weapons, weaponslots
 
+from tests import tabtext
 from tests import weapon_damage_cases as cases
 
 LEVEL = 15
@@ -237,7 +238,8 @@ def tile_rows(tile) -> list[tuple[str, str]]:
     asserted away rather than assumed, same as `tile_name` -- and everything
     after them comes in pairs.
     """
-    labels = [label.text() for label in tile.findChildren(QLabel)]
+    labels = [tabtext.unsymboled(label.text())
+              for label in tile.findChildren(QLabel)]
     assert len(labels) >= 2 and labels[0] == "", (
         "the tile header is not the icon badge followed by the name any "
         "more; this helper reads the wrong labels")

@@ -38,7 +38,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.184.762 Byte (56,44 MiB) |
 | **SHA-256** | `89DAACBBB8D6F74B446C5FFA37FD3B47B0EB1C5B07079D20D65ECE05DF0ADCCC` |
 | **Code-Stand des Artefakts** | `5a35272` (= HEAD `03c6b78` App-Code; `git diff --stat 5a35272..HEAD` zeigt nur `docs/anleitung/guide.md`, 0 Treffer unter `nrplanner/`) |
@@ -113,7 +113,7 @@ Streuung ist damit nicht durch ein neues Paket erklaerbar.
 
 ## Testabzug
 
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` unabhaengig
+`<ClaudeCode>\NightreignHelper-Testabzug` unabhaengig
 nachgezaehlt vor dem Kopieren: **841 Dateien, 21.139.391 Byte** -
 deckungsgleich mit dem im Auftrag genannten Stand v16. Nach
 `<scratchpad>\T-327g\localappdata\NightreignHelper` **kopiert** (nicht
@@ -200,7 +200,7 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.184.762 Byte (56,44 MiB)
 - **SHA-256:** `89DAACBBB8D6F74B446C5FFA37FD3B47B0EB1C5B07079D20D65ECE05DF0ADCCC`
 - **Versionsressource:** 1.18.0, am Fenstertitel bestaetigt (Startprobe).

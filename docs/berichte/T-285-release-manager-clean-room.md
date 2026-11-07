@@ -44,7 +44,7 @@ Ablaufplans dadurch nicht durchfuehrbar.
 | | |
 |---|---|
 | **Modus** | `clean-room` |
-| **Artefakt** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Artefakt** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.201.630 Byte (gemessen, `ls`) - deckt sich mit T-282 |
 | **SHA-256 (nachgemessen)** | `71E8202980BA528119815C75818757668EA956480A918C0236D1C8E420E67E1C` (`certutil`) - identisch mit dem im Auftrag genannten und in T-282 gefuehrten Wert |
 | **Vorversion fuer Update-Pfad** | `NightreignHelper-1.11.0.exe`, 59.105.391 B, SHA-256 `F23EB0F784665A8C018C19F353AD114E9809061033076311DCDF21DBB916E8E0` (nachgemessen, identisch mit T-265-Beleg) - **aelter als die im Auftrag genannte 1.13.0-Sicherung und bevorzugt eingesetzt**, weil im Scratchpad einer fremden Session vorhanden und Herkunft/Hash gegen `docs/berichte/T-265-release-manager-build.md:96` bestaetigt |

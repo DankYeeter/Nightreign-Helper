@@ -809,6 +809,25 @@ def satisfied_by_weapon(field_name: str, value, wep_type) -> bool:
     return value == wep_type
 
 
+#: Where each stack effect stops, as the game's event scripts count it (the
+#: EMEVD reading of T-337, 2026-11-07; no probe in the game). `None` is the one
+#: effect those scripts show no ceiling for (`stack_limit`). The keys are the
+#: eight effects `accumulates` names, for the search, which has ids and no records.
+#: `tests/test_stack_effects_count_once.py` holds the keys against the dataset.
+STACK_LIMITS = {
+    7060200: 4,                                # Night Invaders
+    7060000: 7, 7060100: 7,                    # evergaols, Sorcerer's Rises
+    6060300: 10, 6060400: 10,                  # great enemies, Church and Fort
+    6060500: 10, 6060600: 10,                  # Ruin, Great Encampment
+    6500500: None,                             # [Revenant] Max FP
+}
+
+
+def stack_limit(effect_id: int, unproven: int) -> int:
+    """How far this effect counts; `unproven` where the scripts do not say."""
+    return STACK_LIMITS.get(effect_id) or unproven
+
+
 def accumulates(effect: dict) -> bool:
     """Does this effect gain a stack each time something happens?
 
@@ -832,6 +851,8 @@ def is_conditional(effect: dict, wep_type: int | None = None) -> bool:
     Conditional & situational. An effect carrying a second, unmet gate stays
     conditional -- every gate has to be satisfied, not just this one.
     """
+    if effect.get("id") in ON_THE_ENEMY_EFFECT_IDS:
+        return True
     mods = effect.get("modifiers") or {}
     for field_name in CONDITIONAL_FIELDS:
         if field_name not in mods:
@@ -939,7 +960,7 @@ def swap_deltas(effect: dict, level: int) -> dict[str, int]:
     span = hi - lo
     t = 0.0 if span <= 0 else (level - lo) / span
     out: dict[str, int] = {}
-    for attr in set(low) | set(high):
+    for attr in ATTRIBUTE_ORDER:
         a, b = low.get(attr, 0), high.get(attr, 0)
         value = round(a + (b - a) * t)
         if value:
@@ -1124,6 +1145,24 @@ def _exclusive_text(kept: dict, dropped: dict, copies: int) -> str:
             f"only one will apply")
 
 
+def _first_carriers(effects: list[dict], build: "Build") -> list[dict]:
+    """`effects` with each stack effect on its first carrier only, the others
+    reported. Not `stacks=False` on the effect: that would drop the copies a
+    declared count expands to, the count itself (measured, T-337)."""
+    kept: list[dict] = []
+    carriers: dict[int, int] = {}
+    for eff in effects:
+        if accumulates(eff):
+            carriers[eff["id"]] = carriers.get(eff["id"], 0) + 1
+            if carriers[eff["id"]] > 1:
+                build.warnings.append(Warning(
+                    "duplicate",
+                    _exclusive_text(eff, eff, carriers[eff["id"]])))
+                continue
+        kept.append(eff)
+    return kept
+
+
 def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = None,
             weapon: dict | None = None,
             weapons_held: list[dict] | None = None,
@@ -1145,7 +1184,10 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     `declared` maps effect id to how many times the player says its condition
     is met right now. A gated effect is otherwise left out of every total,
     because the sheet has no way to know. Declaring one counts it exactly as
-    though that many copies were equipped.
+    though that many copies were equipped. For a stack effect (`accumulates`)
+    the count belongs to the effect and not to the relic: the first carrier
+    takes it, a further one is reported and counts for nothing (user decision
+    2026-11-07, T-339).
 
     `want_qualitative=False` leaves `qualitative` and `situational` empty and
     changes nothing else. The advisor's beam scores thousands of builds and
@@ -1177,7 +1219,9 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     # A declared effect is replaced by the number of copies asked for, rather
     # than kept alongside them: leaving the original in would make the first
     # copy of an isStrongestEffect look like a duplicate of it and be dropped.
-    live = {int(k): int(v) for k, v in (declared or {}).items() if int(v) > 0}
+    effects = _first_carriers(effects, build)
+    live = {int(k): min(int(v), stack_limit(int(k), int(v)))
+            for k, v in (declared or {}).items() if int(v) > 0}
     if live:
         expanded: list[dict] = []
         for eff in effects:
@@ -1460,6 +1504,33 @@ GATE_FIELDS = {
 }
 
 
+# Effects whose numbers land on whoever they hit, not on the one who wears them.
+# Counted as the wearer's own, "[Raider] Hit With Character Skill to Reduce Enemy
+# Attack Power" took 20,56 off his attack rating as `All damage -13%`, counted
+# against the relic (A18 declares every switch).
+#
+# **Why a list and not a rule.** The game's rows say so: 7500401, its payload, has
+# `effectTargetEnemy` and `effectTargetOpposeTarget` at 1 where the Guardian's own
+# aura 7500101 has both at 0. But those fields are eligibility filters: 39 effects
+# carry numbers on such a row, 4 of them on the wearer's own side (19001, 7036300,
+# 7020000, 7290000). The other 35 are these, by what the game says of them: its
+# effect name or caption ("Attacks lower enemies' magic damage negation"), and the
+# ailment build-up on the same row. `is_conditional` keeps them out of every
+# total, and without a switch they stay listed under Conditional & situational.
+#
+# To extend it after a game patch: the same sweep over `SpEffectParam`, then read
+# the captions. `tests/test_advisor_goals.py` holds the list against the dataset.
+ON_THE_ENEMY_EFFECT_IDS = frozenset({
+    6500000, 6500200, 6500400,                            # Character Skill
+    8110000, 8110001, 8110002, 8110010, 8110011, 8110012,  # Attacks: poison
+    8110100, 8110101, 8110102, 8110110, 8110111, 8110112,  # blood loss
+    8110200, 8110201, 8110202, 8110210, 8110211, 8110212,  # sleep
+    8110400, 8110401, 8110402, 8110410, 8110411, 8110412,  # scarlet rot
+    8110500, 8110501, 8110502, 8110510, 8110511, 8110512,  # frost
+    9030900, 9040200,                                     # Dark Moon, Destined Death
+})
+
+
 # Gated effects that get no switch, because there is nothing for a switch to
 # show. A switch exists to answer "what would this be worth if its condition
 # held", and that question needs a number the sheet can move. An effect whose
@@ -1472,7 +1543,7 @@ GATE_FIELDS = {
 #            not what it is worth. Reported by the owner from play for 1.7.0.
 #            It stays listed under Conditional & situational with its wording;
 #            only the checkbox goes.
-NO_SWITCH = {7037800}
+NO_SWITCH = {7037800} | ON_THE_ENEMY_EFFECT_IDS
 
 
 def compute_qualitative(build: "Build", effects: list[dict], hero: dict,

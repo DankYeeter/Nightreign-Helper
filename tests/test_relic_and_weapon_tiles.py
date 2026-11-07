@@ -20,7 +20,7 @@ from types import SimpleNamespace
 
 import pytest
 from PySide6.QtCore import QEvent, QPoint, QPointF, Qt
-from PySide6.QtGui import QColor, QCursor, QEnterEvent
+from PySide6.QtGui import QColor, QCursor, QEnterEvent, QIcon, QPixmap
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QToolButton
 
@@ -199,3 +199,73 @@ def test_the_gold_ring_follows_the_active_armament(planner):
         ringed = [i for i, t in enumerate(tiles) if ACCENT in t.styleSheet()]
         assert ringed == [index], (
             f"clicked tile {index}, the gold ring is on {ringed}")
+
+
+def stub_icons(known_id: int) -> SimpleNamespace:
+    """A pack holding one symbol, as `IconPack.item_icon` answers for it."""
+    pixmap = QPixmap(64, 64)
+    pixmap.fill(QColor(ACCENT))
+    return SimpleNamespace(item_icon=lambda icon_id: (
+        QIcon(pixmap) if icon_id == known_id else None))
+
+
+def laid_out_tile(icons, slot) -> weaponslots.WeaponTile:
+    tile = weaponslots.WeaponTile(0, lambda *_: None, lambda *_: None,
+                                  lambda *_: None, icons)
+    tile.show_slot(slot, None)
+    tile.resize(110, tile.heightForWidth(110))
+    tile.show()
+    QApplication.processEvents()
+    return tile
+
+
+SYMBOLED = weaponslots.WeaponSlot(weapon={"name": "A sword", "icon": 7})
+
+
+def test_a_filled_tile_shows_the_armaments_symbol_above_a_whole_width_name(qapp):
+    """T-338: the symbol takes a row, never width from the text: a tile has
+    about 90 px, and 291 armament names hold a word wider than 64."""
+    plain = laid_out_tile(None, SYMBOLED)
+    tile = laid_out_tile(stub_icons(7), SYMBOLED)
+    try:
+        assert not tile.icon.isHidden()
+        assert not tile.icon.pixmap().isNull()
+        assert tile.icon.width() == weaponslots.TILE_ICON_SIZE == 28
+        assert tile.icon.geometry().bottom() < tile.title.geometry().top()
+        assert tile.title.width() == plain.title.width()
+        assert tile.detail.width() == plain.detail.width()
+    finally:
+        plain.deleteLater()
+        tile.deleteLater()
+
+
+@pytest.mark.parametrize("slot", [
+    weaponslots.WeaponSlot(),
+    weaponslots.WeaponSlot(weapon={"name": "Unarmed", "icon": 0}),
+    weaponslots.WeaponSlot(weapon={"name": "No symbol field"}),
+], ids=["empty", "icon not in the pack", "no icon field"])
+def test_a_tile_without_a_symbol_is_laid_out_as_text_alone(qapp, slot):
+    """T-338: no row is held for a symbol that is not there."""
+    plain = laid_out_tile(None, slot)
+    tile = laid_out_tile(stub_icons(7), slot)
+    try:
+        assert tile.icon.isHidden()
+        assert tile.sizeHint() == plain.sizeHint()
+    finally:
+        plain.deleteLater()
+        tile.deleteLater()
+
+
+def test_emptying_a_tile_takes_its_symbol_away(qapp):
+    tile = laid_out_tile(stub_icons(7), SYMBOLED)
+    try:
+        tile.show_slot(weaponslots.WeaponSlot(), None)
+        assert tile.icon.isHidden()
+    finally:
+        tile.deleteLater()
+
+
+def test_the_sheet_hands_its_tiles_the_windows_icon_pack(planner):
+    """T-338: without this the tiles stay text in the program, stubs or not."""
+    for tile in planner.stat_sheet.weapon_tiles:
+        assert tile.icons is planner.icons

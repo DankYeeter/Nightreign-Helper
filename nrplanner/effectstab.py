@@ -6,14 +6,14 @@ import collections
 import json
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QRect, QSize, Qt, QTimer
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
     QStyle, QStyleOptionHeader, QTableWidget, QTableWidgetItem, QToolTip,
     QVBoxLayout, QWidget,
 )
 
-from . import effecttext, model, stacking, tabheader
+from . import effecttext, iconpack, model, stacking, tabheader
 from .effecttext import describe_full
 from .theme import DEBUFF
 
@@ -105,6 +105,7 @@ COLUMNS = ["Effect", "Type", "Tier", "Copies", "Colours", "Relic slots",
 # together if the layout changes.
 COL_TYPE = 1
 COL_COPIES = 3
+COL_COLOURS = 4
 COL_SLOTS = 5
 COL_AVG = 6
 COL_BEST = 7
@@ -427,6 +428,13 @@ class EffectTable(QTableWidget):
     def _description_column(self) -> int:
         return self.columnCount() - 1
 
+    #: What the four gems in front of a `Colours` cell take.
+    GEM_ROOM = 4 * iconpack.INLINE_ICON
+
+    def _cap(self, column: int) -> int:
+        # The four gems must not cost the colour names their room.
+        return self.OTHER_CAP + (self.GEM_ROOM if column == COL_COLOURS else 0)
+
     def _others(self) -> range:
         return range(1, self._description_column)
 
@@ -599,7 +607,7 @@ class EffectTable(QTableWidget):
         suite's offscreen font puts `Comes with curse`.
         """
         floors = self.NAME_FLOOR + self.DESCRIPTION_FLOOR
-        widest = floors + sum(min(self._natural[column], self.OTHER_CAP)
+        widest = floors + sum(min(self._natural[column], self._cap(column))
                               for column in self._others())
         best = self.headings_as_drawn(self.column_widths(widest))
         narrowest = widest
@@ -642,7 +650,7 @@ class EffectTable(QTableWidget):
         edge is not a trade worth making.
         """
         floors = self.NAME_FLOOR + self.DESCRIPTION_FLOOR
-        wanted = {column: min(self._natural[column], self.OTHER_CAP)
+        wanted = {column: min(self._natural[column], self._cap(column))
                   for column in self._others()}
         # The label columns give way before the two floors do. That is AK-77's
         # order, and it is why every cell carries its own text as a tooltip:
@@ -650,6 +658,10 @@ class EffectTable(QTableWidget):
         widths = self._levelled(wanted, available - floors)
         spare = max(available - sum(widths.values()), 2)
         widths[0] = max(spare * self.NAME_FLOOR // floors, 1)
+        # QA-342: `Effect` pays for the gems, down to its floor and never
+        # under `What it does`, whose sentences are the ones that get cut.
+        widths[0] -= max(0, min(self.GEM_ROOM, widths[0] - self.NAME_FLOOR,
+                                (2 * widths[0] - spare - 1) // 2))
         widths[self._description_column] = max(spare - widths[0], 1)
         return widths
 
@@ -757,8 +769,10 @@ def _magnitude(effect: dict) -> tuple:
 
 
 class EffectsTab(QWidget):
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, icons=None):
         super().__init__()
+        self.icons = icons
+        self._gem_strips: dict[tuple, QPixmap | None] = {}
         self.effects = list(data["effects"].values())
 
         # Ladders and duplicate counts are properties of the game's data, not
@@ -806,6 +820,11 @@ class EffectsTab(QWidget):
             if value == 4:
                 continue  # White is a slot property, never a relic colour
             self.colour_box.addItem(name, value)
+            gem = (self.icons.ui(iconpack.GEM_SPRITES.get(value))
+                   if self.icons is not None else None)
+            if gem is not None:
+                self.colour_box.setItemIcon(self.colour_box.count() - 1,
+                                            QIcon(gem))
         self.colour_box.currentIndexChanged.connect(self.refresh)
         controls.addWidget(self.colour_box)
 
@@ -905,6 +924,29 @@ class EffectsTab(QWidget):
         """
         haystack = f"{effecttext.name(effect)} {describe_full(effect)}".lower()
         return needle in haystack
+
+    def _gem_strip(self, colours: tuple) -> QPixmap | None:
+        """The gems of these colours in a row: a table cell holds one image,
+        and a pixmap, unlike an icon, keeps its own width in the cell."""
+        if colours not in self._gem_strips:
+            gems = [self.icons.ui(iconpack.GEM_SPRITES.get(colour))
+                    for colour in colours] if self.icons is not None else []
+            gems = [gem for gem in gems if gem is not None]
+            strip = None
+            if gems:
+                size = iconpack.INLINE_ICON
+                first = iconpack.sharp(gems[0], size)
+                ratio = first.devicePixelRatio()
+                strip = QPixmap(round(len(gems) * size * ratio), first.height())
+                strip.fill(Qt.transparent)
+                strip.setDevicePixelRatio(ratio)
+                painter = QPainter(strip)
+                for index, gem in enumerate(gems):
+                    painter.drawPixmap(index * size, 0,
+                                       iconpack.sharp(gem, size))
+                painter.end()
+            self._gem_strips[colours] = strip
+        return self._gem_strips[colours]
 
     def refresh(self) -> None:
         needle = self.search.text().strip().lower()
@@ -1037,6 +1079,14 @@ class EffectsTab(QWidget):
                         item.setToolTip(UNREACHABLE_TIP)
                 else:
                     item = QTableWidgetItem(str(value))
+                if c == 0 and self.icons is not None:
+                    symbol = self.icons.status(eff.get("icon"))
+                    if symbol is not None:
+                        item.setIcon(QIcon(symbol))
+                if c == COL_COLOURS:
+                    strip = self._gem_strip(tuple(colours))
+                    if strip is not None:
+                        item.setData(Qt.DecorationRole, strip)
                 if c in NUMERIC:
                     item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 # Blue for a buff, red for a curse, on the name and on what it

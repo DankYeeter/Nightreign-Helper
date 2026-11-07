@@ -165,3 +165,62 @@ starts there.
   stays on screen at every display scaling. **The data cache rebuilds once on
   first launch after this update (about 40 seconds, plus the icon pack).**
   Many smaller wording and tooltip fixes (see `CHANGELOG.md`).
+- **1.19.1** — the relic advisor, its "Why" dialog and the relic picker's
+  Damage column now count a weapon-type bonus (for example "Improved Dagger
+  Attack Power") only for the weapon on your highlighted weapon tile, as they
+  already did for the "3+ ... Equipped" effects; with an empty tile only your
+  Nightfarer's starting weapon type counts. The relic picker no longer
+  stretches its cards to the full window height when a filter leaves only a
+  few relics. The data cache is not rebuilt.
+- **1.20.0** — the relic advisor counts "Attack power up when facing
+  frostbite-afflicted enemy" and its poison and scarlet rot versions only
+  when your build inflicts that ailment itself (a weapon on any tile, a
+  rolled effect such as "Attacks Inflict Frost", the weapon skill or spell
+  chosen in the casting bar, or a relic that adds the ailment or swaps in a
+  skill that inflicts it); the "Why" dialog no longer claims a favourited
+  effect "always counts" when it does not, and says why it is not counted.
+  **The data cache rebuilds once on first launch after this update (about
+  45 seconds; the icon pack is not rebuilt).** Saved builds and favourites
+  are kept.
+- **1.20.1** — changes what 1.20.0 said: the ailment bonuses ("Attack power
+  up when facing frostbite-afflicted enemy" and its poison and scarlet rot
+  versions) no longer count when a weapon on *any* tile inflicts the ailment.
+  They now count only for the weapon on your **highlighted tile** (its rolled
+  effects, skill or spell; your Nightfarer's starting weapon if that tile is
+  empty) or for a relic that adds the ailment; weapons on other tiles no
+  longer count. A relic that swaps the highlighted weapon's skill or spell for
+  one without the ailment now also removes it as a source. The relic picker
+  no longer shows stray relic cards beside the
+  list when you type into the filter while the list is still filling. The
+  data cache is not rebuilt.
+- **1.21.0** — two behaviours change. **Avoid** now keeps a relic out of the
+  relic advisor's suggestions altogether (before, it only counted against the
+  relic); a relic you hold or place yourself stays where you put it. And a
+  **star** on a relic now means "must go in, if it fits": until now it only
+  sorted the picker, and **every star you have already set now steers
+  Optimize after this update**. Your saved data is not changed; remove a star
+  to go back. When not every starred relic fits, the suggestion still comes
+  and Why names the ones left out and the reason. A favourited effect no
+  longer blocks a suggestion either: Optimize carries what the chalice can
+  hold, fills the other slots and names the rest. Every effect line in a
+  suggestion has an **X** (sets it to Avoid and asks again), and **Reject**
+  turns a relic down for this build. Every Optimize also compares all vessels
+  of your Nightfarer in the background and marks the best one. Effects that
+  land on the enemy (for example "[Raider] Hit With Character Skill to Reduce
+  Enemy Attack Power") no longer count against your own build. A crash at the
+  moment a background search or save read ended is fixed. An effect that
+  stacks, such as "Attack power increased for each Night Invader defeated",
+  has a new **Stacks** field under Filters: Optimize counts it that many
+  times (0 to 10; 0 leaves it out; empty uses the count on the stat sheet),
+  and Why lists it. The count beside a switch on the stat sheet now stops at
+  99. The game's own symbols now appear beside effects, curses, relics,
+  Nightfarers, vessels and more, and vessel slots show the game's slot art.
+  A new direction, **Balanced**, weighs damage and survival at once. A stack
+  effect now counts on one relic only, so some figures fall (Raider, two
+  stacks: all damage +14.5 % where it was +31.1 %), and each stack effect has
+  its own limit (Night Invaders 4, evergaol prisoners and Sorcerer's Rises 7,
+  great enemies 10; read from the game's event scripts, not tried in play).
+  In a narrow window the vessel list no longer scrolls sideways. **The data
+  cache and the icon pack are rebuilt once on first start (about 75 seconds
+  here, the window shows no progress meanwhile).** Saved builds and
+  favourites are kept.

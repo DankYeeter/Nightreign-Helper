@@ -55,7 +55,7 @@ beide in `.gitignore`).
 
 ## Identifikation des Artefakts
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.010.777 Byte (56,3 MiB)
 - **SHA-256:** `42B21AA2743FE64A83A093BE0261ABAEC361D99903150D620E5324BD4301F221`
   (per `Get-FileHash` **und** `sha256sum` gegengeprueft, identisch) — abgelegt
@@ -76,7 +76,7 @@ pruefen (`LICENSE`, `THIRD_PARTY.md`, `licenses`,
 `vendor/Paramdex/NOTICE` — alle vorhanden), dann
 `Compress-Archive -Path $required -DestinationPath dist/NightreignHelper-notices.zip`.
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper-notices.zip`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper-notices.zip`
 - **Groesse:** 46.448 Byte
 - **Inhalt** (9 Eintraege):
   `LICENSE` (1.430 B) · `THIRD_PARTY.md` (8.255 B) ·
@@ -109,12 +109,12 @@ Bundle. Die Grenze haelt nicht nur in der Spec, sondern im Ergebnis.
 
 ## Wo alles liegt (absolute Pfade)
 
-- Artefakt: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
-- Pruefsumme: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe.sha256`
-- Hinweispaket: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper-notices.zip`
-- Bau-Zwischenstand (Warnungen, TOC, PYZ/PKG): `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\build\NightreignHelper\`
+- Artefakt: `<Hauptbaum>\dist\NightreignHelper.exe`
+- Pruefsumme: `<Hauptbaum>\dist\NightreignHelper.exe.sha256`
+- Hinweispaket: `<Hauptbaum>\dist\NightreignHelper-notices.zip`
+- Bau-Zwischenstand (Warnungen, TOC, PYZ/PKG): `<Hauptbaum>\build\NightreignHelper\`
 - Archiv-Listing (Gegenprobe Spieldaten):
-  `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\d5442c81-d951-4427-90b6-000173ab1906\scratchpad\T-111\archive_listing.txt`
+  `%TEMP%\claude\<Projekt>\d5442c81-d951-4427-90b6-000173ab1906\scratchpad\T-111\archive_listing.txt`
 - Bau- und Testlogs: derselbe Scratchpad-Ordner, Dateien `build1.log`,
   `build1_summary.txt`, `build2.log`, `pytest_pre_build.log`.
 
@@ -180,7 +180,7 @@ in diesem Lauf.
 
 ## An `power-user` (Ausgangspunkt seiner Sitzung)
 
-- Artefakt: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- Artefakt: `<Hauptbaum>\dist\NightreignHelper.exe`
   (SHA-256 `42B21AA2743FE64A83A093BE0261ABAEC361D99903150D620E5324BD4301F221`,
   Version 1.8.0 laut Versionsressource).
 - Vor dem Start `NIGHTREIGN_SETTINGS_ORG` und `LOCALAPPDATA` wie oben

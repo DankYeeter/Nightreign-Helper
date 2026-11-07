@@ -24,7 +24,14 @@ The `architect` measured it against the real inventory on 2026-09-01: 309
 copies carry 306 distinct rolls, so collapsing them saves one per cent and
 gives up exactly the identity that a suggestion has to be tradeable on. A copy
 already held is not offered again (AD-014.5), and a copy with no handle is not
-offered at all and is reported instead (AD-013 point 4).
+offered at all and is reported instead (AD-013 point 4). A copy the player
+marked away -- an avoided effect or curse, a rejected roll -- is not offered
+either (AD-057.1); this is the one place that says so, because `run.run`,
+`run.slot_pool` and through the pools `search.beam` all come through here.
+
+**A starred relic is laid before any of this runs** (AD-059): `pin` puts it in
+a slot and `run.run` hands it to the pools as held, so what the other slots
+are worth is measured beside it.
 
 **What a pool reports about itself** are run findings and only those
 (AD-025.2): the copies this save gives no handle for and the candidates
@@ -50,11 +57,11 @@ parameter, so a third goal reaches the pre-sort without a line changing here
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 
 from .. import model
 from . import types
-from .evaluate import evaluate_per_goal
+from .evaluate import evaluate, evaluate_per_goal
 
 
 def base_state_for(problem: types.SlotProblem,
@@ -244,6 +251,9 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
 
     measured: list[types.Candidate] = []
     conditional = 0
+    avoided_by: set[int] = set()
+    rejected_out = 0
+    pin_taken: set[str] = set()
     for relic in offered:
         # Asked here and not once the pool is finished (SEC-022, AK-11). One
         # `evaluate` per offered relic is the unit of work in this loop, so
@@ -253,7 +263,14 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
             raise types.Cancelled(
                 f"stopped during the pre-sort of slot {slot_index}, after "
                 f"{len(measured)} candidates")
+        if relic.handle in taken and types.roll_of(relic) in problem.pinned:
+            pin_taken.add(relic.name)
         if relic.handle is None or relic.handle in taken:
+            continue
+        if types.unwanted(problem, relic):
+            avoided_by.update(problem.excluded.intersection(
+                (*relic.effect_ids, *relic.curse_ids)))
+            rejected_out += types.roll_of(relic) in problem.rejected
             continue
         candidate = _offer(slot, relic)
         builds = evaluate_per_goal(base_problem, (candidate,), ctx, goals)
@@ -276,6 +293,9 @@ def pool(inventory, problem: types.SlotProblem, slot_index: int,
                        for goal_id, score in base_scores.items()),
         candidates=tuple(measured),
         unknowns=_pool_findings(slot, without_handle, conditional),
+        avoided_by=tuple(sorted(avoided_by)),
+        rejected_out=rejected_out,
+        pin_taken=tuple(sorted(pin_taken)),
     )
 
 
@@ -301,6 +321,138 @@ def pools(inventory, problem: types.SlotProblem, ctx: types.GoalContext,
     return tuple(pool(inventory, problem, slot.index, ctx, goals, rank_by,
                       should_cancel)
                  for slot in types.free_slots(problem))
+
+
+def place(items: Sequence, slots: Sequence[types.Slot]
+          ) -> tuple[tuple[tuple[types.Slot, object], ...], tuple]:
+    """Lay each item in a free slot: `(slot, item)` pairs, and what is left.
+
+    Its own colour first, a white slot of its Deep kind only then
+    (AD-059.2): a relic in a slot of its colour leaves every other relic at
+    least the same choice, so going through in any order places as many as any
+    assignment could, and the order only decides who is left over. A white
+    item, a custom relic built in a white slot, fits any slot of its Deep kind
+    (AD-062.5).
+    """
+    free = list(slots)
+    placed = []
+    rest = []
+    for item in items:
+        fitting = [slot for slot in free if slot.deep == item.is_deep]
+        slot = (next((s for s in fitting if s.colour == item.colour), None)
+                or next((s for s in fitting if s.colour == model.WHITE_SLOT),
+                        None)
+                or (fitting[0] if fitting and item.colour == model.WHITE_SLOT
+                    else None))
+        if slot is None:
+            rest.append(item)
+            continue
+        free.remove(slot)
+        placed.append((slot, item))
+    return tuple(placed), tuple(rest)
+
+
+def held_as(copy: types.Candidate) -> types.HeldSlot:
+    """A laid copy, in the form the search reads a held slot in."""
+    return types.HeldSlot(index=copy.slot_index, relic=types.HeldRelic(
+        relic_id=copy.relic_id, name=copy.name, effect_ids=copy.effect_ids,
+        curse_ids=copy.curse_ids, handle=copy.handle, colour=copy.colour,
+        is_deep=copy.is_deep))
+
+
+def _stars_to_lay(inventory, problem: types.SlotProblem
+                  ) -> tuple[list, list[types.PinLeftOut]]:
+    """The stars that may be laid (one free copy each), and those that may
+    not, by the first rows of AD-059.5's table. A star nobody owns says
+    nothing: it is nowhere to be seen or taken off, so its line would never
+    end. A held copy of the roll is the star met, and no second one is laid.
+    """
+    owned: dict[types.Roll, list] = {}
+    for relic in inventory.relics:
+        owned.setdefault(types.roll_of(relic), []).append(relic)
+    held = {types.roll_of(relic) for relic in types.held_relics(problem)}
+    wanted = []
+    left_out = []
+    for roll in problem.pinned:
+        copies = owned.get(roll)
+        if not copies or roll in held:
+            continue
+        said = {"name": copies[0].name, "roll": roll,
+                "is_deep": copies[0].is_deep}
+        avoided = problem.excluded.intersection((*roll[1], *roll[2]))
+        with_a_handle = [copy for copy in copies if copy.handle is not None]
+        if avoided:
+            left_out.append(types.PinLeftOut(
+                reason=types.PIN_AVOIDED, effect_id=min(avoided), **said))
+        elif roll in problem.rejected:
+            left_out.append(types.PinLeftOut(reason=types.PIN_REJECTED, **said))
+        elif not with_a_handle:
+            left_out.append(types.PinLeftOut(reason=types.PIN_NO_COPY, **said))
+        else:
+            wanted.append(min(with_a_handle, key=lambda copy: copy.handle))
+    return wanted, left_out
+
+
+def pin(inventory, problem: types.SlotProblem, ctx: types.GoalContext,
+        goal: types.Goal,
+        attainable: Callable[[types.SlotProblem], frozenset[int]]
+        ) -> tuple[tuple[types.Candidate, ...], tuple[types.PinLeftOut, ...]]:
+    """Lay the starred relics in slots: what went in, what stayed out and why.
+
+    Strongest first against what the player holds, one `evaluate` per star,
+    ties by name and handle: who is left over is the weakest (AD-059.3).
+    `attainable` is `search.attainable` over this vessel's pools, handed in
+    because `search` imports this module; a `Favourite` effect beats a star
+    (AK-440: "must" against "when it fits"), the last row of AD-059.5.
+
+    ponytail: ranked once and not again after each star is laid; that only
+    matters with more stars than slots (AD-059.3).
+    """
+    wanted, left_out = _stars_to_lay(inventory, problem)
+    free = types.free_slots(problem)
+    open_to: dict[int, tuple[types.Slot, ...]] = {}
+    for copy in wanted:
+        fits = tuple(slot for slot in problem.slots
+                     if place((copy,), (slot,))[0])
+        open_to[copy.handle] = tuple(slot for slot in free if slot in fits)
+        if not open_to[copy.handle]:
+            reason = types.PIN_SLOTS_HELD if fits else types.PIN_NO_SLOT
+            left_out.append(types.PinLeftOut(
+                copy.name, types.roll_of(copy), reason, is_deep=copy.is_deep))
+
+    def strength(copy) -> tuple:
+        offer = _offer(open_to[copy.handle][0], copy)
+        built = evaluate(problem, (offer,), ctx, goal=goal)
+        return -goal.score(built, ctx).value, copy.name, copy.handle
+
+    placed: list[types.Candidate] = []
+    current = problem
+    for copy in sorted((copy for copy in wanted if open_to[copy.handle]),
+                       key=strength):
+        spot = place((copy,), types.free_slots(current))[0]
+        roll = types.roll_of(copy)
+        if not spot:
+            other = next(laid.name for laid in placed
+                         if types.slot_at(problem, laid.slot_index)
+                         in open_to[copy.handle])
+            left_out.append(types.PinLeftOut(
+                copy.name, roll, types.PIN_OTHER_PIN, is_deep=copy.is_deep,
+                other=other))
+            continue
+        offer = _offer(spot[0][0], copy)
+        trial = dataclasses.replace(current,
+                                    held=(*current.held, held_as(offer)))
+        before = attainable(current)
+        after = attainable(trial)
+        if len(after) < len(before):
+            left_out.append(types.PinLeftOut(
+                copy.name, roll, types.PIN_BLOCKS_REQUIREMENT,
+                is_deep=copy.is_deep, effect_id=min(before - after)))
+            continue
+        placed.append(offer)
+        current = trial
+    return (tuple(sorted(placed, key=lambda copy: copy.slot_index)),
+            tuple(sorted(left_out, key=lambda out: (out.name, out.roll))))
 
 
 def shortlist(slot_pool: types.SlotPool, budget: types.Budget,

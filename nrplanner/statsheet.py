@@ -20,8 +20,8 @@ from PySide6.QtWidgets import (
     QScrollArea, QToolButton, QToolTip, QVBoxLayout, QWidget,
 )
 
-from . import (castingbar, damage, effecttext, model, relicslots, weapons,
-               weaponslots)
+from . import (castingbar, damage, effecttext, iconpack, model, relicslots,
+               weapons, weaponslots)
 from .theme import ACCENT, BAD, GOOD, MUTED
 
 # Link target for the weapon attack-rating breakdown. Not a modifier field, so
@@ -119,7 +119,8 @@ def _rate_label(field_name: str) -> str:
     return model.ART_LABELS.get(field_name) or model.label_for(field_name)
 
 
-def breakdown_text(label: str, entries: list, multiplicative: bool) -> str:
+def breakdown_text(label: str, entries: list, multiplicative: bool,
+                   tag_of=lambda _effect_id: "") -> str:
     """The tooltip behind one clicked figure: its sources, one row each (QA-077).
 
     `entries` carry `name` and `own`. A multiplier is shown as its percentage
@@ -133,7 +134,8 @@ def breakdown_text(label: str, entries: list, multiplicative: bool) -> str:
             shown = f"{(entry.own - 1.0) * 100:+.1f}%"
         else:
             shown = f"{entry.own:+g}"
-        rows.append(f"&nbsp;&nbsp;{entry.name} &nbsp; <b>{shown}</b>")
+        rows.append(f"&nbsp;&nbsp;{tag_of(getattr(entry, 'effect_id', None))}"
+                    f"{entry.name} &nbsp; <b>{shown}</b>")
 
     if multiplicative and len(entries) > 1:
         total = 1.0
@@ -158,6 +160,20 @@ def _heading(text: str) -> QLabel:
     return label
 
 
+#: For the effect with no ceiling in the game's scripts (`model.STACK_LIMITS`),
+#: and so not a fact about the game, only a stop for a slip of the keyboard:
+#: above it the count is left at this. Measured 2026-11-07, offscreen, on "Attack power
+#: increased for each Night Invader defeated": the page takes 12 ms at 99; at
+#: 100000 it takes 1.4 s, the attack rating is infinite and `damage.displayed`
+#: raises in the middle of drawing it. Not `effectfilters.MOST_STACKS`: that one
+#: holds Optimize to its budget, and this page computes only one build.
+MOST_COUNT = 99
+
+
+def _within_reason(count: int, effect_id: int) -> int:
+    return min(max(count, 1), model.stack_limit(effect_id, MOST_COUNT))
+
+
 class SituationalRow(QFrame):
     """One gated effect, with a switch and -- if it stacks -- a count.
 
@@ -166,7 +182,7 @@ class SituationalRow(QFrame):
     always-on roll would.
     """
 
-    def __init__(self, entry, count: int, on_change):
+    def __init__(self, entry, count: int, on_change, symbol=None):
         super().__init__()
         self.effect_id = entry.effect_id
         self.accumulates = entry.accumulates
@@ -194,20 +210,24 @@ class SituationalRow(QFrame):
         self.title.setCursor(Qt.PointingHandCursor)
         self.title.setStyleSheet(f"color: {ACCENT}; border: none;")
         self.title.mousePressEvent = lambda _e: self.check.toggle()
+        if symbol is not None:
+            head.addWidget(iconpack.symbol_label(symbol), 0, Qt.AlignTop)
         head.addWidget(self.title, 1)
 
         if entry.accumulates:
-            # Free text, not a spin box with a ceiling. How many Night Invaders
-            # a map can hold, or how many Sites of Grace are in reach, is a
-            # fact about the run rather than about this program -- so the
-            # player states the number and the arithmetic follows it.
+            # Free text, not a spin box. How many Night Invaders this run has
+            # brought is a fact about the run rather than about this program
+            # -- so the player states the number and the arithmetic follows
+            # it, up to the effect's own limit.
             self.times = QLabel("×")
             self.times.setStyleSheet(f"color: {MUTED}; border: none;")
             head.addWidget(self.times, 0, Qt.AlignTop)
-            self.count = QLineEdit(str(max(count, 1)))
+            self.count = QLineEdit(str(_within_reason(count, self.effect_id)))
             self.count.setFixedWidth(42)
             self.count.setAlignment(Qt.AlignCenter)
-            self.count.setToolTip("How many times this is true right now")
+            self.count.setToolTip(
+                "How many times this is true right now, at most "
+                f"{_within_reason(MOST_COUNT, self.effect_id)}")
             self.count.editingFinished.connect(self._edited)
             head.addWidget(self.count, 0, Qt.AlignTop)
             self._set_count_enabled(count > 0)
@@ -255,7 +275,7 @@ class SituationalRow(QFrame):
         try:
             # A blank or nonsense box means "it is true", not "it is true zero
             # times" -- switching it on is already the statement that it holds.
-            return max(int(text), 1)
+            return _within_reason(int(text), self.effect_id)
         except ValueError:
             return 1
 
@@ -340,7 +360,7 @@ class StatSheet(QScrollArea):
             tile = weaponslots.WeaponTile(
                 index, planner._edit_weapon_slot,
                 planner._clear_weapon_slot,
-                planner._activate_weapon_slot,
+                planner._activate_weapon_slot, planner.icons,
             )
             self.weapon_tiles.append(tile)
             grid.addWidget(tile, index // weaponslots.SLOT_COLUMNS,
@@ -440,7 +460,7 @@ class StatSheet(QScrollArea):
         # the real one behind it.
         entries = self.last_sources.get(model.real_field(key), [])
         text = breakdown_text(model.label_for(key), entries,
-                              model.real_field(key) in self.last_rates)
+                              model.real_field(key) in self.last_rates, tag_of=self._effect_tag)
         # Offset to the right of the cursor so the number stays readable; the
         # "nothing recorded" sentence has no number beside it to keep clear.
         offset = QPoint(18, 0) if entries else QPoint(0, 0)
@@ -476,9 +496,32 @@ class StatSheet(QScrollArea):
                     for entry in self.last_sources.get(scoped, [])]
             for entry in entries:
                 rows.append(f"&nbsp;&nbsp;&nbsp;&nbsp;"
-                            f"<span style='color:{MUTED}'>{entry.name} "
+                            f"<span style='color:{MUTED}'>{self._effect_tag(entry.effect_id)}"
+                            f"{entry.name} "
                             f"{(entry.own - 1.0) * 100:+.1f}%</span>")
         return rows
+
+    def _effect_symbol(self, effect_id: int):
+        """An effect's status symbol, or None."""
+        return self.planner.icons.status(iconpack.effect_icon(
+            self.planner.data["effects"], effect_id))
+
+    def _effect_tag(self, effect_id: int) -> str:
+        """The `<img>` of an effect's status symbol, for this sheet's rich text."""
+        return iconpack.inline(self.planner.icons, "status", iconpack.effect_icon(
+            self.planner.data["effects"], effect_id))
+
+    def _tag_of_name(self, name: str) -> str:
+        """The same for a line that only knows its effect by name."""
+        effects = self.planner.data["effects"].values()
+        icon = next((effect.get("icon") for effect in effects
+                     if name in (effect.get("name"), effecttext.name(effect))),
+                    None)
+        return iconpack.inline(self.planner.icons, "status", icon)
+
+    def _type_tag(self, label: str) -> str:
+        """The `<img>` of a damage type or status, for this sheet's rich text."""
+        return iconpack.inline_type(self.planner.icons, label)
 
     def _spell_breakdown_text(self) -> str:
         """Where the spell row's figure comes from, and the note it carries.
@@ -561,6 +604,7 @@ class StatSheet(QScrollArea):
         conversion = ar.get("conversion")
         if conversion:
             moved = ", ".join(
+                f"{self._type_tag(weapons.DAMAGE_LABELS[damage_type])}"
                 f"{weapons.DAMAGE_LABELS[damage_type]} {value:+.0f}"
                 for damage_type, value in conversion.items())
             rows.append(f"&nbsp;&nbsp;Starting armament conversion &nbsp; "
@@ -620,7 +664,8 @@ class StatSheet(QScrollArea):
         if art.art is None:
             return ""
         # Game text in a rich-text label is escaped (SEC-019, AK-419).
-        head = f"{label} ({html.escape(str(art.art.get('name', '')))})"
+        symbol = iconpack.inline(self.planner.icons, "items", art.art.get("icon"))
+        head = f"{label} ({symbol}{html.escape(str(art.art.get('name', '')))})"
         if art.reason:
             return (f"<div>{head} <span style='color:{MUTED}'>"
                     f"{html.escape(art.reason)}</span></div>")
@@ -687,7 +732,8 @@ class StatSheet(QScrollArea):
         # of the switch. Game text in a rich-text label is escaped (SEC-019).
         return [
             f"<div>{damage.SPELL_DAMAGE_NAME} "
-            f"({html.escape(str(thrown.get('name', '')))}) "
+            f"({iconpack.inline(self.planner.icons, 'items', thrown.get('icon'))}"
+            f"{html.escape(str(thrown.get('name', '')))}) "
             f"<span style='color:{MUTED}'>"
             f"{damage.displayed(rating.bare_figure)}</span> "
             f"<span style='color:{colour}'>{change}</span> "
@@ -776,7 +822,8 @@ class StatSheet(QScrollArea):
             value_shown = now.displayed_hands(
                 lambda r: r.final_per_type.get(damage_type, 0.0), two_handing)
             rows.append(
-                f"<div>{weapons.DAMAGE_LABELS[damage_type]} "
+                f"<div>{self._type_tag(weapons.DAMAGE_LABELS[damage_type])}"
+                f"{weapons.DAMAGE_LABELS[damage_type]} "
                 f"<span style='color:{MUTED}'>{was_shown}</span> "
                 f"<span style='color:{colour}'>{change}</span> "
                 f"<b>{value_shown}</b></div>"
@@ -843,7 +890,7 @@ class StatSheet(QScrollArea):
                           f"{parts} — shown added; the params do not say "
                           f"whether they truly stack.</div>")
             rows.append(
-                f"<div style='margin-top:6px'>Inflicts {status} "
+                f"<div style='margin-top:6px'>Inflicts {self._type_tag(status)}{status} "
                 f"<b style='color:{ACCENT}'>{total:g}</b>"
                 f"<span style='color:{MUTED}'> buildup per hit</span></div>"
                 + detail
@@ -921,8 +968,7 @@ class StatSheet(QScrollArea):
             for entry in entries:
                 row = SituationalRow(
                     entry, declared.get(entry.effect_id, 0),
-                    self._situational_changed,
-                )
+                    self._situational_changed, symbol=self._effect_symbol(entry.effect_id))
                 self.situational_rows[entry.effect_id] = row
                 self.qual_rows_layout.addWidget(row)
         self.qual_rows.setVisible(bool(entries))
@@ -1029,7 +1075,7 @@ class StatSheet(QScrollArea):
                     f"{pct:+.0f}%</span>"
                 )
             value = " ".join(parts) or f"<span style='color:{MUTED}'>—</span>"
-            lines.append(f"<div>{label} {value}</div>")
+            lines.append(f"<div>{self._type_tag(label)}{label} {value}</div>")
         lines.append(
             f"<div style='color:{MUTED}; font-size:10px; margin-top:4px'>"
             f"The net change from everything you have equipped. These are "
@@ -1138,9 +1184,10 @@ class StatSheet(QScrollArea):
                 if label is None:
                     # A number nobody named is not shown as a number at all
                     # (AK-295 point 3): the effects that carry it, and A7.
-                    carriers = sorted({entry.name for entry
-                                       in build.sources.get(fname, ())})
-                    lines.append(f"<div>{', '.join(carriers)}: "
+                    carriers = {entry.name: self._effect_tag(entry.effect_id)
+                                for entry in build.sources.get(fname, ())}
+                    named = [tag + name for name, tag in sorted(carriers.items())]
+                    lines.append(f"<div>{', '.join(named)}: "
                                  f"{effecttext.UNLABELLED}</div>")
                     continue
                 # Damage taken and resource costs read the other way round:
@@ -1201,7 +1248,7 @@ class StatSheet(QScrollArea):
                 shown = f"<s>{name}</s>" if dead else name
                 lines.append(
                     f"<div style='margin-bottom:6px'>"
-                    f"<span style='color:{head}'>{shown}</span>"
+                    f"<span style='color:{head}'>{self._tag_of_name(name)}{shown}</span>"
                     f"<div style='color:#cfcfcf; font-size:11px'>{detail}</div>"
                     f"<div style='color:{BAD if dead else MUTED}; "
                     f"font-size:10px'>{why}</div>"
@@ -1225,12 +1272,14 @@ class StatSheet(QScrollArea):
         if curses:
             lines = []
             for source, eff in curses:
-                detail = effecttext.describe_full(eff)
+                detail = html.escape(effecttext.describe_full(eff))
                 lines.append(
                     f"<div style='margin-bottom:6px'>"
-                    f"<span style='color:{BAD}'>✦ {effecttext.name(eff)}</span>"
+                    f"<span style='color:{BAD}'>✦ "
+                    f"{iconpack.inline(self.planner.icons, 'status', eff.get('icon'))}"
+                    f"{html.escape(effecttext.name(eff))}</span>"
                     f"<div style='color:{MUTED}; font-size:11px'>{detail}</div>"
-                    f"<div style='color:{MUTED}; font-size:10px'>from {source}</div>"
+                    f"<div style='color:{MUTED}; font-size:10px'>from {html.escape(source)}</div>"
                     f"</div>"
                 )
             self.curse_label.setText("".join(lines))

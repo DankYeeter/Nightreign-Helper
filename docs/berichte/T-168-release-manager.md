@@ -14,7 +14,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau selbst. Fuer das **Release** (nicht den 
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | **59.063.047 Byte** (56,33 MiB) |
 | **SHA-256** | `357F8D927FB3DFD9E305533AD3A933B7AA89421CD3292D8CE4616955AFDEDEBD` |
 | **Commit** | `f0eb0fd625aed44fb89ffd94c26da4b393037c3c` (Branch `docs/audit-and-advisor-design`, Arbeitsbaum sauber vor und nach dem Lauf) |
@@ -72,7 +72,7 @@ Vergleichsskript und Rohausgabe liegen im Scratchpad: `…\scratchpad\T-168\comp
 
 Nicht Teil des `clean-room`-Modus (kein Update-Weg, keine Migrationspruefung, keine echte Isolierung von PATH/.venv - dieser Rechner blieb voll entwickelt), sondern ein einmaliger Start-Nachweis, dass das frisch gebaute Artefakt ueberhaupt laeuft, bevor es an `qa-engineer`/`clean-room`/`power-user` weitergereicht wird. **Alle drei Umlenkungen nachgewiesen, sonst waere hier abgebrochen worden:**
 
-**Vorbereitung:** fester Testabzug (`C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug`, 841 Dateien, `extract_version` 11 - stimmt mit dem `EXTRACT_VERSION = 11` im heutigen Quellstand ueberein, Vorlage bleibt gueltig, **kein E-1-Fall**) nach `…\scratchpad\T-168\localappdata\NightreignHelper` kopiert (nicht darauf verweisen lassen).
+**Vorbereitung:** fester Testabzug (`%LOCALAPPDATA%\NightreignHelper-Testabzug`, 841 Dateien, `extract_version` 11 - stimmt mit dem `EXTRACT_VERSION = 11` im heutigen Quellstand ueberein, Vorlage bleibt gueltig, **kein E-1-Fall**) nach `…\scratchpad\T-168\localappdata\NightreignHelper` kopiert (nicht darauf verweisen lassen).
 
 **Baseline vor dem Start** (echte Nutzerdaten dieses Kontos):
 - `%LOCALAPPDATA%\NightreignHelper`: 841 Dateien, `nightreign_data.json` `LastWriteTime` 05.09.2026 18:00:55.
@@ -129,7 +129,7 @@ Keiner fuer diesen Bau. Der Weg blieb gruen: Lizenzcheck, Bau, Reproduzierbarkei
 
 Alle drei koennen auf diesem Artefakt aufsetzen:
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.063.047 Byte
 - **SHA-256:** `357F8D927FB3DFD9E305533AD3A933B7AA89421CD3292D8CE4616955AFDEDEBD`
 - **Versionsressource:** 1.8.0 (siehe "Version" oben - **nicht** dieselbe Datei wie das alte 1.8.0 aus Zyklus 16, nur derselbe String)

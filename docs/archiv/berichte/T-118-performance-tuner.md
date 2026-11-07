@@ -84,8 +84,8 @@ zeigen. Zeigt sie denselben, greift die Umlenkung nicht.
 
 | Pruefpunkt | umgelenkt (dieser Lauf) | echt (Gegenprobe) |
 |---|---|---|
-| `paths.cache_dir()` (`paths.py:20`) | `…\T-118\localappdata\NightreignHelper` | `C:\Users\Daniel\AppData\Local\NightreignHelper` |
-| `shortcut.start_menu_dir()` (`shortcut.py:44-49`) | `…\T-118\appdata\Microsoft\…\Programs` | `C:\Users\Daniel\AppData\Roaming\Microsoft\…\Programs` |
+| `paths.cache_dir()` (`paths.py:20`) | `…\T-118\localappdata\NightreignHelper` | `%LOCALAPPDATA%\NightreignHelper` |
+| `shortcut.start_menu_dir()` (`shortcut.py:44-49`) | `…\T-118\appdata\Microsoft\…\Programs` | `%APPDATA%\Microsoft\…\Programs` |
 | `favourites.ORG/APP` (`favourites.py:25`) | `T118-PerfTuner/T118-NightreignHelper` | `DankYeeter/NightreignHelper` |
 
 Der Lesetest allein sagt nur, welchen Namen ein Modul traegt. Deshalb

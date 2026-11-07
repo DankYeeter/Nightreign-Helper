@@ -87,6 +87,6 @@ Keine vierte Stelle betroffen.
 
 ## Pfad
 
-`C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\UI_SPEC.md` — neuer
+`<Hauptbaum>\UI_SPEC.md` — neuer
 Abschnitt am Dateiende, Pointer-Vermerke bei AK-223 (Zeile ~7684), AK-224
 (Zeile ~7693) und AK-229 (Zeile ~7751).

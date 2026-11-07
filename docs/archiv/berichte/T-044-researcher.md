@@ -174,5 +174,5 @@ groesseren Anzeigewerte die Abschneide-Unsicherheit unter 0,4 % druecken.
 
 ## Ablage
 
-- `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\docs\research\R-006.md`
-- `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\docs\berichte\T-044-researcher.md`
+- `<Hauptbaum>\docs\research\R-006.md`
+- `<Hauptbaum>\docs\berichte\T-044-researcher.md`

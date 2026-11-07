@@ -123,7 +123,7 @@ Test lief:
   jedem Testlauf greift).
 - `LOCALAPPDATA` auf `…/scratchpad/T-153/localappdata` gesetzt und mit
   `nrplanner.paths.cache_dir()` bestaetigt: `…\scratchpad\T-153\localappdata\NightreignHelper`.
-  Der feste Testabzug (`C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug`, 22 MB) wurde
+  Der feste Testabzug (`%LOCALAPPDATA%\NightreignHelper-Testabzug`, 22 MB) wurde
   dorthin **kopiert**, nicht referenziert.
 - `APPDATA` auf `…/scratchpad/T-153/appdata` gesetzt und mit
   `nrplanner.shortcut.start_menu_dir()` bestaetigt: `…\scratchpad\T-153\appdata\Microsoft\Windows\

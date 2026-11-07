@@ -14,7 +14,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau - siehe Pflichtlektuere unten.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.119.378 Byte (56,38 MiB) |
 | **SHA-256** | `F29EB92D88ED14416A488F32F7AB655BF27FEC77E2BE74105782D0980904CF1B` (64 Zeichen, `certutil -hashfile … SHA256`) |
 | **Commit** | `3c2ff23f2f9341c3000a51884be9652d2687d0b5` ("chore(release): Version auf 1.12.1 angehoben"), Branch `docs/audit-and-advisor-design` |
@@ -81,11 +81,11 @@ Keine neuen Befunde im Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.119.378 Byte (56,38 MiB)
 - **SHA-256:** `F29EB92D88ED14416A488F32F7AB655BF27FEC77E2BE74105782D0980904CF1B`
 - **Versionsressource:** 1.12.1 (aus `nrplanner/__init__.py`, ungeprueft am Fenstertitel - kein Rauchtest in diesem Lauf)
-- **Fuer den clean-room-Vergleich:** Vorversion 1.12.0 liegt gesichert unter `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\1102cb1a-733e-4319-a4c2-e819573c0f84\scratchpad\artefakte\NightreignHelper-1.12.0.exe`, SHA-256 `89C2967ACAAAAAC8CA108935CAC0A79C8292D2C7EC0E77831755A15B295F59D8` in diesem Lauf gegengeprueft (Sicherungskopie und Original identisch) - fuer einen Update-Pfad-Test (alte Version installieren/Daten erzeugen, 1.12.1 drueberbauen) geeignet.
+- **Fuer den clean-room-Vergleich:** Vorversion 1.12.0 liegt gesichert unter `%TEMP%\claude\<Projekt>\1102cb1a-733e-4319-a4c2-e819573c0f84\scratchpad\artefakte\NightreignHelper-1.12.0.exe`, SHA-256 `89C2967ACAAAAAC8CA108935CAC0A79C8292D2C7EC0E77831755A15B295F59D8` in diesem Lauf gegengeprueft (Sicherungskopie und Original identisch) - fuer einen Update-Pfad-Test (alte Version installieren/Daten erzeugen, 1.12.1 drueberbauen) geeignet.
 - Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`, `LOCALAPPDATA`, `APPDATA` - Testabzug kopieren, nicht darauf zeigen (`CLAUDE.md`).
 - Kein laufender `NightreignHelper.exe`-Prozess zum Zeitpunkt dieses Laufs (`tasklist` geprueft) - vor eigenem Start dennoch selbst mit `tasklist` pruefen.
 

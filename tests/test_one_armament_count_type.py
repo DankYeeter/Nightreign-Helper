@@ -269,3 +269,49 @@ def test_the_type_that_counts_is_the_stronger_not_the_first_or_the_worst(
     assert result.suggestions
     for suggestion in result.suggestions:
         assert counted(suggestion, (weaker, stronger)) == {stronger}
+
+
+def a_weapon_type_attack_buff(data: dict, hero: dict, wep_type) -> int:
+    """The lowest-numbered "Improved <type> Attack Power" -- an attack buff
+    gated on `triggerOnWepType` alone -- for this type and Nightfarer."""
+    for key in sorted(data["effects"], key=int):
+        effect = data["effects"][key]
+        mods = effect.get("modifiers") or {}
+        if (mods.get("triggerOnWepType") == wep_type
+                and mods.get("physicsAttackRate", 1.0) > 1.0
+                and effecttext.works_for(effect, hero["name"])):
+            return effect["id"]
+    pytest.skip(f"this dataset has no attack buff for weapon type {wep_type}")
+
+
+def test_a_weapon_type_buff_counts_only_for_the_selected_type(
+        planner, game_data):
+    """Ingame 1.19.0: Wylder, his greatsword on the selected tile, was
+    offered "Improved Dagger Attack Power" as a figure. User decision
+    01.11.2026: only the selected tile's type counts -- an armament of the
+    other type on another tile changes nothing. A `triggerOnWepType` no
+    armament carries (256, 512) stays."""
+    planner.declared = {}
+    hero = planner.current_hero()
+    selected = planner.active_slot().weapon["wep_type"]
+    known = {weapon.get("wep_type") for weapon in game_data["weapons"]}
+    other = min(known - {selected, None})
+    off = a_weapon_type_attack_buff(game_data, hero, other)
+    on = a_weapon_type_attack_buff(game_data, hero, selected)
+    no_armament = next(effect_id for effect_id in model.advisor_defaults()
+                       if game_data["effects"][str(effect_id)]["modifiers"]
+                       .get("triggerOnWepType", 0) not in known | {0})
+    elsewhere = (planner.active_weapon + 1) % weaponslots.SLOT_COUNT
+    planner.weapon_slots[elsewhere] = weaponslots.WeaponSlot(weapon=next(
+        w for w in game_data["weapons"] if w["wep_type"] == other))
+
+    asking = advisorbar.asking_from(planner, DAMAGE)
+
+    declared = dict(asking.ctx.declared)
+    assert off not in declared, "a buff for an unselected type was assumed"
+    assert on in declared and no_armament in declared
+    result = suggest(asking, game_data, [[off], [on]], slots=2)
+    assert counted(result.suggestions[0], (off, on)) == {on}
+
+    select_an_armament_of(planner, game_data, other)
+    assert off in dict(advisorbar.asking_from(planner, DAMAGE).ctx.declared)

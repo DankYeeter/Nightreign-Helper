@@ -182,7 +182,7 @@ und im echten Start-Menue liegt **keine** Verknuepfung.
    Zelle ist zu eng fuer die laengsten Werte dieser Einheit.
 3. **Der feste Testabzug aus `CLAUDE.md` existiert nicht.** Zwei unabhaengige
    Pruefungen (Dateisystem ueber Bash und `Test-Path`):
-   `C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug` fehlt. Der
+   `%LOCALAPPDATA%\NightreignHelper-Testabzug` fehlt. Der
    **echte** Cache `…\Local\NightreignHelper` passt auf die Beschreibung
    (841 Dateien, 19,8 MB), ist aber **`extract_version` 8**, waehrend der Baum
    auf 11 steht — ein `Planner` darauf stuerzt ab (`KeyError

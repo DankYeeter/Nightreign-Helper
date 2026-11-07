@@ -72,4 +72,4 @@ des T-074/T-145-Abschnitts) sind von keiner der beiden Korrekturen betroffen
   UI_SPEC.md, Nachtrag „AK-244 nachgezogen: die Regel statt der Liste, und der
   Widerspruch bei S5" (ui-ux-designer, T-154) — 2026-09-09, §4.
 
-Pfad: `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\UI_SPEC.md`
+Pfad: `<Hauptbaum>\UI_SPEC.md`

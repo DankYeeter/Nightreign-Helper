@@ -1,7 +1,7 @@
 STATUS: teilweise
 AUFTRAG: T-200 — QA-231, zweiter Anlauf: der Abzug an einen Ort, der echte Platte ist
 GELESEN: docs/tasks/T-200.md, docs/berichte/T-196-developer.md, qa/findings.md (QA-231), CLAUDE.md (Abschnitt "Projektzeilen fuer jeden Auftrag"), nrplanner/paths.py, nrplanner/favourites.py, nrplanner/shortcut.py
-GEÄNDERT: `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` (neu angelegt, ausserhalb des Repos, Nachbarverzeichnis von `Nightreign-Helper`); `docs/berichte/T-200-developer.md`. Keine Datei im Repository ausser dem Bericht. Der alte Pfad `C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug` aus T-196 wurde nicht angefasst.
+GEÄNDERT: `<ClaudeCode>\NightreignHelper-Testabzug` (neu angelegt, ausserhalb des Repos, Nachbarverzeichnis von `Nightreign-Helper`); `docs/berichte/T-200-developer.md`. Keine Datei im Repository ausser dem Bericht. Der alte Pfad `%LOCALAPPDATA%\NightreignHelper-Testabzug` aus T-196 wurde nicht angefasst.
 ANNAHMEN: `NIGHTREIGN_SETTINGS_ORG=DankYeeterT200` als eigener, isolierter Wert fuer diesen Auftrag gewaehlt (Muster wie in T-196: `<echter Org-Name><T-Nummer>`) — CLAUDE.md nennt nur das Muster, keinen festen Wert. "Kein Anwendungscode" verstanden wie in T-196: ein `python run.py`-Lauf mit umgelenkten Variablen ist der geforderte Fensterlauf selbst, nicht "Anwendungscode aendern".
 NÄCHSTER: director
 BLOCKIERT DURCH: die externe Bestaetigung durch den Nutzer von seinem eigenen System aus (Kommando unten unter "Probe fuer den Nutzer") — die ist noch nicht gelaufen. Bis dahin bleibt offen, ob dieser Zweig tatsaechlich echte Platte ist oder nur eine weitere Ueberlagerung, in der ich wieder nur meine eigenen Schreibvorgaenge zurueckgelesen habe.
@@ -12,8 +12,8 @@ Kleine Datei direkt am Zielort angelegt und zurueckgelesen, **vor** jedem
 weiteren Schritt:
 
 ```
-$ echo "probe-T200-20260912T172525Z" > "C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug\.probe"
-$ cat "C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug\.probe"
+$ echo "probe-T200-20260912T172525Z" > "<ClaudeCode>\NightreignHelper-Testabzug\.probe"
+$ cat "<ClaudeCode>\NightreignHelper-Testabzug\.probe"
 probe-T200-20260912T172525Z
 ```
 
@@ -23,7 +23,7 @@ Ruecklesetest ist ein Los/no-go-Kriterium fuer Vorgabe 1, **kein** Nachweis,
 dass der Ordner echte Platte ist — dieselbe Verwechslung hat T-196 gekostet.
 Das eigentliche Kriterium steht unten unter "Probe fuer den Nutzer".
 
-`C:\Users\Daniel\Desktop\ClaudeCode` ist ausserdem sichtbar kein isolierter
+`<ClaudeCode>` ist ausserdem sichtbar kein isolierter
 Ort: `ls` zeigt zehn weitere, seit Wochen gewachsene Projektordner
 (`ApplicationHelper`, `platinum-souls`, `rain-codec`, `pension-manager`, …)
 und mehrere Dateien mit Datumsstempeln aus dem August — das allein beweist
@@ -37,8 +37,8 @@ Gesetzt fuer den Erzeugungslauf (`python run.py` aus dem Repo-Wurzelverzeichnis)
 | Variable | gesetzter Wert | Beleg |
 |---|---|---|
 | `NIGHTREIGN_SETTINGS_ORG` | `DankYeeterT200` | `reg query "HKCU\Software\DankYeeterT200\NightreignHelper"` liefert einen neu angelegten Key mit den Untergruppen `builds`, `chalices`. `reg query "HKCU\Software\DankYeeter\NightreignHelper"` (der echte, 309-Relikte-Speicher) zeigt danach weiterhin genau `builds`, `chalices`, `favourites`, `ui`, `variant` — keine neue Gruppe, unveraendert. |
-| `LOCALAPPDATA` | `…\scratchpad\T-200\localappdata` | Abzug entstand unter `…\scratchpad\T-200\localappdata\NightreignHelper` (841 Dateien, siehe unten). Der echte `C:\Users\Daniel\AppData\Local\NightreignHelper` traegt danach `LastWriteTime = 18.08.2026 22:27:40` — derselbe Zeitstempel, den T-196 vor vier Wochen protokolliert hat, also unveraendert seit vor diesem Auftrag. |
-| `APPDATA` | `…\scratchpad\T-200\appdata` | `Test-Path 'C:\Users\Daniel\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Nightreign Helper.lnk'` → `False`, vor und nach dem Lauf. **Dieselbe Einschraenkung wie in T-196:** `nrplanner/shortcut.py` erstellt die Verknuepfung nur wenn `sys.frozen` gesetzt ist; ein Quellbaum-Lauf (`python run.py`) durchlaeuft diesen Pfad nicht. Kein Nachweis fuer die `.exe`, nur fuer den Quellbaum-Lauf. |
+| `LOCALAPPDATA` | `…\scratchpad\T-200\localappdata` | Abzug entstand unter `…\scratchpad\T-200\localappdata\NightreignHelper` (841 Dateien, siehe unten). Der echte `%LOCALAPPDATA%\NightreignHelper` traegt danach `LastWriteTime = 18.08.2026 22:27:40` — derselbe Zeitstempel, den T-196 vor vier Wochen protokolliert hat, also unveraendert seit vor diesem Auftrag. |
+| `APPDATA` | `…\scratchpad\T-200\appdata` | `Test-Path '%APPDATA%\Microsoft\Windows\Start Menu\Programs\Nightreign Helper.lnk'` → `False`, vor und nach dem Lauf. **Dieselbe Einschraenkung wie in T-196:** `nrplanner/shortcut.py` erstellt die Verknuepfung nur wenn `sys.frozen` gesetzt ist; ein Quellbaum-Lauf (`python run.py`) durchlaeuft diesen Pfad nicht. Kein Nachweis fuer die `.exe`, nur fuer den Quellbaum-Lauf. |
 
 Nachweis gelang fuer alle drei Variablen; kein Abbruch noetig.
 
@@ -65,7 +65,7 @@ gefunden), nicht die T-196-Kopie.
 
 Von dort (`…\scratchpad\T-200\localappdata\NightreignHelper`, real, echte
 Kopie via `cp -r`, kein Symlink, keine Junction) nach
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` kopiert:
+`<ClaudeCode>\NightreignHelper-Testabzug` kopiert:
 
 ```
 $ find "…\NightreignHelper-Testabzug" -type f | wc -l
@@ -106,7 +106,7 @@ T-196.
 
 ## Vorgabe 5 — alter Pfad unberuehrt
 
-`C:\Users\Daniel\AppData\Local\NightreignHelper-Testabzug` (aus T-196) wurde
+`%LOCALAPPDATA%\NightreignHelper-Testabzug` (aus T-196) wurde
 in diesem Auftrag zu keinem Zeitpunkt gelesen, geschrieben oder geloescht.
 
 ## Aufgeraeumt
@@ -148,7 +148,7 @@ in diesem Auftrag zu keinem Zeitpunkt gelesen, geschrieben oder geloescht.
 ## An den director
 
 - **Kernergebnis:** Der Abzug liegt jetzt zusaetzlich unter
-  `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
+  `<ClaudeCode>\NightreignHelper-Testabzug`
   (841 Dateien, 20.812.293 Bytes, `EXTRACT_VERSION` 11, Programmversion
   1.9.0 — alle vier Zahlen identisch zum Sollwert aus T-196). Erzeugt durch
   einen frischen Extraktionslauf aus dem installierten Spiel, nicht durch
@@ -161,7 +161,7 @@ in diesem Auftrag zu keinem Zeitpunkt gelesen, geschrieben oder geloescht.
   Die einzig schluessige Bestaetigung ist die externe Probe unten, vom
   Nutzer selbst auf seinem System ausgefuehrt.
 - **Falls die Probe negativ ausfaellt** (Pfad auf dem echten System nicht
-  vorhanden): dann ist auch `C:\Users\Daniel\Desktop\ClaudeCode` als
+  vorhanden): dann ist auch `<ClaudeCode>` als
   Nachbarverzeichnis des Repos ueberlagert, und der Auftrag braucht einen
   dritten Kandidaten-Ort — der Auftrag selbst benennt keinen.
 - **Nebenfund, wie schon in T-196:** `APPDATA`/Start-Menu-Pfad in
@@ -187,11 +187,11 @@ die Probe unten vom Nutzer bestaetigt ist: ein Fensterlauf mit
 ## Probe fuer den Nutzer
 
 ```
-powershell -NoProfile -Command "(Get-Item 'C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug\nightreign_data.json').Length"
+powershell -NoProfile -Command "(Get-Item '<ClaudeCode>\NightreignHelper-Testabzug\nightreign_data.json').Length"
 ```
 
 - **Angekommen:** die Ausgabe ist die Zahl `8484644`.
 - **Nicht angekommen:** eine Fehlermeldung, die mit
-  `Get-Item : Cannot find path 'C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug\nightreign_data.json' because it does not exist.`
+  `Get-Item : Cannot find path '<ClaudeCode>\NightreignHelper-Testabzug\nightreign_data.json' because it does not exist.`
   beginnt (oder eine andere Zahl als `8484644` — das waere kein "nicht
   angekommen", sondern ein eigener Befund und muesste separat gemeldet werden).

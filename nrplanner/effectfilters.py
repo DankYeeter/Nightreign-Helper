@@ -5,9 +5,14 @@
 puts all of it in the one settings store the program has, under one fixed
 key each. The ids and family names are the **value**, never the key
 (AD-030, OF-15): nothing here derives a key from anything, and the key
-space this adds is four, for good. No `__schema` step either -- a store that
+space this adds is five, for good. No `__schema` step either -- a store that
 never held a key reads back as empty, which is exactly what an older
 program state means by it.
+
+The fifth key is no marking: `stacks` says how many stacks the advisor's
+questions, Optimize's and the relic picker's, count for a stack effect
+(`model.accumulates`, user decision 2026-11-07), over whatever the stat sheet
+says, and it touches none of the sets below.
 
 The three id sets are disjoint by construction (AK-276: an effect is never
 excluded and required at once, and `Allow` is a third state of the same
@@ -39,20 +44,29 @@ from collections.abc import Iterable, Mapping
 
 from PySide6.QtCore import QObject, Signal
 
-from . import favourites
+from . import favourites, model
 
 EXCLUDED = "excluded"
 REQUIRED = "required"
 ALLOWED = "allowed"
 AVOIDED_FAMILIES = "avoided_families"
+STACKS = "stacks"
 KEYS = {EXCLUDED: "advisor/excluded", REQUIRED: "advisor/required",
         ALLOWED: "advisor/allowed",
-        AVOIDED_FAMILIES: "advisor/avoided_families"}
+        AVOIDED_FAMILIES: "advisor/avoided_families",
+        STACKS: "advisor/stacks"}
 
 #: Family names are stored one per line: a comma is part of some of them
 #: (`Improved Mind and Faith, Reduced Intelligence`), a line break of none
 #: (`effecttext.name` folds it).
 FAMILY_SEPARATOR = "\n"
+
+#: For the effect with no ceiling in the game's scripts (`model.STACK_LIMITS`),
+#: and so not a fact about the game: `model.compute` expands one copy per stack,
+#: so Optimize slows with the value
+#: (QA-336, user decision 2026-11-07). Measured 2026-11-07 on the A6 case, offscreen:
+#: 2.5 s at 10 against 14.2 s at 99, with the budget at 6 s.
+MOST_STACKS = 10
 
 
 def stored(kind: str) -> frozenset[int]:
@@ -79,6 +93,39 @@ def stored_text(kind: str) -> frozenset[str]:
     raw = favourites.settings().value(KEYS[kind], "", type=str)
     return frozenset(part.strip() for part in str(raw).split(FAMILY_SEPARATOR)
                      if part.strip())
+
+
+def stack_limit(effect_id: int) -> int:
+    """The largest value the Stacks field takes for this effect."""
+    return model.stack_limit(effect_id, MOST_STACKS)
+
+
+def stack_count(text: str, effect_id: int) -> int | None:
+    """The count this text says, or `None` for anything but a whole number
+    from 0 to this effect's limit in plain digits (`int` would read other
+    scripts, and raise on five thousand of them, so the length comes first)."""
+    if text.isascii() and text.isdigit() and len(text) <= len(str(MOST_STACKS)):
+        count = int(text)
+        return count if count <= stack_limit(effect_id) else None
+    return None
+
+
+def stored_stacks() -> dict[int, int]:
+    """Effect id -> stacks, stored as `id=count,id=count`. A part that does not
+    read as an id and a count in that effect's range is skipped, as in `stored`:
+    a value saved under an older, wider limit reads as empty (AK-470)."""
+    raw = favourites.settings().value(KEYS[STACKS], "", type=str)
+    stacks = {}
+    for part in str(raw).split(","):
+        effect_id, _, text = part.partition("=")
+        try:
+            effect_id = int(effect_id)
+        except ValueError:
+            continue
+        count = stack_count(text, effect_id)
+        if count is not None:
+            stacks[effect_id] = count
+    return stacks
 
 
 def store(excluded: Iterable[int], required: Iterable[int],
@@ -115,6 +162,7 @@ class EffectFilters(QObject):
         self.allowed = as_stored[1] - self.required
         self.excluded = as_stored[0] - self.required - self.allowed
         self.avoided_families = stored_text(AVOIDED_FAMILIES)
+        self.stacks = stored_stacks()
         if (self.excluded, self.allowed) != as_stored:
             store(self.excluded, self.required, self.allowed,
                   self.avoided_families)
@@ -134,6 +182,28 @@ class EffectFilters(QObject):
         families = (self.avoided_families | {key} if avoided
                     else self.avoided_families - {key})
         self._apply(self.excluded, self.required, self.allowed, families)
+
+    def set_stacks(self, effect_id: int, count: int | None) -> None:
+        """How many stacks the advisor's questions count for this effect;
+        `None` leaves it to the stat sheet, 0 does not count it."""
+        stacks = {**self.stacks, effect_id: count}
+        if count is None:
+            del stacks[effect_id]
+        if stacks == self.stacks:
+            return
+        self.stacks = stacks
+        settings = favourites.settings()
+        settings.setValue(KEYS[STACKS], ",".join(
+            f"{i}={stacks[i]}" for i in sorted(stacks)))
+        settings.sync()
+        self.changed.emit()
+
+    def counted_stacks(self, effects: Mapping[str, dict]) -> dict[int, int]:
+        """The values a question uses. The store is not trusted to hold stack
+        effects alone: `model.compute` would count any other condition that
+        many times, and an id the dataset lost is nothing to count."""
+        return {effect_id: count for effect_id, count in self.stacks.items()
+                if model.accumulates(effects.get(str(effect_id)) or {})}
 
     def _apply(self, excluded, required, allowed, avoided_families) -> None:
         after = (excluded, required, allowed, avoided_families)

@@ -4,6 +4,153 @@ All notable changes to Nightreign Helper are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 History before 1.10.0 was not reconstructed; this file starts here.
 
+## [Unreleased]
+
+## [1.21.0] - 2026-11-07
+
+### Changed
+- **Vessel slots now show the game's own slot art**, normal and Deep, in the
+  vessel list, the slot strip, the slot cards and the picker, in place of a
+  light this program drew. White slots show no gem: the game has none.
+- The icon pack and the data cache are rebuilt once on first start.
+- **A stack effect now counts on one relic only.** "Attack power increased for
+  each Night Invader defeated" and the seven other effects that stack per event
+  count their stacks once, however many relics carry them. Optimize no longer
+  suggests a second carrier unless a favourite needs that relic, and one you
+  place yourself is flagged and moves no figure. Figures that used to count two
+  carriers fall (Raider, two stacks: all damage +14.5 % where it was +31.1 %).
+- **Each stack effect now has its own limit**, in the Stacks field, in the count
+  on the stat sheet and in the figures: Night Invaders 4, evergaol prisoners and
+  Sorcerer's Rises 7, great enemies 10. A Stacks value saved above the limit
+  reads as empty. These limits are read from the game's event scripts and were
+  not tried in play.
+- **Avoid now keeps the relic out of Optimize's suggestions.** Before, Avoid
+  only counted against a relic; now a relic carrying an effect or curse you
+  marked Avoid is never suggested. A relic you hold or place yourself stays
+  where you put it. If you want such a relic back in suggestions, set the
+  effect to Allow again.
+- **A star on a relic now means "must go in, if it fits".** Until now the star
+  only sorted the picker. After this update every star you have already set
+  also steers Optimize: a favourited relic goes into the suggestion when the
+  chalice can hold it. Nothing is changed in your saved data; remove a star to
+  go back to the old behaviour. When not every starred relic fits, the
+  suggestion still comes, the status line counts the ones it could not place,
+  and Why names each with its reason.
+- A favourited effect no longer blocks a suggestion: Optimize carries every
+  favourite the chalice can hold, fills the other slots, and Why names the
+  rest. A slot Optimize leaves empty shows NO SUGGESTION with the reason.
+- A favourited effect of another Nightfarer ("[Guardian] ..." while you build
+  Wylder) is ignored there: it takes no slot and never counts as missing. The
+  mark stays.
+- Effects that land on the enemy no longer count as your own build's. They are
+  listed as "On the enemy" and move no figure (see Fixed).
+- **The count beside a switch on the stat sheet now stops at 99.** A larger
+  number becomes 99 when you leave the box; a very large one could stop the
+  sheet from drawing.
+
+### Added
+- **The game's own symbols, everywhere it has one.** Effects and curses show
+  their status symbol on relic cards, in the picker, in suggestions, in `Why`,
+  in the filter window, on the Effects tab, in the armament dialog and on the
+  stat sheet. Relic, Nightfarer, vessel, damage type, status, weapon art, spell,
+  Nightlord, loot, world-event buff and penalty, Sovereign Sigil, relic tier and
+  slot colour show theirs beside the name. A name without a symbol reads as it
+  did.
+- **A new direction, Balanced.** It looks for damage and survival at once: it
+  ranks by attack rating times effective HP, so one percent more of either
+  counts the same, and there is nothing to set. It has its own row on every
+  relic card, as a percentage, and its own entry under Sort by. In the vessel
+  list each vessel then says both gains against the empty vessel, for example
+  `AR +89 % / Defense +31 %`, and "Best of ..." goes by the Balanced value.
+- The armament tiles under Weapon damage now show the armament's symbol above
+  its name. Tiles grow a little taller; empty tiles stay as they were.
+- **Stacks in the effect filter.** An effect that stacks, such as "Attack power
+  increased for each Night Invader defeated", now has a Stacks field under
+  Filters: Optimize and the figures in the relic picker count it that many
+  times (a whole number from 0 to 10), 0 leaves it out, empty uses the count
+  ticked on the stat sheet, otherwise one. The value is saved, changes nothing
+  on the stat sheet, and **Why** lists it.
+- Every effect and curse in a suggestion has an X that sets it to Avoid and
+  asks again. Reject turns down a relic for this build only; the list under
+  the advisor bar gives it back.
+- Every Optimize now compares all vessels of the Nightfarer in the
+  background: nothing waits for it, and a new question or closing the window
+  stops it. The vessel list shows each vessel's figure and marks the best one
+  (most favourite effects met, then favourite relics, then the figure);
+  Switch to it opens that vessel with its suggestion and brings held relics
+  and rejections along.
+- The vessel figure now says what it means: its unit and the change from the
+  same reckoning with no relics, for example `AR 90 (+61 %)`. The tooltip gives
+  the figure without relics.
+- The filter window, its tooltips and Why now say what Avoid and the star
+  really do, and a favourite that went missing says how to get it back.
+
+### Fixed
+- In a narrow window the vessel list no longer scrolls sideways: a row too long
+  for it ends in "…", and its tooltip carries the whole line.
+- The gems in the Effects tab's `Colours` column no longer take room from
+  `What it does`; the effect name column gives it up instead.
+- The program could crash at the moment a background search or a save read
+  ended. The more vessels were compared, the more often that moment came.
+- Effects that land on the enemy no longer count as your own. "[Raider] Hit
+  With Character Skill to Reduce Enemy Attack Power" lowered your attack
+  rating; it and the others of its kind now say "On the enemy".
+- Undo apply on a vessel that was empty no longer leaves the applied build
+  stored for that vessel.
+- Reset Chalice stays on the chalice you reset. It used to open the first
+  chalice with its slots empty, and the next relic placed there replaced the
+  build stored for that chalice.
+- **Why now shows the whole figure of an effect counted several times.** With a
+  count above one, its line named the figure of a single stack.
+- **Sorting the effect filter by Type no longer fails** when a family heading is
+  in the list.
+
+## [1.20.1] - 2026-11-01
+
+### Changed
+- An ailment bonus such as "Attack power up when facing frostbite-afflicted
+  enemy" now counts only for the weapon on the selected tile (its rolled
+  effects, skill or spell; the starting weapon if that tile is empty) or a
+  relic; weapons on other tiles no longer count.
+
+### Fixed
+- The relic picker no longer shows stray relic cards beside the list
+  when you type into the filter while the list is still filling.
+- An ailment bonus no longer counts for a skill or spell that a relic in
+  the suggested build swaps out, such as Zamor Ice Storm replaced by Night
+  Shard.
+
+## [1.20.0] - 2026-11-01
+
+### Changed
+- The relic advisor counts "Attack power up when facing frostbite-afflicted
+  enemy" and its poison and scarlet rot versions only when your build
+  inflicts that ailment itself: a weapon on any tile, or a relic such as
+  "Starting armament inflicts frost".
+- These ailment sources now also include rolled effects such as "Attacks
+  Inflict Frost" on any weapon tile, the weapon skill or spell selected in
+  the casting bar, and relics that swap in a skill which inflicts the
+  ailment (for example Poison Moth Flight). **The data cache is rebuilt once
+  on first launch after this update (about 45 seconds; the icon pack is not
+  rebuilt).** Your saved builds and favourites are kept.
+
+### Fixed
+- The Why dialog no longer says a favourited effect "always counts" when it
+  does not count: a weapon-type bonus for another weapon type, or an ailment
+  bonus your build cannot trigger, now says why it is not counted.
+
+## [1.19.1] - 2026-11-01
+
+### Fixed
+- The relic advisor, its Why dialog and the relic picker's Damage column
+  no longer count a weapon-type bonus such as "Improved Dagger Attack
+  Power" for a type other than the weapon on your highlighted weapon tile,
+  as for the "3+ ... Equipped" effects; with an empty highlighted tile only
+  your Nightfarer's starting weapon type counts.
+- The relic picker no longer stretches its cards to the full window height
+  when a filter leaves only a few relics; cards stand at the top, each row
+  as tall as its tallest card.
+
 ## [1.19.0] - 2026-10-28
 
 ### Added

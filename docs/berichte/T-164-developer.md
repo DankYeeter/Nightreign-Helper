@@ -185,8 +185,8 @@ Ein Skript druckt `favourites.ORG`, `paths.cache_dir()` und
 **Ohne (Positivkontrolle — die Messung zeigt wirklich auf den Nutzer):**
 ```
 favourites.ORG          = DankYeeter
-paths.cache_dir()       = C:\Users\Daniel\AppData\Local\NightreignHelper
-shortcut path           = C:\Users\Daniel\AppData\Roaming\...\Programs\Nightreign Helper.lnk
+paths.cache_dir()       = %LOCALAPPDATA%\NightreignHelper
+shortcut path           = %APPDATA%\...\Programs\Nightreign Helper.lnk
 ```
 **Mit (`NIGHTREIGN_SETTINGS_ORG=DankYeeterT-164`, `LOCALAPPDATA`/`APPDATA` auf
 `…/scratchpad/T-164/local` bzw. `/roaming`):**

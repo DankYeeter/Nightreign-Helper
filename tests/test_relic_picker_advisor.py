@@ -142,6 +142,7 @@ def a_slot(planner):
 #: would see the difference (AK-259 point 2).
 BASELINE = (("max_damage", 100.0, "AR", ()),
             ("min_damage_taken", 900.0, "effective HP", ()),
+            (advisor_goals.BALANCED.id, 90000.0, "", ()),
             ("max_attributes", 40.0, advisor_goals.ATTRIBUTE_POINT_UNIT, ()))
 
 #: How many value rows a card carries: one per direction, never a number
@@ -402,6 +403,36 @@ def test_the_pickers_question_carries_the_marked_sets(slot):
     finally:
         for effect_id in (11, 22):
             filters.mark(effect_id, None)
+
+
+def test_a_reject_does_not_reach_the_pickers_question(slot, monkeypatch):
+    """AD-057.3: a Reject is about the suggestion; the picker is the hand
+    choice, and it still offers that relic with its figure."""
+    from nrplanner import advisorbar
+
+    class Recording:
+        request = None
+
+        def ask_and_answer_if_known(self, request, inventory, ctx):
+            self.request = request
+            return pool_of(slot, {})
+
+    real = advisorbar.asking_from
+
+    def with_a_reject(window, goal_id):
+        asking = real(window, goal_id)
+        return dataclasses.replace(asking, request=dataclasses.replace(
+            asking.request, problem=dataclasses.replace(
+                asking.request.problem,
+                rejected=frozenset({(1, (2,), ())}))))
+
+    monkeypatch.setattr(advisorbar, "asking_from", with_a_reject)
+    track = Recording()
+
+    relicpicker.SlotAdvice(slot, slot.window().advisor_bar,
+                           track).ask(lambda *_: None)
+
+    assert track.request.problem.rejected == frozenset()
 
 
 def test_every_relic_card_carries_a_value_block(slot):
@@ -1491,7 +1522,7 @@ def test_the_read_direction_decides_which_group_leads(slot):
     exactly the one case out of three that a case might have picked.
     """
     items = slot.available_items()
-    for read in advisorbar.GOAL_ORDER:
+    for read in TOP_OF:
         dialog = three_tops(slot, read=read)
         try:
             assert dialog.ranking.pool.rank_by == "max_damage"
@@ -1965,6 +1996,44 @@ def test_a_sort_change_under_pending_paints_does_not_lose_a_card_the_old_grid_ha
         dialog.deleteLater()
 
 
+def test_a_keystroke_right_after_a_background_paint_leaves_no_card_on_the_dialog(
+        slot):
+    """A filter typed in the same event-loop turn as a background paint:
+    no card of the old grid shows loose on the dialog, and clearing the
+    filter brings every card back.
+
+    `CardGrid.extend` queues a show for each card it places; the keystroke's
+    refresh moves the card out of the grid before that show runs. Moved
+    straight onto the dialog, the show then put the card there, outside the
+    scroll area (user test 1.20.0: two foreign cards beside "stamina").
+    """
+    items = slot.available_items()
+    assert len(items) > 2 * relicpicker.CARDS_PER_PAINT, (
+        "too few candidates for a background paint to run")
+    gains = {index: index for index in range(len(items))}
+    dialog = open_picker(slot, gains, goal_id="max_damage")
+    dialog.show()
+    try:
+        assert dialog._more.isActive(), "nothing was left to paint"
+        dialog._more.stop()
+        dialog._paint_more()
+        dialog.search.setText("zzzz matches nothing")
+        rendered.settle(5)
+        grid = dialog.scroll.widget()
+        loose = [card for card in dialog.findChildren(relicpicker.RelicCard)
+                 if card.isVisible() and not grid.isAncestorOf(card)]
+        assert loose == [], f"{len(loose)} cards show outside the grid"
+
+        dialog.search.setText("")
+        shown = relic_cards(dialog)
+        rendered.settle(3)
+        assert len(shown) == len(items)
+        assert all(card.isVisible() for card in shown)
+    finally:
+        dialog.close()
+        dialog.deleteLater()
+
+
 def test_the_cards_shown_after_the_answer_are_the_ones_built_while_waiting(
         slot):
     """The other half of QA-258's fix: reuse, not merely fewer builds.
@@ -2181,5 +2250,138 @@ def test_the_drawn_direction_is_the_setting_and_not_the_pools_order(slot):
                  if label.text().startswith("BEST FOR ")]
         assert chips, "no card wore the mark of the direction being read"
         assert set(chips) == {relicpicker.chip_text("min_damage_taken")}
+    finally:
+        dialog.deleteLater()
+
+
+# --- the star and the question (AD-059, AK-438) ------------------------------
+
+@pytest.fixture
+def a_star(slot):
+    """One relic of this slot starred for the Nightfarer on screen."""
+    from nrplanner import favourites
+
+    item = next(item for item in slot.available_items() if item.effect_ids)
+    hero_id = slot.window().current_hero()["id"]
+    favourites.set_favourite(item, hero_id, True)
+    yield item
+    favourites.set_favourite(item, hero_id, False)
+
+
+def test_the_store_gives_back_the_rolls_of_one_nightfarer(slot, a_star):
+    """AD-059.1, through the real store: `marked_for` is the inverse of what
+    `set_favourite` writes, and another Nightfarer's list is another list."""
+    from nrplanner import favourites
+    from nrplanner.advisor import types as advisor_types
+
+    hero_id = slot.window().current_hero()["id"]
+
+    assert advisor_types.roll_of(a_star) in favourites.marked_for(hero_id)
+    assert advisor_types.roll_of(a_star) not in favourites.marked_for(-1)
+    assert list(favourites.marked_for(hero_id)) == sorted(
+        favourites.marked_for(hero_id))
+
+
+def test_a_stored_entry_that_is_not_a_roll_is_passed_over(slot):
+    from nrplanner import favourites
+
+    store = favourites.settings()
+    store.setValue(f"{favourites.GROUP}/not-a-roll", "1,2")
+    try:
+        assert favourites.marked_for(1) == ()
+    finally:
+        store.remove(f"{favourites.GROUP}/not-a-roll")
+
+
+def test_the_question_carries_the_stars_of_the_nightfarer(slot, a_star):
+    """AD-059.1: read off the store by the window, not by the Qt-free side."""
+    from nrplanner.advisor import types as advisor_types
+
+    asking = advisorbar.asking_from(slot.window(), "max_damage")
+
+    assert advisor_types.roll_of(a_star) in asking.request.problem.pinned
+
+
+def test_the_pickers_question_lays_no_star(slot, a_star):
+    """AD-057.3: the picker is the hand choice, and its open slot is the only
+    free one -- a star laid there would stand in the player's way."""
+    class Recording:
+        def ask_and_answer_if_known(self, request, inventory, ctx):
+            self.request = request
+            return pool_of(slot, {})
+
+    track = Recording()
+
+    relicpicker.SlotAdvice(slot, slot.window().advisor_bar,
+                           track).ask(lambda *_: None)
+
+    assert track.request.problem.pinned == ()
+
+
+def test_a_star_set_in_the_picker_outdates_the_answer(slot, monkeypatch):
+    """AD-059.7: it changes the question, as a mark does (AK-289)."""
+    from PySide6.QtCore import QPoint
+
+    from nrplanner import favourites
+
+    seen = []
+    bar = slot.window().advisor_bar
+    monkeypatch.setattr(bar, "the_build_changed",
+                        lambda **said: seen.append(said))
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        heroes = dialog._heroes()
+        target = relic_cards(dialog)[0]
+
+        def toggles(self, _position):
+            favourites.toggle(self.item, heroes[0]["id"])
+            self.changed = True
+
+        monkeypatch.setattr(relicpicker.FavouriteMenu, "exec", toggles)
+        dialog._open_favourites(target.item, QPoint())
+
+        assert seen == [{"marking_changed": True}]
+    finally:
+        favourites.toggle(target.item, heroes[0]["id"])
+        dialog.deleteLater()
+
+
+def test_a_menu_left_without_a_change_outdates_nothing(slot, monkeypatch):
+    from PySide6.QtCore import QPoint
+
+    seen = []
+    bar = slot.window().advisor_bar
+    monkeypatch.setattr(bar, "the_build_changed",
+                        lambda **said: seen.append(said))
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        monkeypatch.setattr(relicpicker.FavouriteMenu, "exec",
+                            lambda self, _position: None)
+        dialog._open_favourites(relic_cards(dialog)[0].item, QPoint())
+
+        assert seen == []
+    finally:
+        dialog.deleteLater()
+
+
+def test_the_picker_says_what_a_star_does(slot, a_star):
+    """AK-438: the summary line, the star on the card and the menu."""
+    dialog = open_picker(slot, {0: 1.0})
+    try:
+        assert dialog.summary.text().endswith(
+            "right-click a relic to favourite it — Optimize puts favourited "
+            "relics in when they fit")
+        hero = dialog.hero_label
+        star = next(label
+                    for card in relic_cards(dialog) if card.item is a_star
+                    for label in card.findChildren(QLabel)
+                    if label.text() == "★")
+        assert (f"Favourite for {hero}: Optimize puts it in the build when it "
+                f"fits.") in star.toolTip()
+
+        menu = relicpicker.FavouriteMenu(dialog, a_star, dialog._heroes(), None)
+        assert "Optimize puts it in the build when it fits." in [
+            label.text() for label in menu.findChildren(QLabel)]
+        menu.deleteLater()
     finally:
         dialog.deleteLater()

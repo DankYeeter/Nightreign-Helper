@@ -115,7 +115,7 @@ Pfad, nicht nur "gleich" oder "verschieden" ohne Gegenprobe:
 
 | Pruefpunkt | ohne Umlenkung (Positivkontrolle) | mit Umlenkung |
 |---|---|---|
-| `paths.cache_dir()` | `C:\Users\Daniel\AppData\Local\NightreignHelper` | `…\scratchpad\T-140\local\NightreignHelper` |
+| `paths.cache_dir()` | `%LOCALAPPDATA%\NightreignHelper` | `…\scratchpad\T-140\local\NightreignHelper` |
 | `shortcut.shortcut_path()` | `…\Roaming\Microsoft\…\Programs\Nightreign Helper.lnk` | `…\scratchpad\T-140\appdata\Microsoft\…\Programs\Nightreign Helper.lnk` |
 | `favourites.ORG`/`APP` | `DankYeeter` / `NightreignHelper` | `DankYeeterT-140` / `NightreignHelper` |
 
@@ -126,8 +126,8 @@ haengt den echten Save-Ordner zusaetzlich ueber `pathlib.Path.home() /
 umgelenktem `APPDATA` fand `find_saves()` beide echten Dateien:
 
 ```
-C:\Users\Daniel\AppData\Roaming\Nightreign\76561198073567627\NR0000.sl2
-C:\Users\Daniel\AppData\Roaming\Nightreign\76561198179244962\NR0000.sl2
+%APPDATA%\Nightreign\<Konto-B>\NR0000.sl2
+%APPDATA%\Nightreign\<Konto-A>\NR0000.sl2
 ```
 
 **Fester Testabzug kopiert, nicht neu gebaut** (3,3 s, `Copy-Item -Recurse`),

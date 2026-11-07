@@ -32,7 +32,7 @@ BLOCKIERT DURCH: nichts fuer diesen Bau.
 
 | | |
 |---|---|
-| **Pfad** | `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe` |
+| **Pfad** | `<Hauptbaum>\dist\NightreignHelper.exe` |
 | **Groesse** | 59.152.448 Byte (56,41 MiB) |
 | **SHA-256** | `E2F614F80BD5ED6661A7059ED862E16FD81DF51B2901D913B592CE93A4E8405A` |
 | **Code-Stand des Artefakts** | `79b3ecb` (letzter Code-Commit vor T-312; `04e0089` obendrauf ist reiner Docs-Commit), Branch `docs/audit-and-advisor-design` |
@@ -110,7 +110,7 @@ Entityquelle ein (`f184b06`) - mehr Code, keine neue externe Abhaengigkeit
 
 ## Testabzug
 
-`C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug` nach
+`<ClaudeCode>\NightreignHelper-Testabzug` nach
 `<scratchpad>/T-312/release-manager/localappdata\NightreignHelper` **kopiert**
 (nicht verlinkt, nicht unter echtem `%LOCALAPPDATA%`). Dateizahl nach dem
 Kopieren: **841**, Gesamtgroesse **21.131.645 Byte** - deckungsgleich mit dem
@@ -180,13 +180,13 @@ Kein Befund am Anwendungscode.
 
 ## An `power-user` (Ausgangspunkt, falls angefordert)
 
-- **Pfad:** `C:\Users\Daniel\Desktop\ClaudeCode\Nightreign-Helper\dist\NightreignHelper.exe`
+- **Pfad:** `<Hauptbaum>\dist\NightreignHelper.exe`
 - **Groesse:** 59.152.448 Byte (56,41 MiB)
 - **SHA-256:** `E2F614F80BD5ED6661A7059ED862E16FD81DF51B2901D913B592CE93A4E8405A`
 - **Versionsressource:** 1.15.0, am Fenstertitel bestaetigt (Startprobe).
 - **Vorstands-Vergleichsartefakt** (T-295b-Stand, 1.14.0, falls fuer
   Vergleich gebraucht):
-  `C:\Users\Daniel\AppData\Local\Temp\claude\C--Users-Daniel-Desktop-ClaudeCode-Nightreign-Helper\6bddddf0-aa03-4ff3-b040-79bcd15d445d\scratchpad\T-312\release-manager\artefakte\NightreignHelper-1.14.0-t295b.exe`,
+  `%TEMP%\claude\<Projekt>\6bddddf0-aa03-4ff3-b040-79bcd15d445d\scratchpad\T-312\release-manager\artefakte\NightreignHelper-1.14.0-t295b.exe`,
   SHA-256 `A45BDF1151C28D2ED0F43B8797F4E27F4C8F7BD114A30BF186A954C3692CEA9C`.
 - Drei Umlenkungen zwingend beim Start: `NIGHTREIGN_SETTINGS_ORG`,
   `LOCALAPPDATA`, `APPDATA` - Testabzug kopieren, nicht darauf zeigen

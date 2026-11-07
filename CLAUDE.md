@@ -11,6 +11,11 @@ ausschliesslich `https://github.com/DankYeeter/Nightreign-Helper.git`; der
 `archivist` prüft `git remote -v` vor jedem Push, bei Abweichung wird nicht
 gepusht, sondern gemeldet. Arbeitsrechtliche Grenze, Vorrang vor allem.
 
+**Pfade in Repo-Dateien nur als Platzhalter** (`tests/test_personenbezug.py`):
+`<Hauptbaum>` ist dieses Projekt, `<ClaudeCode>` der Ordner darueber, dazu `%TEMP%`,
+`%LOCALAPPDATA%`, `%APPDATA%`, `%USERPROFILE%`, `<SP>` fuer den Scratchpad. Die beiden
+Steam-Konten dieses Rechners heissen `<Konto-A>` (309 Relikte) und `<Konto-B>`.
+
 ## Projektsprache
 
 | wo | Sprache |
@@ -78,12 +83,12 @@ endet stumm, der Hook weist ihn ab, solange eine Kopie läuft.
 stehen im Auftrag in einer Reihenfolge, nie unter `Parallel: ja`;
 `notes`, `security-reviewer`, `compliance-agent` dürfen parallel.
 
-**Fester Testabzug:** `C:\Users\Daniel\Desktop\ClaudeCode\NightreignHelper-Testabzug`
-(1027 Dateien, 23 468 416 Bytes, `EXTRACT_VERSION` 18, `ICON_VERSION` 4,
-gebaut von T-335w am 31.10.2026; spart 110 s je Lauf). In das umgelenkte
+**Fester Testabzug:** `<ClaudeCode>\NightreignHelper-Testabzug`
+(1545 Dateien, 27 006 981 Bytes, `EXTRACT_VERSION` 20, `ICON_VERSION` 5,
+neu am 07.11.2026 (T-340); spart 110 s je Lauf). In das umgelenkte
 `LOCALAPPDATA` **kopieren**, nicht darauf zeigen. Nicht unter `%LOCALAPPDATA%`,
-nicht im Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 18 oder
-`ICON_VERSION` über 4 steigt — der erste
+nicht im Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 20 oder
+`ICON_VERSION` über 5 steigt — der erste
 betroffene Lauf ersetzt die
 Vorlage und vermerkt es in `docs/plan-restarbeiten.md`.
 

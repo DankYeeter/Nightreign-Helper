@@ -23,7 +23,7 @@ GELESEN: GOAL.md, docs/state.md, docs/tasks/T-051.md, docs/tasks/T-045.md
          project_nightreign_guard_gaps.md)
 GEÄNDERT: docs/berichte/T-051-qa-engineer.md (diese Datei) — sonst nichts im
           Arbeitsbaum. Alle Mutationen, Sonden und der eine git-archive-Klon
-          liefen in C:\Users\Daniel\AppData\Local\Temp\claude\...\scratchpad\
+          liefen in %TEMP%\claude\...\scratchpad\
           T051\ (head, head2 .. head6, probe_*.py) — ephemer, nicht Teil der
           Abgabe. `git status` im Arbeitsbaum vor und nach meinem Lauf
           verglichen: waehrend meiner Session sind zusaetzlich ein neuer
