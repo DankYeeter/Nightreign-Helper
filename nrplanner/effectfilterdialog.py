@@ -169,10 +169,10 @@ def counter_line(shown: int, total: int, filters) -> str:
 class _Item(QTreeWidgetItem):
     """A row that sorts by its boxes on the flag columns (the box on top is
     the control; `on` is what a click on the column head sorts by, the value
-    of the field under `Stacks`), without
-    regard to case on the name (AK-308), and by the cell's own value --
-    the number under `Copies`, the text under `Type` -- elsewhere. (Not
-    `super().__lt__`: PySide routes that back into this override.)"""
+    of the field under `Stacks`), by the number under `Copies`, and by the
+    text elsewhere, without regard to case on the name (AK-308) -- a family
+    heading's empty `Type` is the empty text. (Not `super().__lt__`: PySide
+    routes that back into this override.)"""
 
     def __init__(self, parent) -> None:
         super().__init__(parent)
@@ -183,10 +183,10 @@ class _Item(QTreeWidgetItem):
         column = self.treeWidget().sortColumn()
         if column in self.on:
             return self.on[column] < other.on[column]
-        if column == COL_NAME:
-            return self.text(column).casefold() < other.text(column).casefold()
-        return (self.data(column, Qt.DisplayRole)
-                < other.data(column, Qt.DisplayRole))
+        if column == COL_COPIES:
+            return (self.data(column, Qt.DisplayRole)
+                    < other.data(column, Qt.DisplayRole))
+        return self.text(column).casefold() < other.text(column).casefold()
 
 
 class EffectFilterWindow(QDialog):

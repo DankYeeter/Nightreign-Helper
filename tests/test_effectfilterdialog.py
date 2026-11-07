@@ -284,6 +284,19 @@ def test_sorting_by_a_column_keeps_the_boxes_and_the_families_together(
     assert _head(window).childCount() == 2
 
 
+def test_sorting_by_type_puts_a_family_heading_with_its_empty_cell_first(window):
+    """A heading has no type: its cell held nothing a `<` could compare with
+    the text of a row, and the click on the column head raised `TypeError`."""
+    window.tree.sortItems(dlg.COL_TYPE, Qt.AscendingOrder)
+    top = _top_level(window)
+    assert top[0] is _head(window)
+    assert [item.text(dlg.COL_TYPE) for item in top[1:]] == [
+        "Curse", "Effect", "Effect", "Effect"]
+    window.tree.sortItems(dlg.COL_TYPE, Qt.DescendingOrder)
+    assert _top_level(window)[-1] is _head(window)
+    assert _head(window).childCount() == 2
+
+
 def test_the_frozen_save_names_its_rows_out_of_the_dataset(qapp, filters,
                                                             frozen_inventory,
                                                             game_data):
