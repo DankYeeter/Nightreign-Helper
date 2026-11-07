@@ -63,9 +63,9 @@ FAMILY_SEPARATOR = "\n"
 
 #: Not a fact about the game, which sets no ceiling (`statsheet.SituationalRow`):
 #: `model.compute` expands one copy per stack, so Optimize slows with the value
-#: (QA-336). Measured 2026-11-07 on the A6 case, Night Invader alone: 2.4 s at 4,
-#: 14.2 s at 99.
-MOST_STACKS = 99
+#: (QA-336, user decision 2026-11-07). Measured 2026-11-07 on the A6 case, offscreen:
+#: 2.5 s at 10 against 14.2 s at 99, with the budget at 6 s.
+MOST_STACKS = 10
 
 
 def stored(kind: str) -> frozenset[int]:
@@ -99,7 +99,8 @@ def stack_count(text: str) -> int | None:
     from 0 to `MOST_STACKS` in plain digits (`int` would read other scripts,
     and raise on five thousand of them, so the length comes first)."""
     if text.isascii() and text.isdigit() and len(text) <= len(str(MOST_STACKS)):
-        return int(text)
+        count = int(text)
+        return count if count <= MOST_STACKS else None
     return None
 
 

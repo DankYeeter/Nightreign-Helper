@@ -395,7 +395,7 @@ def test_only_a_stack_effect_has_a_stacks_field(stack_window):
     field = window.stack_fields[STACKING]
     assert field.toolTip() == dlg.STACKS_TOOLTIP == (
         "How many stacks Optimize and the relic picker's figures count, a whole "
-        "number from 0 to 99; 0 leaves this effect out. Empty: the count ticked "
+        "number from 0 to 10; 0 leaves this effect out. Empty: the count ticked "
         "on the stat sheet, otherwise 1. Anything else turns red and counts as "
         "empty. The stat sheet itself does not change.")
     assert field.accessibleName() == "Stacks: Attack up for each kill"
@@ -415,7 +415,7 @@ def test_typing_a_stacks_value_writes_through_and_clearing_empties_it(
     assert filters.stacks == {STACKING: 0} and field.text() == "0"
 
 
-@pytest.mark.parametrize("typed", ["2.5", "-1", "x", "100", "2 "])
+@pytest.mark.parametrize("typed", ["2.5", "-1", "x", "11", "100", "2 "])
 def test_a_text_that_is_no_count_stays_as_typed_in_red_and_counts_as_empty(
         stack_window, filters, typed):
     """`2.5` once became 25: the validator swallowed the point and let the 5
@@ -435,16 +435,16 @@ def test_a_refused_text_stays_when_another_mark_is_drawn_and_can_be_put_right(
     filters.mark(10, effectfilters.REQUIRED)
     assert field.text() == "2.5" and BAD in field.styleSheet()
     field.clear()
-    QTest.keyClicks(field, "25")
-    assert filters.stacks == {STACKING: 25}
-    assert field.text() == "25" and field.styleSheet() == ""
+    QTest.keyClicks(field, "5")
+    assert filters.stacks == {STACKING: 5}
+    assert field.text() == "5" and field.styleSheet() == ""
 
 
 def test_a_stacks_field_counts_the_largest_value_and_a_zero_in_front(
         stack_window, filters):
     field = stack_window.stack_fields[STACKING]
-    QTest.keyClicks(field, "99")
-    assert filters.stacks == {STACKING: 99} and field.styleSheet() == ""
+    QTest.keyClicks(field, "10")
+    assert filters.stacks == {STACKING: 10} and field.styleSheet() == ""
     field.clear()
     QTest.keyClicks(field, "07")
     assert filters.stacks == {STACKING: 7} and field.text() == "7"

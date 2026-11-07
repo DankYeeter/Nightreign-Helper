@@ -107,7 +107,7 @@ ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
                  "is avoided. It matters only once the family header is set "
                  "to Avoid.")
 STACKS_TOOLTIP = ("How many stacks Optimize and the relic picker's figures "
-                  "count, a whole number from 0 to 99; 0 leaves this effect "
+                  "count, a whole number from 0 to 10; 0 leaves this effect "
                   "out. Empty: the count ticked on the stat sheet, otherwise "
                   "1. Anything else turns red and counts as empty. The stat "
                   "sheet itself does not change.")

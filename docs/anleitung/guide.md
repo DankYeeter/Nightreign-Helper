@@ -242,7 +242,7 @@ to one family sit under a heading: **Avoid** on the heading avoids every
 member below it, and **Allow** on one member lets just that one back in. An
 effect that stacks, such as "Attack power increased for each Night Invader
 defeated", also has a **Stacks** field: type how many stacks Optimize and the
-figures in the relic picker should count, a whole number from 0 to 99, 0 to not
+figures in the relic picker should count, a whole number from 0 to 10, 0 to not
 count it at all, or leave it empty to use the count ticked on the stat sheet
 (one if it is not ticked there). Anything else turns red and counts as empty.
 The value is saved and changes nothing on the stat sheet; **Why** lists the

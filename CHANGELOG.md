@@ -10,7 +10,7 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - **Stacks in the effect filter.** An effect that stacks, such as "Attack power
   increased for each Night Invader defeated", now has a Stacks field under
   Filters: Optimize and the figures in the relic picker count it that many
-  times (a whole number from 0 to 99), 0 leaves it out, empty uses the count
+  times (a whole number from 0 to 10), 0 leaves it out, empty uses the count
   ticked on the stat sheet, otherwise one. The value is saved, changes nothing
   on the stat sheet, and **Why** lists it.
 
