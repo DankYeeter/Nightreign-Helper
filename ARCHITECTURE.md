@@ -9742,6 +9742,15 @@ in allen elf. Der Unterschied ist also gross genug fuer die Frage.
    Pruefung am Fenster unten. **Gebaut in `datasource.load_data`** (dem einen Ladeweg, `app.main`), nicht in `app.py`. **Nachmessung am gebauten `VesselComparison`,
    07.11.2026, Wylder, 11 Gefaesse, Deep an, 324 Relikte, Testabzug v19, je zwei kalte Laeufe:** Schaden mit `freeze` 9,05 bis 10,61 s, Spitzen 12,9 bis 23,4 ms, einmal 134,0 ms in 4 Laeufen;
    ohne 9,03 und 11,30 s, Spitzen 40,1 und 52,9 ms. Abwehr mit `freeze` 6,74 und 8,13 s, Spitzen 13,4 und 13,2 ms; ohne 6,96 und 7,59 s, beide 59,1 ms. 11 Treffer 10 bis 20 ms.
+   **GIL-Umschaltintervall (QA-323, 07.11.2026):** Die Grenze war nicht der GC allein: jeder PySide-Aufruf wartete das 5-ms-Umschaltintervall des rechnenden Workers ab. Darum setzt `app.main` einmal `sys.setswitchinterval(GIL_SWITCH_SECONDS)` mit 0,5 ms. Echtes Fenster, Wylder's Chalice, Deep an, 324 Relikte, Testabzug v19, 5900X, je 5 Messungen, Median:
+   | waehrend des Vergleichs | 5 ms (Bestand) | 0,5 ms |
+   |---|---|---|
+   | Picker bis zur Rangfolge | 1247 ms | **170 ms** |
+   | Picker bis zur letzten Karte | 2465 ms | **433 ms** |
+   | Klick auf eine Gefaesszeile | 946 ms | **64 ms** |
+   | kalter `Optimize` samt Vergleich, gesamt | 12,58 s | 12,64 s |
+
+   Im Leerlauf unveraendert (Picker 107 gegen 93 ms, Klick 20 gegen 20 ms). Pausieren des Vergleichs bei offenem Picker (Alternative aus QA-323) nicht gebaut: das Intervall haelt A6 mit einer Zeile. Zielgeraet nicht gemessen.
 
 **Konsequenz.** Leicht: jede Zeile ist per Bauart, was `Optimize` dort sagt, inklusive Avoid, Teilmenge und Stern; ein spaeterer Fix an `run.run` gilt mit. Ein
 wiederholter `Optimize` ist Treffer. Dauerhaft: rund 13 s Hintergrundlast je Optimize-Frage auf einem Kern; drei Controller muessen vor Datenwechsel stehen; AD-059 und AD-062 teilen `place`.

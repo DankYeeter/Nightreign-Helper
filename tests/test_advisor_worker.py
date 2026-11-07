@@ -909,3 +909,22 @@ def test_known_answer_starts_nothing_on_a_miss(qapp, controller, question):
     assert spin(qapp, lambda: bool(seen.ready))
     known = advisor_controller.known_answer(request, inventory)
     assert known.suggestions == seen.ready[0].suggestions
+
+
+def test_the_program_hands_the_gil_over_quickly(monkeypatch):
+    """QA-323: at the 5 ms default the window waited that out at every PySide
+    call during a comparison, 1247 ms for the picker (AD-062.9)."""
+    from nrplanner import app
+
+    class StopHere(Exception):
+        pass
+
+    def stop():
+        raise StopHere
+
+    asked = []
+    monkeypatch.setattr("sys.setswitchinterval", asked.append)
+    monkeypatch.setattr(app.uiscale, "apply_to_environment", stop)
+    with pytest.raises(StopHere):
+        app.main()
+    assert asked == [0.0005]

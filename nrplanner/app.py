@@ -3705,7 +3705,15 @@ class Planner(QMainWindow):
         self.recompute()
 
 
+#: AD-062.9: how long the worker of a comparison keeps the GIL while the window
+#: waits for it. At Python's default of 5 ms every PySide call waited that out,
+#: and the picker took 1247 ms during a comparison against 107 ms idle (QA-323).
+GIL_SWITCH_SECONDS = 0.0005
+
+
 def main() -> int:
+    sys.setswitchinterval(GIL_SWITCH_SECONDS)
+
     # Before the QApplication, which is when Qt reads it and so the last
     # moment it can be said.
     uiscale.apply_to_environment()
