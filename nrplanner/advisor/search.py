@@ -220,6 +220,8 @@ def attainable(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
     held = types.held_relics(problem)
     effects = [eid for eid in sorted(problem.required)
                if not any(_carries(relic, eid) for relic in held)]
+    if not effects:
+        return frozenset(problem.required)
     worth: dict[int, float] = {}
     reach = {0}
     for pool in pools:
