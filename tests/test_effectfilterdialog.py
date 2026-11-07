@@ -334,3 +334,13 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
               if label.text() == dlg.MARKS_EXPLANATION]
     assert len(labels) == 1
     assert labels[0].focusPolicy() == Qt.NoFocus
+
+
+def test_the_name_takes_the_room_and_copies_only_its_content(window):
+    """QA-334: both stood at 162 px of an opened window, names cut at 20 letters."""
+    window.resize(608, 707)
+    window.show()
+    QApplication.processEvents()
+    header = window.tree.header()
+    assert header.sectionSize(dlg.COL_NAME) > header.sectionSize(dlg.COL_COPIES)
+    window.hide()

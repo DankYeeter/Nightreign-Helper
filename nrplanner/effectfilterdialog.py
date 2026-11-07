@@ -234,6 +234,9 @@ class EffectFilterWindow(QDialog):
         # The name takes what the five narrow columns leave; measured with
         # 100 px defaults the name got 82 px of a 520 px window (T-277b).
         header = self.tree.header()
+        # A tree's head stretches its last section too, and `Copies` would
+        # then share the room with the name (QA-334).
+        header.setStretchLastSection(False)
         header.setSectionResizeMode(QHeaderView.ResizeToContents)
         header.setSectionResizeMode(COL_NAME, QHeaderView.Stretch)
         by_family = collections.defaultdict(list)
