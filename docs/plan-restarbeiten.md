@@ -730,13 +730,9 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
 - **Zustandsquellen der Weapon Arts** (Hoarfrost Stomp u. a., siehe oben):
   die Art liest nur ihre eigene AtkParam-Zeile, keine Bullets; der Zustand
   sitzt vermutlich auf einem per TAE/BehaviorParam erzeugten Bullet.
-- **OF-54 (128 statt 129):** alle drei Puppenwerte (123/128/138) passen auch
-  zu einem eigenen Zauberfaktor k in [0,59774; 0,59886) statt 0,6 oder zu
-  einem Puppenabzug x in [0,99625; 0,99807). Die Waffen-0,6 ist am Menue
-  gemessen, die Zauberwerte an der Puppe; ein vierter Puppenwert (z. B. +1,
-  Faktor 1,055: Programm 130, k-Lesart 130, Abzug-Lesart 130 -- trennt nicht;
-  +2, 1,065: 131,7 / 131,2 / 131,4 -- trennt nicht) reicht nicht, eine Waffe
-  an der Puppe gegen ihre Menue-AR wuerde trennen.
+- **OF-54 ist erledigt** (Eintrag oben veraltet): seit T-335u schneidet
+  `damage.spell` den gepufferten Grundwert vor der Spell power ab;
+  floor(152 x 1,045) = 158, x 1,35614 x 0,6 = 128,56 -> 128 = Puppe.
 - **Optimizer-Stichprobe:** 10 Nightfarer x alle Vessels x Deep an/aus x 4
   Ziele (880 Laeufe, eingefrorener Spielstand) gegen Einzeltausch ueber den
   vollen Pool: eine Abweichung, +0,01 % (Recluse, Decrepit Recluse's Goblet,
