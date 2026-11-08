@@ -38,15 +38,32 @@ import pytest
 
 from nrdata import extract, paramdef
 
-#: Measured 2026-09-20 against data_version 10350000.
+#: Measured 2026-09-20 against data_version 10350000; 111 became 119 with
+#: EXTRACT_VERSION 21 (08.11.2026), which follows a bullet's interval-created
+#: bullets and walks 12 deep -- the eight newcomers below, none of the 111
+#: moved.
 SPELLS_TODAY = 160
-SPELLS_WITH_DAMAGE_TODAY = 111
+SPELLS_WITH_DAMAGE_TODAY = 119
 SWAP_RELIC_EFFECTS_TODAY = 10
 
 #: (spell id, damage type, base damage) -- the two anchors of N2.
 ANCHORS = [
     (4000, "Magic", 152),      # Glintstone Pebble
     (6820, "Physics", 362),    # Beast Claw, charged
+]
+
+#: (spell name, damage type, base damage) the interval-created bullets and
+#: the deeper walk brought in (EXTRACT_VERSION 21, read off regulation.bin
+#: 08.11.2026). Lightning Strike's bolt is nine bullets down.
+INTERVAL_ANCHORS = [
+    ("Glintstone Stars", "Magic", 95),
+    ("Star Shower", "Magic", 55),
+    ("Founding Rain of Stars", "Magic", 54),
+    ("Stars of Ruin", "Magic", 35),
+    ("Magic Downpour", "Magic", 52),
+    ("Rykard's Rancor", "Fire", 111),
+    ("Lightning Strike", "Thunder", 322),
+    ("Ancient Dragons' Lightning Strike", "Thunder", 140),
 ]
 
 #: The Nightfarers whose left hand holds something at the start, and what.
@@ -187,3 +204,21 @@ def test_an_empty_left_hand_carries_no_field_at_all(game_data):
 
     assert len(empty_handed) == len(game_data["heroes"]) - len(STARTING_LEFT_HANDS)
     assert not [hero for hero in empty_handed if "starting_weapon_left" in hero]
+
+
+@pytest.mark.parametrize("name, damage_type, figure", INTERVAL_ANCHORS)
+def test_a_spell_whose_hit_an_interval_bullet_carries_has_its_damage(
+        game_data, name, damage_type, figure):
+    """Until EXTRACT_VERSION 21 these eight read as harmless: their hit sits
+    on a bullet another bullet keeps creating, or deeper than six bullets."""
+    spell = next(s for s in game_data["spells"] if s["name"] == name)
+    assert spell.get("damage") == {damage_type: figure}
+
+
+def test_the_interval_field_is_read_where_it_was_measured():
+    """The vendored def is 334 bytes and puts the field 4 bytes late; the
+    offset is only valid against that def (`extract.BULLET_DEF_SIZE`)."""
+    defs = paramdef.load_all(DEFS_DIR)
+    assert defs["Bullet"].row_size == extract.BULLET_DEF_SIZE
+    assert defs["Bullet"].by_name("intervalCreateBulletId").offset != \
+        extract.BULLET_INTERVAL_OFFSET

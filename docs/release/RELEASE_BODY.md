@@ -233,5 +233,7 @@ starts there.
   (Raider's Goblet on a 324-relic save: AR +89 % / Defense +34 % became
   AR +69 % / Defense +45 %). The vessel tooltip shows how AR and Defense are
   worked out. A spell school of the other kind (Bestial with a staff) is now
-  refused with a sentence instead of ranking the staff's own spell. The data
-  cache is not rebuilt for this update.
+  refused with a sentence instead of ranking the staff's own spell. Eight
+  spells that showed no damage now have it (Star Shower, Rykard's Rancor,
+  Lightning Strike and five more). The data cache is rebuilt once on first
+  start.

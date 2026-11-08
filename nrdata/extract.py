@@ -125,7 +125,14 @@ MAX_LEVEL = 15
 #      `buffs[]` and `states[]` (`SpEffectParam.iconId`) and on every entry of
 #      `drops`, and `deep_of_night.sigil_icon`. A cache left on 19 draws those
 #      names without a symbol.
-EXTRACT_VERSION = 20
+#  21  spell damage follows a bullet's interval-created bullets as well
+#      (`Bullet.intervalCreateBulletId`, read by offset: the vendored def puts
+#      it 4 bytes late) and up to 12 bullets deep. Eight spells that showed no
+#      damage now carry one -- Glintstone Stars, Star Shower, Founding Rain of
+#      Stars, Stars of Ruin, Magic Downpour, Rykard's Rancor, Lightning Strike,
+#      Ancient Dragons' Lightning Strike -- and none of the 111 others moves
+#      (measured against data_version 10350000, 08.11.2026).
+EXTRACT_VERSION = 21
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -191,7 +198,19 @@ HIT_SP_EFFECT_FIELDS = tuple(f"spEffectId{i}" for i in range(5))
 # is built, and the strongest figure of a spell often sits on such a child:
 # Beast Claw's 362 is two bullets down. The walk is capped and remembers what
 # it has seen, because these chains do loop back on themselves.
-MAX_BULLET_DEPTH = 6
+MAX_BULLET_DEPTH = 12
+
+# The bullet a bullet keeps creating while it flies -- Star Shower's stars,
+# Rykard's Rancor's skulls, Magic Downpour's drops. The vendored Bullet def
+# (334 bytes against Nightreign's 348-byte row) puts `intervalCreateBulletId`
+# at 176 and decodes garbage there; at 172 12 248 of 12 254 rows hold -1 or an
+# existing bullet id, and the other six name ids that are simply not in the
+# table (measured 08.11.2026, data_version 10350000). So it is read by
+# offset, beside the def, the way `startMagicId` is (below), and refused
+# loudly if the def is not the one that was measured against.
+BULLET_INTERVAL_FIELD = "intervalCreateBulletIdByOffset"
+BULLET_INTERVAL_OFFSET = 172
+BULLET_DEF_SIZE = 334
 
 # SpEffectParam's row is 1024 bytes and the shipped def describes 976 of them.
 # Offset 1020 holds the spell a swap relic hands the player (AD-050.4).
@@ -3015,13 +3034,21 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             f"rows. That is where every spell's damage is: extracting past it "
             f"would report all {len(magic_table.rows)} spells as harmless.")
     atk_by_id = {r.id: r for r in atk_table.rows}
+    bullet_def = only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID",
+                                           *HIT_SP_EFFECT_FIELDS})
+    if bullet_def is not None:
+        if bullet_def.row_size != BULLET_DEF_SIZE:
+            raise NotWhatItClaims(
+                f"{BULLET_INTERVAL_FIELD!r} is read at offset "
+                f"{BULLET_INTERVAL_OFFSET} rather than by name, and the Bullet "
+                f"paramdef describes {bullet_def.row_size} bytes per row where "
+                f"it was measured against {BULLET_DEF_SIZE}. Re-measure the "
+                f"offset before trusting any spell's damage.")
+        bullet_def.fields.append(paramdef.Field(
+            BULLET_INTERVAL_FIELD, "s32", BULLET_INTERVAL_OFFSET, 4))
     bullet_by_id = {
         r.id: r
-        for r in param.read(
-            members["Bullet"],
-            only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID",
-                                      *HIT_SP_EFFECT_FIELDS}),
-        ).rows
+        for r in param.read(members["Bullet"], bullet_def).rows
     }
     statuses = set(STATUS_POWER.values())
 
@@ -3068,6 +3095,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             atk_ids.append(bullet.values.get("atkId_Bullet", -1))
             on_hit.extend(hit_sp_ids(bullet))
             follow_bullet(bullet.values.get("HitBulletID", -1), depth + 1)
+            follow_bullet(bullet.values.get(BULLET_INTERVAL_FIELD, -1),
+                          depth + 1)
 
         for slot in range(1, MAGIC_REF_SLOTS + 1):
             ref = row.values.get(f"refId{slot}", -1)

@@ -716,17 +716,17 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
 
 ## Nachtlauf 08.11.2026 (1.22.0)
 
-- **49 von 160 Zaubern ohne Schadenszahl**, darunter sichtbar schadende:
-  Glintstone Stars, Star Shower, Founding Rain of Stars, Stars of Ruin,
-  Magic Downpour, Freezing Mist, Rykard's Rancor, Lightning Strike, Ancient
-  Dragons' Lightning Strike, Carian Retaliation, Shadow Bait. Vermutete
-  Ursache (nicht gemessen): `extract.spell_damage.follow_bullet` folgt nur
-  `HitBulletID`; `Bullet.intervalCreateBulletId` (laut vendored
-  `Bullet.xml` vorhanden) wird nicht gelesen. Pruefen braucht
-  `regulation.bin` aus dem Spielordner (im Nachtlauf nicht freigegeben).
-  Vorsicht beim Fix: "staerkster Einzeltreffer" kann bei den 111 belegten
-  Zaubern steigen, `SPELLS_WITH_DAMAGE_TODAY` und die Ankerwerte neu messen;
-  `EXTRACT_VERSION` 21 macht den Testabzug ungueltig.
+- **Zauber ohne Schadenszahl: 8 von 49 geloest (EXTRACT_VERSION 21).**
+  `Bullet.intervalCreateBulletId` liegt im 348-Byte-Satz bei Offset 172, die
+  vendored Def (334 Byte) liest es 4 Byte zu spaet; gelesen jetzt per Offset.
+  Lightning Strike liegt 9 Bullets tief, Tiefe 6 -> 12. Gemessen an
+  `regulation.bin` (sha256 876a3ca2...): die 111 bisherigen Zahlen bleiben
+  bitgleich, Death Lightning behaelt Death Blight 50. Die uebrigen 41 tragen
+  wirklich keine Zahl (Heilung, Buffs, Schilde) oder Zustand ohne Schaden
+  (Freezing Mist, Poison Mist); offen bleiben Carian Retaliation (Konter,
+  Schaden nicht in der Kette) und Shadow Bait.
+- **Testabzug ungueltig** (EXTRACT_VERSION 21): der erste Programmlauf mit
+  1.22.0 baut ihn neu; dann als neue Vorlage kopieren.
 - **Zustandsquellen der Weapon Arts** (Hoarfrost Stomp u. a., siehe oben):
   die Art liest nur ihre eigene AtkParam-Zeile, keine Bullets; der Zustand
   sitzt vermutlich auf einem per TAE/BehaviorParam erzeugten Bullet.

@@ -301,6 +301,7 @@ QUOTED_IN_A_REFUSAL = {
     ("binary.py", "expected"): 1,
     ("extract.py", "CATALYST_SCALING_FIELD"): 2,
     ("extract.py", "START_MAGIC_FIELD"): 2,
+    ("extract.py", "BULLET_INTERVAL_FIELD"): 1,
     ("paramdef.py", "raw"): 1,
     ("paramdef.py", "ftype"): 1,
 }

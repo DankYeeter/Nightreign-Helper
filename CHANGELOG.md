@@ -35,6 +35,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
   of different types is averaged, never added up.
 
 ### Fixed
+- **Eight spells that showed no damage now have their figure**: Glintstone
+  Stars, Star Shower, Founding Rain of Stars, Stars of Ruin, Magic Downpour,
+  Rykard's Rancor, Lightning Strike and Ancient Dragons' Lightning Strike.
+  Their hit sits on a projectile another projectile keeps creating, or nine
+  projectiles deep, and the program did not look that far. No other spell's
+  figure changes. **The data cache is rebuilt once on first start.**
 - **A spell school of the other kind is now refused like the kind itself.**
   Asking the advisor about an incantation school (Bestial, Dragon Cult,
   Godslayer and the rest) with a staff, or a sorcery school with a seal,
