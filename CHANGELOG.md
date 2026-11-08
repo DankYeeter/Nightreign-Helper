@@ -16,6 +16,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - **Shorter explanations on Effects & chances, Weapons & spells and Deep of
   Night.** The paragraphs over the tables are now short bullet legends.
   Deep of Night is more compact, with one short legend under each table.
+- **The Red variants tab is rebuilt around figures.** Two short bullets, a bar
+  per Depth split by sort with the exact table under it, what each step deeper
+  adds, all six maps side by side, and the 24 field bosses the game can turn
+  red. The weapon-drop and Everdark lines are gone: the game's files do not
+  back the first, and the second is on the Deep of Night tab already.
 
 ## [1.21.0] - 2026-11-07
 
