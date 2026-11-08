@@ -69,7 +69,7 @@ def test_the_tooltip_works_out_both_percentages():
     first, ar_line, defense_line = advisorbar.how_the_figures_read(row)
     assert first == "AR 158 → 276 (+75 %), Defense 1200 → 1284 (+7 %)."
     assert ar_line == advisorbar.AR_READS
-    assert "never added up" in defense_line and "HP" in defense_line
+    assert "strongest damage negation" in defense_line and "HP" in defense_line
 
 
 def test_both_figures_are_positive_for_every_nightfarer(game_data):

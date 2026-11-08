@@ -594,9 +594,9 @@ AR_READS = ("AR is your Nightfarer's starting armament at its lowest tier, "
             "armament with no relics.")
 #: What `Defense` is: effective HP (`goals._min_damage_taken`).
 DEFENSE_READS = ("Defense is effective HP: your max HP divided by the share "
-                 "of a hit that gets through, averaged over the eight damage "
-                 "types. More HP counts in full; damage negation of "
-                 "different types is never added up.")
+                 "of a hit that gets through. More HP counts in full; only "
+                 "the strongest damage negation counts, of whatever type, "
+                 "never a sum or an average.")
 
 
 def _from_to(figure: str, base_figure: str) -> str:

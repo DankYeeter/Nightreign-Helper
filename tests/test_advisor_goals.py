@@ -1945,7 +1945,7 @@ def test_the_survival_goal_uses_the_weights_it_is_handed(game_data, wylder):
 
     score = goals.GOALS["min_damage_taken"]
     assert score.score(protected, ctx).value == score.score(plain, ctx).value
-    assert score.score(plain, ctx).weights_note == fire_only.note
+    assert score.score(plain, ctx).weights_note == goals.STRONGEST_ONLY_NOTE
 
 
 def test_a_weighting_with_no_weights_is_refused(game_data, wylder):
@@ -2253,3 +2253,21 @@ def test_the_baseline_moves_the_counted_copies_of_the_frozen_save(
     orders_differ, moved = what_the_baseline_moves(planner, frozen_inventory)
     assert orders_differ, "the baseline left the survival order as it was"
     assert len(moved) == COPIES_THE_BASELINE_MOVES, sorted(moved)
+
+
+def test_only_the_strongest_negation_counts():
+    """User decision 2026-11-08: physical -12 % and magic -10 % are 12 %
+    less damage, not a sum and not an average over the eight kinds."""
+    weights = dict(goals.EVEN_WEIGHTING.weights)
+    rates = {name: 0.88 for name in ("slashDamageCutRate",
+             "blowDamageCutRate", "thrustDamageCutRate",
+             "neutralDamageCutRate")}
+    rates["magicDamageCutRate"] = 0.9
+    assert goals.strongest_cut(rates, weights) == 0.88
+
+
+def test_a_penalty_on_one_type_is_not_hidden_by_negation_on_another():
+    weights = dict(goals.EVEN_WEIGHTING.weights)
+    rates = {"magicDamageCutRate": 0.9, "fireDamageCutRate": 1.1}
+    assert goals.strongest_cut(rates, weights) == 0.9 * 1.1
+    assert goals.strongest_cut({}, weights) == 1.0

@@ -221,8 +221,8 @@ _DAMAGE_TAKEN_SCOPE = (
     "Effective HP assumes each damage-reduction rate multiplies the damage "
     "you take; the game files name the fields, not how the engine applies "
     "them.",
-    "The game data gives no relative frequency of damage types, so the "
-    "weighting between them is an assumption.",
+    "Which damage types you will meet is not in the game data, so the "
+    "strongest negation stands for all of them.",
     "Ailment and status resistance are not part of this figure.",
     "Only the damage reduction the equipped effects carry is counted; "
     "nothing else that lowers damage in play is in this figure.",
@@ -768,8 +768,10 @@ def _min_damage_taken(build: model.Build,
                       ctx: types.GoalContext) -> types.GoalScore:
     """How much this build can take before it falls over, as effective HP.
 
-    HP divided by what gets through, one damage kind at a time, then averaged
-    over the eight with the weights the context carries. Bigger is better, so
+    HP divided by what gets through, where only the strongest damage
+    negation counts and not an average over the eight kinds
+    (`strongest_cut`, user decision 2026-11-08); the context's weighting only
+    says which kinds take part. Bigger is better, so
     it ranks the same way round as the damage goal does and one comparison
     serves both.
 
@@ -828,15 +830,38 @@ def _min_damage_taken(build: model.Build,
     # `derived` is (before relics, after relics); the figure the player has is
     # the second.
     after = hp[1]
-    total = sum(weights.values())
-    effective = sum(weight * after / build.rates.get(field_name, 1.0)
-                    for field_name, weight in weights.items()) / total
+    effective = after / strongest_cut(build.rates, weights)
     return types.GoalScore(
         value=effective,
         display=f"Effective HP {effective:.0f}",
         unit="effective HP",
-        weights_note=ctx.weighting.note,
+        weights_note=STRONGEST_ONLY_NOTE,
     )
+
+
+#: Said wherever the Defense figure is explained (user decision 2026-11-08,
+#: "Nur der hoechste Wert zaehlt"): negation of different damage types is
+#: neither added up nor averaged; the strongest one stands for all.
+STRONGEST_ONLY_NOTE = (
+    "Only the strongest damage negation counts, whatever its type, and the "
+    "worst damage-taken penalty likewise; negation of different types is "
+    "never added up or averaged.")
+
+
+def strongest_cut(rates: dict, weights: dict) -> float:
+    """The one factor of a hit that gets through: the strongest reduction
+    among the weighted fields times the worst penalty among them.
+
+    Physical -12 % and magic -10 % give 0.88, not 0.88 x 0.9 and not their
+    average (user decision 2026-11-08). A field with weight 0 takes no part.
+    A penalty is kept apart from the reduction so that a curse raising one
+    type is not hidden by a relic lowering another.
+    """
+    counted = [rates.get(name, 1.0) for name, weight in weights.items()
+               if weight > 0]
+    best = min([rate for rate in counted if rate < 1.0], default=1.0)
+    worst = max([rate for rate in counted if rate > 1.0], default=1.0)
+    return best * worst
 
 
 #: How hard `BALANCED` pulls the two halves together, as `k` in

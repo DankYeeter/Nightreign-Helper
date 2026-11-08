@@ -27,12 +27,15 @@ History before 1.10.0 was not reconstructed; this file starts here.
   attack rating by effective HP, so every relic went to whichever side it moved
   by the larger percentage, usually attack. Now both sides are measured against
   your Nightfarer without relics, and the further one side is ahead, the less
-  another percent of it counts. On a 324-relic save (Raider, level 15) Raider's
-  Goblet moved from AR +89 % / Defense +34 % to AR +69 % / Defense +45 %.
+  another percent of it counts.
+- **Defense counts only the strongest damage negation.** Physical -12 % and
+  Magic -10 % now make 12 % less damage taken, where before the eight damage
+  types were averaged (+8 % here). The worst damage-taken penalty counts the
+  same way. Nothing is ever added up.
 - **The vessel tooltip now shows how AR and Defense are worked out**: from
   which number to which (`AR 158 → 276 (+75 %)`), what the AR is measured on,
-  and that Defense is effective HP. Max HP counts in it, and damage negation
-  of different types is averaged, never added up.
+  and that Defense is effective HP. Max HP counts in it, and only the
+  strongest damage negation.
 
 ### Fixed
 - **Ten spells that showed no damage now have their figure**: Glintstone
