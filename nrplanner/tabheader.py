@@ -17,7 +17,10 @@ first has to work out what the tab is for before they can use either.
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLabel
+from html import escape
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QGridLayout, QLabel, QWidget
 
 from .theme import ACCENT, MUTED
 
@@ -44,3 +47,34 @@ def question(text: str) -> QLabel:
     label.setWordWrap(True)
     label.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
     return label
+
+
+def legend(items: list[tuple[str, str]], columns: int = 2) -> QWidget:
+    """A short bullet legend: one `term: meaning` line per entry.
+
+    Replaces the paragraphs that used to stand over the tables -- a reader
+    skims a legend for the one term they are wondering about, and a paragraph
+    has to be read whole to find it.
+
+    Laid out in `columns` columns, filled row by row, so a legend of six
+    entries costs three lines and not six. Every entry is wrapped, for the
+    same reason `question` is: an unwrapped label hands its whole width to
+    the window.
+    """
+    panel = QWidget()
+    grid = QGridLayout(panel)
+    grid.setContentsMargins(0, 0, 0, 0)
+    grid.setHorizontalSpacing(18)
+    grid.setVerticalSpacing(1)
+    for index, (term, meaning) in enumerate(items):
+        label = QLabel(f"• <b>{escape(term, quote=False)}:</b> "
+                       f"{escape(meaning, quote=False)}")
+        label.setTextFormat(Qt.RichText)
+        label.setWordWrap(True)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        label.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        grid.addWidget(label, index // columns, index % columns,
+                       Qt.AlignTop)
+    for column in range(columns):
+        grid.setColumnStretch(column, 1)
+    return panel

@@ -30,9 +30,13 @@ QUESTION = (
 #: colour and mode the reader had not chosen -- `All colours` is the default,
 #: so no colour was selected at all. Both are gone; this sentence appears
 #: once, and `tests/test_effects_tab_display.py` holds the count at one.
+#:
+#: Since 2026-11-07 it is one entry of the legend under the filters rather
+#: than a sentence of a paragraph, and short: the player asked for a legend
+#: instead of a block of prose over the table.
 CHANCE_DEFINITION = (
-    "Chance is per relic effect slot, over every slot that can roll the "
-    "effect under the filters above — not per relic and not per run.")
+    "per relic effect slot that can roll it under the filters above, not "
+    "per relic or per run.")
 
 #: The one definition of the `Copies` column, and the only one.
 #:
@@ -51,16 +55,14 @@ CHANCE_DEFINITION = (
 #: number keeps counting it. And it is not a quantity a player carries, which
 #: is exactly the reading he had.
 #:
-#: Written once and used twice -- in the sentence over the table where `Tier`
+#: Written once and used twice -- in the legend over the table where `Tier`
 #: is explained and it worked, and in the header tooltip that a shortened
 #: `Co...` still has to answer with. One string, so the two cannot drift into
-#: the disagreement AK-79 is about.
+#: the disagreement AK-79 is about. Shortened to legend length on
+#: 2026-11-07; it still says the two things above.
 COPIES_DEFINITION = (
-    "'Copies' is how many separate entries the game's own data holds for one "
-    "and the same effect — merged into a single row here, and counted over "
-    "all of them whatever the filters show. It is not something you carry: "
-    "'Relic slots' says how many slots can roll it, 'Stacking' what a second "
-    "one does.")
+    "game data entries merged into this row, counted whatever the filters "
+    "show; not something you carry.")
 
 #: The one definition of the `Comes with curse` column, and the only one.
 #:
@@ -82,13 +84,23 @@ COPIES_DEFINITION = (
 #: once per identity over every row, the way `Copies` is settled (QA-172).
 #:
 #: Written once and used twice, exactly as `COPIES_DEFINITION`: in the
-#: sentence over the table and in the header tooltip (`COL_CURSE` entry).
+#: legend over the table and in the header tooltip (`COL_CURSE` entry).
 CURSE_DEFINITION = (
-    "'Comes with curse' says whether rolling this effect can also bring "
-    "you a curse. 'Sometimes' means only some of the relics that carry "
-    "the effect also carry a curse, so which one you take decides it. "
-    "'Always cursed' means every one of them does, so the effect never "
-    "comes without one.")
+    "'Sometimes': depends on the relic you pick. 'Always cursed': never "
+    "without one.")
+
+#: The legend under the filters (2026-11-07): one short line per column that
+#: is not self-explanatory. It replaced a paragraph of six sentences; the
+#: `Copies` and `Comes with curse` entries are the same strings their header
+#: tooltips carry, so the two still cannot drift apart.
+LEGEND = (
+    ("Avg / Best chance", CHANCE_DEFINITION),
+    ("Tier", "a rung in a ladder of strengths under one name."),
+    ("Copies", COPIES_DEFINITION),
+    ("Relic slots", "how many slots can roll it."),
+    ("Stacking", "what a second copy does."),
+    ("Comes with curse", CURSE_DEFINITION),
+)
 
 #: The chance cell of an effect no slot can reach under the current filters.
 #: It carries the signal the `Pools` column used to carry with a bare `0`
@@ -137,8 +149,8 @@ HEADER_TIPS = {
                "not a count of loot pools, and more slots does not mean more "
                "likely — the chance column says that.",
     COL_AVG: "Averaged over the slots that can roll it, each counting for "
-             "how often it occurs. The line under the filters says what the "
-             "figure is a chance of.",
+             "how often it occurs. The legend under the filters says what "
+             "the figure is a chance of.",
     COL_BEST: "The single most favourable slot. 100% means at least one "
               "slot always grants it.",
     COL_STACKS: "What a second copy of the effect does: adds, multiplies, "
@@ -887,6 +899,8 @@ class EffectsTab(QWidget):
         # the Red variants count columns). smoke_layout.py guards the class.
         self.summary.setWordWrap(True)
         layout.addWidget(self.summary)
+        self.legend = tabheader.legend(list(LEGEND), columns=3)
+        layout.addWidget(self.legend)
 
         self.table = EffectTable(len(COLUMNS))
         # Every column that is not self-explanatory says what it means where
@@ -1010,19 +1024,16 @@ class EffectsTab(QWidget):
                                  effecttext.name(r[0]).lower()))
 
         hidden = len(candidates) - len(rows)
-        note = (f" {hidden} identical duplicates merged." if hidden else "")
+        note = (f" {hidden} duplicates merged." if hidden else "")
         n_curses = sum(1 for eff, _c, _n in rows
                        if eff.get("is_curse") or eff.get("is_debuff"))
         undescribed = sum(1 for eff, _c, _n in rows
                           if describe_full(eff) == effecttext.NO_DESCRIPTION)
-        missing = (f" For {undescribed} the game gives nothing beyond the "
-                   f"name." if undescribed else "")
+        missing = (f" {undescribed} have no description in the game."
+                   if undescribed else "")
         self.summary.setText(
             f"{len(rows) - n_curses} buffs (blue) then {n_curses} curses "
-            f"(red).{note}{missing} {CHANCE_DEFINITION} Where an effect can "
-            f"come from several slots you see its average and its best. "
-            f"'Tier' marks effects that come in a ladder of strengths under "
-            f"one name. {COPIES_DEFINITION} {CURSE_DEFINITION}"
+            f"(red).{note}{missing}"
         )
 
         self.table.setSortingEnabled(False)

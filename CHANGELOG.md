@@ -13,6 +13,9 @@ History before 1.10.0 was not reconstructed; this file starts here.
   symbols, figures and durations. New on the tab: every banner an event can
   end on, enemy HP, and the full drop list with symbols and shares. Hordes of
   the Night now shows its Ultimate Art charge buff (+30 % for 40 s).
+- **Shorter explanations on Effects & chances, Weapons & spells and Deep of
+  Night.** The paragraphs over the tables are now short bullet legends.
+  Deep of Night is more compact, with one short legend under each table.
 
 ## [1.21.0] - 2026-11-07
 

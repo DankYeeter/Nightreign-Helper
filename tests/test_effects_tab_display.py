@@ -35,8 +35,8 @@ from tests import tabtext
 #: of, verbatim, and the two it replaces. Written out rather than imported for
 #: the reason at the top of this file.
 CHANCE_DEFINITION = (
-    "Chance is per relic effect slot, over every slot that can roll the "
-    "effect under the filters above — not per relic and not per run.")
+    "Avg / Best chance: per relic effect slot that can roll it under the "
+    "filters above, not per relic or per run.")
 GONE = (
     "averaged over every pool that can produce it",
     "how likely an effect is on one roll",
@@ -503,12 +503,13 @@ CURSE_HEADER = "Comes with curse"
 #: checked the tab against itself would go green no matter what the constant
 #: said; the wording the tab owes the player is written out again here on
 #: purpose, so a change to one without the other is what turns this red.
+#:
+#: Shortened to a legend entry on 2026-11-07 (the player asked for a short
+#: legend instead of the paragraph); the two cases it has to keep apart are
+#: unchanged.
 CURSE_DEFINITION = (
-    "'Comes with curse' says whether rolling this effect can also bring "
-    "you a curse. 'Sometimes' means only some of the relics that carry "
-    "the effect also carry a curse, so which one you take decides it. "
-    "'Always cursed' means every one of them does, so the effect never "
-    "comes without one.")
+    "'Sometimes': depends on the relic you pick. 'Always cursed': never "
+    "without one.")
 
 #: An effect with exactly one entry in the game's own data (`Copies` = 1),
 #: not a curse, and a description of its own -- so searching for it by name
@@ -535,12 +536,13 @@ def test_curse_is_explained_where_the_reader_is_already_looking(tab):
 
 
 def test_the_curse_sentence_is_in_the_paragraph(tab):
-    """Rot-vorher (1/2): the paragraph over the table carries the sentence.
+    """Rot-vorher (1/2): the legend over the table carries the sentence.
 
     Checked against the tab's own default filters -- the view QA-169 was
-    found in, table full.
+    found in, table full. Since 2026-11-07 the definitions stand in a
+    bullet legend under the count line instead of in one paragraph.
     """
-    shown = tabtext.plain(tab.summary.text())
+    shown = tabtext.plain(visible(tab.legend))
     assert CURSE_DEFINITION in shown, (
         f"the paragraph over the table does not say what {CURSE_HEADER!r} "
         f"means: {shown!r}")
@@ -578,12 +580,12 @@ def test_the_curse_sentence_survives_a_paragraph_with_nothing_else_extra(
     shown = tab.summary.text()
     assert "duplicates merged" not in shown, (
         f"this sample was meant to have no duplicate-merge note: {shown!r}")
-    assert "gives nothing beyond the name" not in shown, (
+    assert "have no description" not in shown, (
         f"this sample was meant to have no missing-description note: "
         f"{shown!r}")
     assert shown.startswith("1 buffs (blue) then 0 curses"), (
         f"this sample was meant to show zero curses: {shown!r}")
-    assert CURSE_DEFINITION in tabtext.plain(shown), (
+    assert CURSE_DEFINITION in tabtext.plain(visible(tab)), (
         f"the curse sentence is missing from a paragraph that dropped "
         f"every other optional clause: {shown!r}")
 

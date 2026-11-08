@@ -50,10 +50,10 @@ SWAPPABLE_ROWS = {
 #: AK-96, the two references that were missing from the first table, and the
 #: formula every one of AK-70's cases has to contain.
 NOT_IN_THE_FILES = "The files do not say"
+#: Since 2026-11-07 a legend entry under the table instead of a full line.
 REWARD_MULTIPLIER_NOTE = (
-    "Reward multiplier: the game's own multiplier for this Depth. The files "
-    "do not say what it multiplies, so it is shown as a comparison between "
-    "Depths and nothing more.")
+    "Reward multiplier: the game's own figure. The files do not say what it "
+    "multiplies, so compare Depths with it and nothing more.")
 
 
 @pytest.fixture(scope="module")
@@ -179,9 +179,8 @@ def test_the_sigil_line_separates_what_was_read_from_what_was_identified(
     info = (deep.get("sigil_info") or "").strip()
     everything = tabtext.everything(tab)
 
-    assert (f"{sigil}: the figure comes from the depth table. That the item "
-            f"is the {sigil} was identified in game, not read from a link in "
-            f"the files.") in everything
+    assert (f"{sigil}: count read from the depth table; the item was "
+            f"identified in game.") in everything
     if info:
         assert everything.count(info) == 1, (
             f"the game's own description of the {sigil} appears "

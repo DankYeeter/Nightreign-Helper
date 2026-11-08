@@ -29,34 +29,48 @@ CARD_WIDTH = 200
 #: App Designer's call, not this file's.
 HEADING = "WHICH ARMAMENT HITS HARDEST FOR YOUR BUILD"
 QUESTION = (
-    "Every armament and spell in the game, rated at the upgrade you set "
-    "here, for the Nightfarer and level you set on the Build planner tab. "
-    "A spell tile here still shows what it costs you, not its damage; the "
-    "Advisor's Hit with box works spell damage out for a ranking instead.")
+    "Every armament and spell, rated for the Nightfarer and level set on "
+    "the Build planner tab and the upgrade set here.")
+
+#: Where the spell half of the old QUESTION went (2026-11-07): one legend
+#: entry instead of a second sentence over the controls.
+SPELL_SENTENCE = (
+    "tiles show what a spell costs, not its damage; the Advisor's Hit with "
+    "box ranks spell damage.")
 
 #: AK-64, with the one word AK-88 settles: the tile says `Spell power` and can
 #: say it on up to 1 792 cards, so the sentence says it too rather than the
 #: other way round.
 CATALYST_SENTENCE = (
-    "Staves and seals show the spell power the game displays for them "
-    "instead of an attack rating.")
+    "the spell power the game displays, instead of an attack rating.")
 
 #: AK-85. `Scaling` stands on every one of the 1 792 weapon tiles with no
 #: unit and no scale beside it, and the letter grade the game shows in its own
 #: menus is not derivable from it -- so the tab says which of the two it is
 #: showing, and says the other one is not in the files.
 SCALING_SENTENCE = (
-    "Scaling is the game's own per-stat figure behind the letter grade it "
-    "shows in menus. Compare these figures with each other; the files do not "
-    "say which letter a figure earns.")
+    "the game's per-stat figure behind its menu letter grade. Compare "
+    "figures; the files do not say which letter a figure earns.")
 
 #: AK-86, the same case one row down: the buildup figures are read straight
 #: off the weapon data and nothing in the files says what they are counted
 #: against, so they compare armaments and do not count hits (A7).
 BUILDUP_SENTENCE = (
-    "Buildup figures come straight from the game's weapon data. The files do "
-    "not say what they are counted against, so use them to compare "
-    "armaments, not as a number of hits.")
+    "straight from the weapon data. Compare armaments with it; it is not a "
+    "number of hits.")
+
+#: The legend under the controls (2026-11-07). It replaced the four
+#: sentences that followed the count line in one paragraph.
+ATTACK_SENTENCE = (
+    "base damage, plus what your stats add, plus the +% attack effects of "
+    "your equipped relics.")
+LEGEND = (
+    ("Attack rating", ATTACK_SENTENCE),
+    ("Staves and seals", CATALYST_SENTENCE),
+    ("Scaling", SCALING_SENTENCE),
+    ("Buildup", BUILDUP_SENTENCE),
+    ("Spells", SPELL_SENTENCE),
+)
 
 #: A value never wraps inside one of its groups. `STR -7 · ARC +45 · DEX`
 #: with a lone `-7` underneath was a stat separated from its own figure
@@ -324,6 +338,8 @@ class ArsenalTab(QWidget):
         self.summary.setWordWrap(True)
         self.summary.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         layout.addWidget(self.summary)
+        self.legend = tabheader.legend(list(LEGEND), columns=3)
+        layout.addWidget(self.legend)
 
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -421,12 +437,10 @@ class ArsenalTab(QWidget):
         # traegt eine `Scaling`-Zeile und viele eine `… buildup`-Zeile, und
         # beide standen ohne Bezugsgroesse da. Der Satz zum Zauberschaden ist
         # nach oben in QUESTION gewandert und darf hier nicht zweimal stehen.
-        self.summary.setText(
-            f"{self.header_text}. {shown} shown. Attack rating is base "
-            f"damage, plus what your stats add to it, plus the +% attack "
-            f"effects your equipped relics grant. {CATALYST_SENTENCE} "
-            f"{SCALING_SENTENCE} {BUILDUP_SENTENCE}"
-        )
+        #
+        # Seit 07.11.2026 traegt die Zeile nur noch Werte und Anzahl; die
+        # Saetze stehen gekuerzt als Legende (`LEGEND`) darunter.
+        self.summary.setText(f"{self.header_text}. {shown} shown.")
 
     def _build_weapons(self, outer, predicate) -> int:
         def effective_rarity(rating) -> int:
