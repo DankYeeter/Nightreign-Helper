@@ -164,7 +164,11 @@ jobs:
 
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         if: startsWith(github.ref, 'refs/tags/')
+        # Spelled out: a draft of the same version left by a hand run would
+        # otherwise lend the tagged release its draft state and its name.
         with:
+          draft: false
+          name: Nightreign Helper ${{ steps.version.outputs.version }}
           files: |
             dist/NightreignHelper.exe
             dist/NightreignHelper.exe.sha256
