@@ -318,7 +318,10 @@ def test_every_drop_is_reachable_and_the_toggle_opens_the_rest(tab):
         assert "more" in closed
         for kind_name, _title in eventstab.DROP_KINDS:
             tab._drops_open.add((row, kind_name))
-        opened = page(tab, row)
+        # The row is current already, so selecting it again draws nothing
+        # new; the toggle button redraws through _show, and so does this.
+        tab._show(row)
+        opened = tabtext.everything(tab.detail_area.widget())
         for drop in drops:
             assert drop["name"] in opened, drop["name"]
         tab._drops_open.clear()
