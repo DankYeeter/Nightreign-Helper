@@ -305,6 +305,32 @@ _WRONG_GENUS = (
     "ranks the spell of the staff or seal on the selected tile, or else the "
     "starting one.")
 
+#: A school of the right genus whose spell the catalyst does not cast: the
+#: figure is the spell actually thrown, and no buff of that school reaches it,
+#: so the choice moves nothing and says so (AK-344: rejected by sentence).
+_NOT_OF_THE_SCHOOL = (
+    "{choice} is not counted here: {catalyst} casts {spell}, which is not "
+    "one of them. Choose a spell of that school on the tile to rank it.")
+
+
+def _genus_asked(hit_with: str) -> str:
+    """Sorceries or incantations, as far as the asked art says which.
+
+    A school belongs to one of the two (`model.SPELL_FAMILY_GENUS`, counted
+    off its spells), so asking about Thorn on a staff is asking for an
+    incantation from a staff -- the same mismatch as `Incantations` itself,
+    answered with the same sentence. Until 1.22.0 a school skipped the check
+    and a staff's Glintstone Pebble was ranked under Thorn.
+    """
+    if hit_with in (model.SORCERIES_ART, model.INCANTATIONS_ART):
+        return hit_with
+    if hit_with.startswith(model.ART_FAMILY_PREFIX):
+        value = hit_with[len(model.ART_FAMILY_PREFIX):]
+        if value.isdigit():
+            return model.SPELL_FAMILY_GENUS.get(int(value), "")
+    return ""
+
+
 #: The catalyst a player can hold carries a spell in its first slot
 #: (measured: Recluse's Staff and the Finger Seal both do). Said rather than
 #: assumed, because a dataset that lost the field would otherwise rank a
@@ -484,8 +510,7 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     if catalyst is None:
         return _empty_cell(_NO_CATALYST.format(choice=chosen))
     genus = damage.GENUS_OF_CATALYST[catalyst["wep_type"]]
-    if (ctx.hit_with in (model.SORCERIES_ART, model.INCANTATIONS_ART)
-            and ctx.hit_with != genus):
+    if _genus_asked(ctx.hit_with) not in ("", genus):
         return _empty_cell(_WRONG_GENUS.format(
             choice=chosen, catalyst=catalyst.get("name", "this armament"),
             genus=model.ART_LABELS[genus].lower()))
@@ -502,6 +527,11 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
                           ctx.data, hit_with=ctx.hit_with,
                           damage_type=ctx.damage_type)
     findings = [rating.reason] if rating.reason else []
+    if (ctx.hit_with.startswith(model.ART_FAMILY_PREFIX)
+            and not damage.casts_under(thrown, ctx.hit_with)):
+        findings.append(_NOT_OF_THE_SCHOOL.format(
+            choice=chosen, spell=thrown["name"],
+            catalyst=catalyst.get("name", "this armament")))
     if swaps > 1:
         findings.append(_TWO_SWAPPED_SPELLS.format(name=thrown["name"]))
     # AK-342, the same rule as AK-335 one row up: the damage type earns its
