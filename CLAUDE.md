@@ -87,7 +87,7 @@ stehen im Auftrag in einer Reihenfolge, nie unter `Parallel: ja`;
 (1545 Dateien, 27 006 981 Bytes, `EXTRACT_VERSION` 20, `ICON_VERSION` 5,
 neu am 07.11.2026 (T-340); spart 110 s je Lauf). In das umgelenkte
 `LOCALAPPDATA` **kopieren**, nicht darauf zeigen. Nicht unter `%LOCALAPPDATA%`,
-nicht im Projektbaum. Ungültig, sobald `EXTRACT_VERSION` über 20 oder
+nicht im Projektbaum. Ungültig seit `EXTRACT_VERSION` 22 (08.11.2026, neu bauen); allgemein ungültig, sobald `EXTRACT_VERSION` über 22 oder
 `ICON_VERSION` über 5 steigt — der erste
 betroffene Lauf ersetzt die
 Vorlage und vermerkt es in `docs/plan-restarbeiten.md`.

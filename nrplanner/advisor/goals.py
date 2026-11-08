@@ -21,11 +21,16 @@ the third direction the same way: the attribute points a relic brings became
 figure goes on saying what it always said.
 
 **The one mixed figure is the player's own** (user decision 2026-11-07, T-339,
-which adds to AD-023 and OF-13): `BALANCED` is the damage figure times the
-survival figure. A product of two positive figures needs no rate between them
-and no base, one percent more of either counts the same, and the two directions
-above go on saying what they said. It has no dial and no threshold: fine-tuning
-between the two the player does by hand.
+which adds to AD-023 and OF-13): `BALANCED` joins the damage figure and the
+survival figure, each as a multiple of what the same Nightfarer has with no
+relic at all, so it needs no rate between them. It began as their product; the
+player found that ranking leaned so far towards attack that a build ended at
+AR +75 % and Defense +7 % (second user decision 2026-11-07), because a product
+has no diminishing returns: every relic simply goes to whichever half it moves
+by the larger percentage. It is now a balanced mean of the two multiples with
+a fixed curvature (`BALANCE_CURVATURE`), so the half that is already ahead
+counts less with every step it pulls away. It has no dial and no threshold:
+fine-tuning between the two the player does by hand.
 
 **What a goal here does and does not do.** It reads a finished
 `model.Build` and the context. It never sees the base state and never forms a
@@ -54,6 +59,7 @@ value row on every card, and the guard that says so is
 from __future__ import annotations
 
 import dataclasses
+import weakref
 
 # The standard library's `types`, not the module beside this one: absolute
 # imports mean this line cannot reach `advisor/types.py`, but a reader can be
@@ -62,7 +68,7 @@ import dataclasses
 from types import MappingProxyType
 
 from .. import damage, model, weapons
-from . import types
+from . import evaluate, types
 
 
 #: The eight fields that say how much of an incoming hit gets through: the
@@ -223,11 +229,12 @@ _DAMAGE_TAKEN_SCOPE = (
 )
 
 #: What both halves cannot know, less the art sentence: this direction rates no
-#: art. The first sentence is what the product itself assumes.
+#: art. The first sentence is what the balance itself assumes.
 _BALANCED_SCOPE = (
-    "Balanced multiplies the attack rating by effective HP, so one percent "
-    "more of either counts the same. It reads the whole armament, whatever "
-    "Hit with and Damage type say.",
+    "Balanced compares the attack rating and effective HP each with what "
+    "this Nightfarer has without relics, and the further one of them is "
+    "ahead, the less another percent of it counts. It reads the whole "
+    "armament, whatever Hit with and Damage type say.",
     *_ATTACK_RATING_SCOPE[:-1],
     *_DAMAGE_TAKEN_SCOPE,
 )
@@ -297,6 +304,32 @@ _WRONG_GENUS = (
     "{choice} is not counted here: {catalyst} casts {genus}, and this run "
     "ranks the spell of the staff or seal on the selected tile, or else the "
     "starting one.")
+
+#: A school of the right genus whose spell the catalyst does not cast: the
+#: figure is the spell actually thrown, and no buff of that school reaches it,
+#: so the choice moves nothing and says so (AK-344: rejected by sentence).
+_NOT_OF_THE_SCHOOL = (
+    "{choice} is not counted here: {catalyst} casts {spell}, which is not "
+    "one of them. Choose a spell of that school on the tile to rank it.")
+
+
+def _genus_asked(hit_with: str) -> str:
+    """Sorceries or incantations, as far as the asked art says which.
+
+    A school belongs to one of the two (`model.SPELL_FAMILY_GENUS`, counted
+    off its spells), so asking about Thorn on a staff is asking for an
+    incantation from a staff -- the same mismatch as `Incantations` itself,
+    answered with the same sentence. Until 1.22.0 a school skipped the check
+    and a staff's Glintstone Pebble was ranked under Thorn.
+    """
+    if hit_with in (model.SORCERIES_ART, model.INCANTATIONS_ART):
+        return hit_with
+    if hit_with.startswith(model.ART_FAMILY_PREFIX):
+        value = hit_with[len(model.ART_FAMILY_PREFIX):]
+        if value.isdigit():
+            return model.SPELL_FAMILY_GENUS.get(int(value), "")
+    return ""
+
 
 #: The catalyst a player can hold carries a spell in its first slot
 #: (measured: Recluse's Staff and the Finger Seal both do). Said rather than
@@ -477,8 +510,7 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
     if catalyst is None:
         return _empty_cell(_NO_CATALYST.format(choice=chosen))
     genus = damage.GENUS_OF_CATALYST[catalyst["wep_type"]]
-    if (ctx.hit_with in (model.SORCERIES_ART, model.INCANTATIONS_ART)
-            and ctx.hit_with != genus):
+    if _genus_asked(ctx.hit_with) not in ("", genus):
         return _empty_cell(_WRONG_GENUS.format(
             choice=chosen, catalyst=catalyst.get("name", "this armament"),
             genus=model.ART_LABELS[genus].lower()))
@@ -495,6 +527,11 @@ def _spell_cell(build: model.Build, ctx: types.GoalContext,
                           ctx.data, hit_with=ctx.hit_with,
                           damage_type=ctx.damage_type)
     findings = [rating.reason] if rating.reason else []
+    if (ctx.hit_with.startswith(model.ART_FAMILY_PREFIX)
+            and not damage.casts_under(thrown, ctx.hit_with)):
+        findings.append(_NOT_OF_THE_SCHOOL.format(
+            choice=chosen, spell=thrown["name"],
+            catalyst=catalyst.get("name", "this armament")))
     if swaps > 1:
         findings.append(_TWO_SWAPPED_SPELLS.format(name=thrown["name"]))
     # AK-342, the same rule as AK-335 one row up: the damage type earns its
@@ -802,23 +839,87 @@ def _min_damage_taken(build: model.Build,
     )
 
 
-def _balanced(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
-    """Damage and survival at once: `_max_damage` times `_min_damage_taken`.
+#: How hard `BALANCED` pulls the two halves together, as `k` in
+#: `((a**-k + d**-k) / 2) ** (-1/k)` over the two multiples `a` and `d` (a mean of
+#: constant elasticity). `0` would be their geometric mean, which ranks as the
+#: old product did and leaned the player's builds to AR +75 % / Defense +7 %;
+#: a very large `k` is the smaller of the two and nothing else, which no
+#: longer cares how much attack a build gives up. At `2` another percent of
+#: the half that is behind counts `(a / d) ** 2` times as much as one of the
+#: half that is ahead: at AR +75 % against Defense +7 % that is 2.7 times, so
+#: a damage-negation relic now beats a 12 % attack one. Measured on the
+#: player's own 324 relics (Raider, level 15, the seven Raider vessels with
+#: Deep of Night): four vessels moved, e.g. Raider's Goblet from AR +89 % /
+#: Defense +34 % to AR +69 % / Defense +45 % and Raider's Urn from +75 % /
+#: +29 % to +56 % / +39 %; the other three kept their build.
+BALANCE_CURVATURE = 2.0
 
-    Both are positive where this reads them, so the product ranks without a
-    rate: effective HP is HP over factors `_min_damage_taken` refuses below or
-    at zero, and an attack rating is that of the whole armament. It has to be:
+#: The two figures with no relic, per context, so a run forms them once and
+#: not once per build it scores. Keyed by `id(ctx)` beside a weak reference,
+#: which is checked: an id is reused once its context is gone.
+_WITHOUT_RELICS: dict[int, tuple[weakref.ref, float, float]] = {}
+
+
+def _without_relics(ctx: types.GoalContext) -> tuple[float, float]:
+    """(damage figure, effective HP) of this Nightfarer with no effect at all.
+
+    The yardstick both halves of `BALANCED` are measured in, and nothing more:
+    it is the same for every build of a run, so it never forms a difference
+    (do-not rule 20 still holds) and only decides **where** the balance lies.
+    The armaments' own effects are left out on purpose, so that a staff and a
+    sword in hand are measured against one Nightfarer.
+    """
+    known = _WITHOUT_RELICS.get(id(ctx))
+    if known is not None and known[0]() is ctx:
+        return known[1], known[2]
+    # Through `evaluate`, the advisor's one road to `model.compute`
+    # (`tests/test_one_build.py`), with nothing held and nothing chosen.
+    bare = evaluate.evaluate(
+        types.SlotProblem(slots=(), held=()), (),
+        dataclasses.replace(ctx, armament_effect_ids=(),
+                            assumed_armament_counts=()),
+        want_qualitative=False)
+    damage_figure = _max_damage(
+        bare, dataclasses.replace(ctx, hit_with="", damage_type="")).value
+    survival = _min_damage_taken(bare, ctx).value
+    if len(_WITHOUT_RELICS) > 64:
+        _WITHOUT_RELICS.clear()
+    _WITHOUT_RELICS[id(ctx)] = (weakref.ref(ctx), damage_figure, survival)
+    return damage_figure, survival
+
+
+def balanced_value(damage_multiple: float, survival_multiple: float) -> float:
+    """The mean of constant elasticity of the two multiples (`BALANCE_CURVATURE`).
+
+    Rises with either and lies between the smaller multiple and their
+    geometric mean, so two equal multiples give that multiple back: a build at
+    +30 % and +30 % is worth 1.30, as it should be.
+    """
+    k = BALANCE_CURVATURE
+    return ((damage_multiple ** -k + survival_multiple ** -k) / 2) ** (-1.0 / k)
+
+
+def _balanced(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
+    """Damage and survival at once: `_max_damage` and `_min_damage_taken`,
+    each over what this Nightfarer has with no relic, joined by
+    `balanced_value`.
+
+    Both are positive where this reads them, so the multiples are too:
+    effective HP is HP over factors `_min_damage_taken` refuses below or at
+    zero, and an attack rating is that of the whole armament. It has to be:
     the `Hit with` and `Damage type` boxes are hidden under this direction
     (AK-337), and a damage type this armament deals none of would make the
-    whole product zero. So this reads neither, and `display` holds the two
-    figures rather than a product nobody can read (`advisorbar` takes it apart
+    damage half zero. So this reads neither, and `display` holds the two
+    figures rather than a value nobody can read (`advisorbar` takes it apart
     for the vessel list).
     """
     damage_figure = _max_damage(
         build, dataclasses.replace(ctx, hit_with="", damage_type=""))
     survival = _min_damage_taken(build, ctx)
+    damage_base, survival_base = _without_relics(ctx)
     return types.GoalScore(
-        value=damage_figure.value * survival.value,
+        value=balanced_value(damage_figure.value / damage_base,
+                             survival.value / survival_base),
         display=f"{damage_figure.display}{types.FIGURES_JOIN}{survival.display}",
         unit="",
         unknowns=damage_figure.unknowns,

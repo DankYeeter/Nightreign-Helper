@@ -6,6 +6,49 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-11-08
+
+### Changed
+- **The World Events tab is redesigned.** Each event shows its game symbol,
+  number tiles (Nightlords, enemy HP, base runes, drops), a bar per Nightlord
+  and a Day 1 / Day 2 bar, and Win and Lose side by side with their effect
+  symbols, figures and durations. New on the tab: every banner an event can
+  end on, enemy HP, and the full drop list with symbols and shares. Hordes of
+  the Night now shows its Ultimate Art charge buff (+30 % for 40 s).
+- **Shorter explanations on Effects & chances, Weapons & spells and Deep of
+  Night.** The paragraphs over the tables are now short bullet legends.
+  Deep of Night is more compact, with one short legend under each table.
+- **The Red variants tab is rebuilt around figures.** Two short bullets, a bar
+  per Depth split by sort with the exact table under it, what each step deeper
+  adds, all six maps side by side, and the 24 field bosses the game can turn
+  red. The weapon-drop and Everdark lines are gone: the game's files do not
+  back the first, and the second is on the Deep of Night tab already.
+- **Balanced no longer leans so hard towards attack.** It used to multiply
+  attack rating by effective HP, so every relic went to whichever side it moved
+  by the larger percentage, usually attack. Now both sides are measured against
+  your Nightfarer without relics, and the further one side is ahead, the less
+  another percent of it counts. On a 324-relic save (Raider, level 15) Raider's
+  Goblet moved from AR +89 % / Defense +34 % to AR +69 % / Defense +45 %.
+- **The vessel tooltip now shows how AR and Defense are worked out**: from
+  which number to which (`AR 158 → 276 (+75 %)`), what the AR is measured on,
+  and that Defense is effective HP. Max HP counts in it, and damage negation
+  of different types is averaged, never added up.
+
+### Fixed
+- **Ten spells that showed no damage now have their figure**: Glintstone
+  Stars, Star Shower, Founding Rain of Stars, Stars of Ruin, Magic Downpour,
+  Rykard's Rancor, Lightning Strike, Ancient Dragons' Lightning Strike,
+  Carian Retaliation and Law of Causality. Their hit sits on a projectile
+  another projectile keeps creating, nine projectiles deep, or on one the
+  cast animation launches, and the program did not look there. No other
+  spell's figure changes. **The data cache is rebuilt once on first start.**
+- **A spell school of the other kind is now refused like the kind itself.**
+  Asking the advisor about an incantation school (Bestial, Dragon Cult,
+  Godslayer and the rest) with a staff, or a sorcery school with a seal,
+  ranked the staff's Glintstone Pebble without a word. It now says the staff
+  casts sorceries, as `Incantations` already did. A school of the right kind
+  whose spell the staff does not cast keeps the figure and says so.
+
 ## [1.21.0] - 2026-11-07
 
 ### Changed

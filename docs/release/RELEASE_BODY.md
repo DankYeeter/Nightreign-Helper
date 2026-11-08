@@ -224,3 +224,16 @@ starts there.
   cache and the icon pack are rebuilt once on first start (about 75 seconds
   here, the window shows no progress meanwhile).** Saved builds and
   favourites are kept.
+- **1.22.0** — the World Events tab is redesigned with the game's symbols,
+  number tiles, bars and Win/Lose side by side; Effects & chances, Weapons &
+  spells and Deep of Night explain themselves in short bullet legends instead
+  of paragraphs; the Red variants tab shows figures and bars. **Balanced**
+  no longer leans so hard towards attack: both halves are measured against
+  your Nightfarer without relics and the half that is ahead counts less
+  (Raider's Goblet on a 324-relic save: AR +89 % / Defense +34 % became
+  AR +69 % / Defense +45 %). The vessel tooltip shows how AR and Defense are
+  worked out. A spell school of the other kind (Bestial with a staff) is now
+  refused with a sentence instead of ranking the staff's own spell. Ten
+  spells that showed no damage now have it (Star Shower, Rykard's Rancor,
+  Lightning Strike, Carian Retaliation, Law of Causality and five more). The data cache is rebuilt once on first
+  start.

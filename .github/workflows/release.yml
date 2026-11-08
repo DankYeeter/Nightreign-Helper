@@ -93,8 +93,20 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -rs
 
+      - name: Read the version
+        id: version
+        shell: bash
+        run: echo "version=$(python -c 'from nrplanner import __version__; print(__version__)')" >> "$GITHUB_OUTPUT"
+
+      # Bit-identical builds need both (T-335bau): a fixed hash seed and the
+      # commit's own time as the timestamp PyInstaller writes.
       - name: Build
-        run: pyinstaller NightreignHelper.spec --noconfirm
+        shell: bash
+        env:
+          PYTHONHASHSEED: '0'
+        run: |
+          export SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)
+          pyinstaller NightreignHelper.spec --noconfirm
 
       - name: Refuse to ship game data
         shell: bash
@@ -152,10 +164,31 @@ jobs:
 
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         if: startsWith(github.ref, 'refs/tags/')
+        # Spelled out: a draft of the same version left by a hand run would
+        # otherwise lend the tagged release its draft state and its name.
         with:
+          draft: false
+          name: Nightreign Helper ${{ steps.version.outputs.version }}
           files: |
             dist/NightreignHelper.exe
             dist/NightreignHelper.exe.sha256
             dist/NightreignHelper-notices.zip
           body_path: docs/release/RELEASE_BODY.md
           generate_release_notes: true
+
+      # Run by hand (workflow_dispatch), the same assets go to a DRAFT
+      # release instead: visible only to the repository's owner, no tag is
+      # created until it is published, and deleting it undoes everything.
+      # That is how a build can be handed over for a look before it ships.
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          draft: true
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Nightreign Helper ${{ steps.version.outputs.version }} (draft)
+          target_commitish: ${{ github.sha }}
+          files: |
+            dist/NightreignHelper.exe
+            dist/NightreignHelper.exe.sha256
+            dist/NightreignHelper-notices.zip
+          body_path: docs/release/RELEASE_BODY.md

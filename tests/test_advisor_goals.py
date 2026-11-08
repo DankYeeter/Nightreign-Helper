@@ -814,6 +814,59 @@ def test_a_seal_casts_no_sorceries_and_a_staff_no_incantations(
     assert goals.chosen_label(hit_with, "") in spell["nothing"].unknowns[0]
 
 
+def _a_school_of(genus: str) -> str:
+    """The first school of this dataset whose spells are of this genus."""
+    value = min(value for value, of in model.SPELL_FAMILY_GENUS.items()
+                if of == genus)
+    return f"{model.ART_FAMILY_PREFIX}{value}"
+
+
+@pytest.mark.parametrize("hero_name, genus, catalyst", [
+    ("Revenant", model.SORCERIES_ART, "Finger Seal"),
+    ("Recluse", model.INCANTATIONS_ART, "Recluse's Staff"),
+])
+def test_a_school_of_the_other_genus_is_refused_like_the_genus(
+        game_data, hero_name, genus, catalyst):
+    """1.22.0: a school is a sorcery or an incantation school, so Thorn or
+    Bestial on a staff is the mismatch `Incantations` already was. Before,
+    a school skipped the check and Recluse's Pebble was ranked under it."""
+    hero = cases.hero_by_name(game_data, hero_name)
+    school = _a_school_of(genus)
+
+    spell = damage_scores(game_data, hero, {"nothing": ()},
+                          hit_with=school)["nothing"]
+
+    assert spell.value == 0.0
+    assert "0.00" not in spell.display
+    assert catalyst in spell.unknowns[0]
+    assert goals.chosen_label(school, "") in spell.unknowns[0]
+
+
+def test_a_school_the_thrown_spell_is_not_in_says_so(game_data):
+    """Recluse's staff casts Glintstone Pebble; a sorcery school Pebble is
+    not in keeps Pebble's figure, and a sentence says the school reached
+    nothing (AK-344: refused by sentence, never hidden)."""
+    recluse = cases.hero_by_name(game_data, "Recluse")
+    pebble_school = next(spell["family"] for spell in game_data["spells"]
+                         if spell["name"] == "Glintstone Pebble")
+    school = next(
+        f"{model.ART_FAMILY_PREFIX}{value}"
+        for value, of in sorted(model.SPELL_FAMILY_GENUS.items())
+        if of == model.SORCERIES_ART
+        and model.SPELL_FAMILY_NAMES.get(value) != pebble_school)
+
+    asked = damage_scores(game_data, recluse, {"nothing": ()},
+                          hit_with=school)["nothing"]
+    plain = damage_scores(game_data, recluse, {"nothing": ()},
+                          hit_with=model.SORCERIES_ART)["nothing"]
+
+    assert asked.value == plain.value > 0.0
+    assert "Glintstone Pebble" in asked.display
+    assert any("Glintstone Pebble" in line
+               and goals.chosen_label(school, "") in line
+               for line in asked.unknowns), asked.unknowns
+
+
 def test_a_nightfarer_without_a_catalyst_has_no_spell_row(game_data, wylder):
     """N5: eight of the ten start with neither a staff nor a seal.
 

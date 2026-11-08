@@ -713,3 +713,33 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
   Grund-Frost-Bonus 7260400 nicht mit frei (QA 1.20.0).
 - Why bei einer Zustandsquelle nennt nur "-15 % counted against it", nicht den
   freigeschalteten Gewinn (Reliktwahl zeigt +1.1 AR): ui-ux-designer.
+
+## Nachtlauf 08.11.2026 (1.22.0)
+
+- **Zauber ohne Schadenszahl: 8 von 49 geloest (EXTRACT_VERSION 21).**
+  `Bullet.intervalCreateBulletId` liegt im 348-Byte-Satz bei Offset 172, die
+  vendored Def (334 Byte) liest es 4 Byte zu spaet; gelesen jetzt per Offset.
+  Lightning Strike liegt 9 Bullets tief, Tiefe 6 -> 12. Gemessen an
+  `regulation.bin` (sha256 876a3ca2...): die 111 bisherigen Zahlen bleiben
+  bitgleich, Death Lightning behaelt Death Blight 50. Die uebrigen 41 tragen
+  wirklich keine Zahl (Heilung, Buffs, Schilde) oder Zustand ohne Schaden
+  (Freezing Mist, Poison Mist).
+- **2 weitere geloest (EXTRACT_VERSION 22):** Carian Retaliation (Magic 245,
+  AtkParam 46420) und Law of Causality (Dark 800, AtkParam 67600). Ihr Treffer
+  haengt an keinem Bullet der eigenen Kette, sondern an einem Bullet, das eine
+  `BehaviorParam_PC`-Zeile (`refType` 1) startet; gefolgt wird nur Bullets im
+  eigenen Block des Zaubers (10 000 000 + Zauber-ID x 100 .. +99). 121 von
+  160 tragen jetzt eine Zahl, alle Zustandswerte bitgleich. Offen bleibt
+  Shadow Bait (AtkParam 65200/65201 tragen 0 Schaden).
+- **Testabzug ungueltig** (EXTRACT_VERSION 22): der erste Programmlauf mit
+  1.22.0 baut ihn neu; dann als neue Vorlage kopieren.
+- **Zustandsquellen der Weapon Arts** (Hoarfrost Stomp u. a., siehe oben):
+  die Art liest nur ihre eigene AtkParam-Zeile, keine Bullets; der Zustand
+  sitzt vermutlich auf einem per TAE/BehaviorParam erzeugten Bullet.
+- **OF-54 ist erledigt** (Eintrag oben veraltet): seit T-335u schneidet
+  `damage.spell` den gepufferten Grundwert vor der Spell power ab;
+  floor(152 x 1,045) = 158, x 1,35614 x 0,6 = 128,56 -> 128 = Puppe.
+- **Optimizer-Stichprobe:** 10 Nightfarer x alle Vessels x Deep an/aus x 4
+  Ziele (880 Laeufe, eingefrorener Spielstand) gegen Einzeltausch ueber den
+  vollen Pool: eine Abweichung, +0,01 % (Recluse, Decrepit Recluse's Goblet,
+  Deep, Balanced). Kein Handlungsbedarf.

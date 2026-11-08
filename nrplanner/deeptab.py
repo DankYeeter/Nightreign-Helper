@@ -30,9 +30,8 @@ from .theme import BORDER, MUTED, PANEL
 #: is why it is not repeated under the scaling table (QA-128, point 9).
 HEADING = "DEEP OF NIGHT"
 QUESTION = (
-    "What a deeper run pays you, what it costs you, and how your Depth "
-    "rating moves. All figures compare a Deep of Night run with a normal "
-    "expedition.")
+    "What each Depth pays, what it costs and how your rating moves, all "
+    "compared with a normal expedition.")
 
 
 # Rating changes per expedition. These are NOT in regulation.bin: no param
@@ -103,14 +102,14 @@ QTableWidget {{
     border-radius: 4px;
     font-size: 12px;
 }}
-QTableWidget::item {{ padding: 4px 6px; }}
+QTableWidget::item {{ padding: 2px 6px; }}
 QTableWidget::item:selected {{ background: transparent; color: #e4e4e4; }}
 QHeaderView::section {{
     background: {PANEL};
     color: {MUTED};
     border: none;
     border-bottom: 1px solid {BORDER};
-    padding: 5px 6px;
+    padding: 3px 6px;
     font-weight: normal;
 }}
 QHeaderView::section:vertical {{
@@ -185,8 +184,8 @@ class DeepTab(QWidget):
         content = QWidget()
         self.scroll.setWidget(content)
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(14)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(10)
 
         layout.addWidget(tabheader.heading(HEADING))
         layout.addWidget(tabheader.question(QUESTION))
@@ -201,7 +200,7 @@ class DeepTab(QWidget):
         panel = QWidget()
         box = QVBoxLayout(panel)
         box.setContentsMargins(0, 0, 0, 0)
-        box.setSpacing(5)
+        box.setSpacing(4)
         box.addWidget(tabheader.heading(title))
         return panel, box
 
@@ -249,49 +248,42 @@ class DeepTab(QWidget):
                 if symbol is not None:
                     tier.setIcon(QIcon(symbol))
                 table.setItem(3, column, tier)
+        if len(rows) > 3:
+            header = table.verticalHeaderItem(3) or QTableWidgetItem(rows[3])
+            header.setToolTip(
+                "Read from the depth reward table's own item lots, through "
+                "the map lot table to the relic list.")
+            table.setVerticalHeaderItem(3, header)
         box.addWidget(_fit(table))
 
-        # The two figures of this table that carried no reference at all
-        # (QA-128, points 7 and 8). The multiplier is real and its subject is
-        # not in the files, so the tab says that rather than letting a reader
-        # supply a subject of their own; the sigil count is read, while the
-        # name against it was identified in game.
-        box.addWidget(tabheader.question(
-            "Reward multiplier: the game's own multiplier for this Depth. "
-            "The files do not say what it multiplies, so it is shown as a "
-            "comparison between Depths and nothing more."
-        ))
-        box.addWidget(tabheader.question(
-            f"{sigil}: the figure comes from the depth table. That the item "
-            f"is the {sigil} was identified in game, not read from a link in "
-            f"the files."
-        ))
+        # A short legend instead of the six lines that stood here (asked for
+        # on 2026-11-07). What each entry must still say: the multiplier's
+        # subject is not in the files (QA-128 point 7, AK-96); the sigil
+        # count is read while the name was identified in game (point 8); the
+        # tutorial's rule on when a loss cannot cost you your Depth.
         # The game's own description of the item, loaded since the extractor
-        # first read the depth table and thrown away every time until now.
-        # Quoted, so it reads as the game's wording and not as this tab's.
+        # first read the depth table and thrown away every time until it was
+        # shown. Quoted, so it reads as the game's wording and not as this
+        # tab's.
         info = (self.deep.get("sigil_info") or "").strip()
-        if info:
-            box.addWidget(_source(f"In the game's own words: “{info}”."))
-
-        # Kept from the game's own tutorial because it changes how you play:
-        # it says when a loss cannot cost you the Depth you have reached.
-        box.addWidget(tabheader.question(
-            "Once you reach Depth 2 you cannot drop back to Depth 1, and at "
-            "Depth 3 your Depth is held for several expeditions before it can "
-            "fall."
-        ))
+        items = [
+            ("Reward multiplier",
+             "the game's own figure. The files do not say what it "
+             "multiplies, so compare Depths with it and nothing more."),
+            (sigil,
+             "count read from the depth table; the item was identified in "
+             "game." + (f" In the game's words: “{info}”." if info else "")),
+            ("Depth floor",
+             "from Depth 2 you cannot fall back to Depth 1; from Depth 3 "
+             "your Depth is held for several expeditions."),
+        ]
         if any(tiers):
-            box.addWidget(tabheader.question(
-                "Relic tiers run Delicate, Polished, then Grand, and every "
-                "tier comes in all four colours. The reward lots drop the "
-                "lower tiers as the Depth rises — by Depth 4 only Grand "
-                "relics are on the table. A “Deep” relic is one that works "
-                "only in the Deep of Night."
-            ))
-            box.addWidget(_source(
-                "Read from the depth reward table's own item lots, through "
-                "the map lot table to the relic list."
-            ))
+            items.append((
+                "Relic tier",
+                "Delicate, Polished, Grand, each in all four colours; deeper "
+                "drops the lower tiers. A “Deep” relic works only in the "
+                "Deep of Night."))
+        box.addWidget(tabheader.legend(items))
         return panel
 
     @staticmethod
@@ -401,10 +393,10 @@ class DeepTab(QWidget):
                 self.scaling_table.setItem(row, col, _cell(text))
         box.addWidget(_fit(self.scaling_table))
 
-        box.addWidget(tabheader.question(
-            "The big figure is typical; the range under it is the spread from "
-            "the weakest enemy group to the toughest."
-        ))
+        box.addWidget(tabheader.legend([
+            ("Big figure", "typical enemy group."),
+            ("Range under it", "weakest enemy group to the toughest."),
+        ]))
         return panel
 
     # -- rating per expedition --------------------------------------------
@@ -426,11 +418,11 @@ class DeepTab(QWidget):
 
         bonuses = ", ".join(f"{name} +{value}"
                            for name, value in RATING_BONUSES)
-        box.addWidget(tabheader.question(
-            f"On top of a win, and they add up: {bonuses}. So a win against an "
-            f"unknown Nightlord on an obstructed map is "
-            f"+{WIN_RATING + sum(v for _n, v in RATING_BONUSES)}."
-        ))
+        box.addWidget(tabheader.legend([
+            ("Win bonuses",
+             f"{bonuses}; they add up, so a win with both is "
+             f"+{WIN_RATING + sum(v for _n, v in RATING_BONUSES)}."),
+        ], columns=1))
         return panel
 
     # -- what else changes -------------------------------------------------
@@ -448,13 +440,14 @@ class DeepTab(QWidget):
                 table.setItem(row, col, _cell(text))
         box.addWidget(_fit(table))
 
-        box.addWidget(tabheader.question(
-            "Cataclysms are the empowered camps that carry night invaders — "
-            "the game never places zero, so the figure above is the chance of "
-            "the second. Concealment starts at Depth 3, and because it is one "
-            "roll of three, the map and the Nightlord are never hidden in the "
-            "same run. The cursed-relic rates do not move with depth."
-        ))
+        box.addWidget(tabheader.legend([
+            ("Two cataclysms",
+             "empowered camps with night invaders. One is always placed; "
+             "this is the chance of a second."),
+            ("Concealment",
+             "from Depth 3, map or Nightlord, never both in one run."),
+            ("Cursed relic", "the same at every Depth."),
+        ]))
         # The raw field names used to be printed here as provenance. They
         # belong in the code, not on screen: to a player they are noise, and
         # the provenance is already said in words.

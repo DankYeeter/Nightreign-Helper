@@ -6,6 +6,7 @@ inputs are the container keys and the PARAMDEF field schemas.
 
 from __future__ import annotations
 
+import bisect
 import collections
 import hashlib
 import json
@@ -125,7 +126,19 @@ MAX_LEVEL = 15
 #      `buffs[]` and `states[]` (`SpEffectParam.iconId`) and on every entry of
 #      `drops`, and `deep_of_night.sigil_icon`. A cache left on 19 draws those
 #      names without a symbol.
-EXTRACT_VERSION = 20
+#  21  spell damage follows a bullet's interval-created bullets as well
+#      (`Bullet.intervalCreateBulletId`, read by offset: the vendored def puts
+#      it 4 bytes late) and up to 12 bullets deep. Eight spells that showed no
+#      damage now carry one -- Glintstone Stars, Star Shower, Founding Rain of
+#      Stars, Stars of Ruin, Magic Downpour, Rykard's Rancor, Lightning Strike,
+#      Ancient Dragons' Lightning Strike -- and none of the 111 others moves
+#      (measured against data_version 10350000, 08.11.2026).
+#  22  a spell's own bullets that only a BehaviorParam_PC row launches count
+#      too -- the counter of Carian Retaliation (Magic 245) and the burst of
+#      Law of Causality (Holy 800). Their bullets sit in the spell's own id
+#      block (10 000 000 + magic id x 100), and an animation fires them, so no
+#      Magic or Bullet field names them (measured 08.11.2026).
+EXTRACT_VERSION = 22
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -191,7 +204,29 @@ HIT_SP_EFFECT_FIELDS = tuple(f"spEffectId{i}" for i in range(5))
 # is built, and the strongest figure of a spell often sits on such a child:
 # Beast Claw's 362 is two bullets down. The walk is capped and remembers what
 # it has seen, because these chains do loop back on themselves.
-MAX_BULLET_DEPTH = 6
+MAX_BULLET_DEPTH = 12
+
+# The bullet a bullet keeps creating while it flies -- Star Shower's stars,
+# Rykard's Rancor's skulls, Magic Downpour's drops. The vendored Bullet def
+# (334 bytes against Nightreign's 348-byte row) puts `intervalCreateBulletId`
+# at 176 and decodes garbage there; at 172 12 248 of 12 254 rows hold -1 or an
+# existing bullet id, and the other six name ids that are simply not in the
+# table (measured 08.11.2026, data_version 10350000). So it is read by
+# offset, beside the def, the way `startMagicId` is (below), and refused
+# loudly if the def is not the one that was measured against.
+BULLET_INTERVAL_FIELD = "intervalCreateBulletIdByOffset"
+BULLET_INTERVAL_OFFSET = 172
+BULLET_DEF_SIZE = 334
+
+# Where a spell's bullets are numbered: Glintstone Pebble (4000) shoots
+# 10400000, Carian Retaliation (4640) 10464000..10464022. 987 of the 1036
+# bullets the Magic rows reach lie in their spell's block; the other 49 are
+# shared helpers. The block is used one way only: a bullet in it that a
+# BehaviorParam_PC row launches belongs to the spell, because the animation
+# that fires it is the spell's own.
+SPELL_BULLET_BLOCK_BASE = 10_000_000
+SPELL_BULLET_BLOCK_SIZE = 100
+BEHAVIOR_REF_BULLET = 1
 
 # SpEffectParam's row is 1024 bytes and the shipped def describes 976 of them.
 # Offset 1020 holds the spell a swap relic hands the player (AD-050.4).
@@ -3015,14 +3050,32 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             f"rows. That is where every spell's damage is: extracting past it "
             f"would report all {len(magic_table.rows)} spells as harmless.")
     atk_by_id = {r.id: r for r in atk_table.rows}
+    bullet_def = only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID",
+                                           *HIT_SP_EFFECT_FIELDS})
+    if bullet_def is not None:
+        if bullet_def.row_size != BULLET_DEF_SIZE:
+            raise NotWhatItClaims(
+                f"{BULLET_INTERVAL_FIELD!r} is read at offset "
+                f"{BULLET_INTERVAL_OFFSET} rather than by name, and the Bullet "
+                f"paramdef describes {bullet_def.row_size} bytes per row where "
+                f"it was measured against {BULLET_DEF_SIZE}. Re-measure the "
+                f"offset before trusting any spell's damage.")
+        bullet_def.fields.append(paramdef.Field(
+            BULLET_INTERVAL_FIELD, "s32", BULLET_INTERVAL_OFFSET, 4))
     bullet_by_id = {
         r.id: r
-        for r in param.read(
-            members["Bullet"],
-            only(defs.get("Bullet"), {"atkId_Bullet", "HitBulletID",
-                                      *HIT_SP_EFFECT_FIELDS}),
-        ).rows
+        for r in param.read(members["Bullet"], bullet_def).rows
     }
+    # Bullets an animation fires through BehaviorParam_PC (refType 1). The def
+    # is filed as `BehaviorParam`, the same layout for the player's table.
+    behavior_def = only(defs.get("BehaviorParam_PC") or defs.get("BehaviorParam"),
+                        {"refType", "refId"})
+    launched_by_behavior = sorted({
+        r.values.get("refId")
+        for r in param.read(members["BehaviorParam_PC"], behavior_def).rows
+        if r.values.get("refType") == BEHAVIOR_REF_BULLET
+        and isinstance(r.values.get("refId"), int) and r.values["refId"] > 0
+    })
     statuses = set(STATUS_POWER.values())
 
     def hit_inflicts(sp_ids) -> dict[str, Any]:
@@ -3068,6 +3121,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             atk_ids.append(bullet.values.get("atkId_Bullet", -1))
             on_hit.extend(hit_sp_ids(bullet))
             follow_bullet(bullet.values.get("HitBulletID", -1), depth + 1)
+            follow_bullet(bullet.values.get(BULLET_INTERVAL_FIELD, -1),
+                          depth + 1)
 
         for slot in range(1, MAGIC_REF_SLOTS + 1):
             ref = row.values.get(f"refId{slot}", -1)
@@ -3083,6 +3138,15 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 # makes the caster's attacks apply, never what it does to
                 # the caster.
                 on_hit.append(sp_by_id[ref].values.get(ATTACK_CHAIN_FIELD))
+
+        # The spell's own bullets that only its animation fires (v22); after
+        # everything the rows name, so a status found there keeps its place.
+        block = SPELL_BULLET_BLOCK_BASE + row.id * SPELL_BULLET_BLOCK_SIZE
+        start = bisect.bisect_left(launched_by_behavior, block)
+        for bullet_id in launched_by_behavior[start:]:
+            if bullet_id >= block + SPELL_BULLET_BLOCK_SIZE:
+                break
+            follow_bullet(bullet_id, 0)
 
         best: dict[str, int] = {}
         best_atk = -1

@@ -56,6 +56,7 @@ LORE: dict[int, dict] = {
             "down."
         ),
         "penalty_sp": 6999400,
+        "penalty_more": "Lands if the Fell Omen kills the player it is hunting.",
         "penalty": (
             "Only the trigger is reported: the debuff lands if the Fell Omen "
             "kills the player it is hunting. Its size is extracted above."
@@ -97,7 +98,7 @@ LORE: dict[int, dict] = {
             "can trade with it, pay it off, or attack it, in which case it "
             "becomes the Equilibrious Beast."
         ),
-        "reward": (
+        "reward_more": (
             "Paying 15,000 runes on day 1 (35,000 on day 2) lifts the curse "
             "and gives the team the Demon's Plating buff, plus a reward orb "
             "of talismans and runes and access to its deals. Killing it "
@@ -132,6 +133,7 @@ LORE: dict[int, dict] = {
             "runes and can knock you down whole levels. Follow them back to "
             "it."
         ),
+        "reward_more": "Your stolen runes back.",
         "reward": (
             "Your stolen runes back, plus Integration of Intelligence. The "
             "size of that proc is extracted above."
@@ -177,6 +179,10 @@ LORE: dict[int, dict] = {
             "— crows, dogs, revenants, trolls, knights, "
             "Fingercreepers, Golem Warriors, depending on the roll."
         ),
+        # Matched by name, not by the files: the reported reward is "a buff
+        # improving Ultimate Art gauge charge speed", and the one event state
+        # that fits is 6999613 "Ultimate Art Auto Charge +".
+        "reward_sp": 6999613,
         "reward": "Runes and a buff improving Ultimate Art gauge charge speed.",
         "penalty": "None reported.",
         # community nightlords: Gladius, Maris, Fulghor
@@ -207,6 +213,7 @@ LORE: dict[int, dict] = {
             "and a Sundered Tricephalos hold three marked areas. Clearing all "
             "three ends it."
         ),
+        "reward_more": "The Scorching debuff is removed.",
         "reward": "The Beast's Hunt buff, and the Scorching debuff is removed.",
         "penalty": "Continuous HP drain from Scorching until the areas are cleared.",
         # The beasts are Gladius's own split form, which is why the files
@@ -228,6 +235,7 @@ LORE: dict[int, dict] = {
             "Half the team's Sacred Flask charges vanish and weakened "
             "Balancers appear. Defeat them to get the charges back."
         ),
+        "reward_more": "All flask charges restored.",
         "reward": "All flask charges restored, plus the Power to Balance the World buff.",
         "penalty": "Half your flask charges for as long as the event runs.",
         # community nightlords: none

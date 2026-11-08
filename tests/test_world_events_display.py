@@ -284,3 +284,64 @@ def test_qt_accepts_the_event_list_stylesheet(game_data, qapp):
         qInstallMessageHandler(previous)
     widget.deleteLater()
     assert not [text for text in warnings if "Could not parse" in text]
+
+
+def test_every_banner_the_event_can_end_on_is_on_its_card(tab):
+    """The redesign of 2026-11-07: the outcome banners were in the data and
+    on no card. Each one stands on its event's page, and the player-name
+    placeholder the game fills at runtime is never drawn raw."""
+    seen = 0
+    for row, (kind, entry) in enumerate(tab.rows):
+        if kind != "event":
+            continue
+        text = page(tab, row)
+        for outcome in entry.get("outcomes", []):
+            expected = outcome["text"].replace(eventstab.CODENAME,
+                                               "a Nightfarer")
+            assert expected in text, (tab.list.item(row).text(), expected)
+            seen += 1
+        assert eventstab.CODENAME not in text
+    assert seen, "no event carries an outcome banner in this dataset"
+
+
+def test_every_drop_is_reachable_and_the_toggle_opens_the_rest(tab):
+    """All drops of a creature can be shown, not only a count of them."""
+    for row, (kind, entry) in enumerate(tab.rows):
+        if kind != "event":
+            continue
+        lore = eventstab.LORE.get(entry["log_id"], {})
+        drops = tab.drops.get(str(lore.get("creature_chr"))) or []
+        if len(drops) <= eventstab.DROPS_OPEN:
+            continue
+        tab._drops_open.clear()
+        closed = page(tab, row)
+        assert "more" in closed
+        for kind_name, _title in eventstab.DROP_KINDS:
+            tab._drops_open.add((row, kind_name))
+        # The row is current already, so selecting it again draws nothing
+        # new; the toggle button redraws through _show, and so does this.
+        tab._show(row)
+        opened = tabtext.everything(tab.detail_area.widget())
+        for drop in drops:
+            assert drop["name"] in opened, drop["name"]
+        tab._drops_open.clear()
+        return
+    pytest.skip("no event creature with more drops than stand open")
+
+
+def test_a_penalty_state_shows_its_figures_and_its_duration(tab):
+    """LOSE shows the debuff the files name, with every line it carries."""
+    found = False
+    for row, (kind, entry) in enumerate(tab.rows):
+        if kind != "event":
+            continue
+        lore = eventstab.LORE.get(entry["log_id"], {})
+        state = tab.states.get(lore.get("penalty_sp"))
+        if not state:
+            continue
+        text = page(tab, row)
+        assert state["name"] in text
+        for line in state["lines"]:
+            assert line in text
+        found = True
+    assert found, "no event names a penalty state in this dataset"

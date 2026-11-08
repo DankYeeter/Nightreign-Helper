@@ -860,7 +860,7 @@ class SpellRating:
         return self._asked(self.bare_per_type)
 
 
-def _casts_under(spell: dict, art: str) -> bool:
+def casts_under(spell: dict, art: str) -> bool:
     """Does this spell belong to the school `art` names?
 
     The school is a number in the art key and a name on the spell, so the
@@ -886,7 +886,7 @@ def _art_of(spell: dict, hit_with: str) -> str | None:
         return None
     if not hit_with.startswith(model.ART_FAMILY_PREFIX):
         return hit_with
-    if _casts_under(spell, hit_with):
+    if casts_under(spell, hit_with):
         return hit_with
     return model.GENUS_FOR_CATEGORY.get(str(spell.get("category") or ""))
 
