@@ -723,9 +723,15 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
   `regulation.bin` (sha256 876a3ca2...): die 111 bisherigen Zahlen bleiben
   bitgleich, Death Lightning behaelt Death Blight 50. Die uebrigen 41 tragen
   wirklich keine Zahl (Heilung, Buffs, Schilde) oder Zustand ohne Schaden
-  (Freezing Mist, Poison Mist); offen bleiben Carian Retaliation (Konter,
-  Schaden nicht in der Kette) und Shadow Bait.
-- **Testabzug ungueltig** (EXTRACT_VERSION 21): der erste Programmlauf mit
+  (Freezing Mist, Poison Mist).
+- **2 weitere geloest (EXTRACT_VERSION 22):** Carian Retaliation (Magic 245,
+  AtkParam 46420) und Law of Causality (Dark 800, AtkParam 67600). Ihr Treffer
+  haengt an keinem Bullet der eigenen Kette, sondern an einem Bullet, das eine
+  `BehaviorParam_PC`-Zeile (`refType` 1) startet; gefolgt wird nur Bullets im
+  eigenen Block des Zaubers (10 000 000 + Zauber-ID x 100 .. +99). 121 von
+  160 tragen jetzt eine Zahl, alle Zustandswerte bitgleich. Offen bleibt
+  Shadow Bait (AtkParam 65200/65201 tragen 0 Schaden).
+- **Testabzug ungueltig** (EXTRACT_VERSION 22): der erste Programmlauf mit
   1.22.0 baut ihn neu; dann als neue Vorlage kopieren.
 - **Zustandsquellen der Weapon Arts** (Hoarfrost Stomp u. a., siehe oben):
   die Art liest nur ihre eigene AtkParam-Zeile, keine Bullets; der Zustand
