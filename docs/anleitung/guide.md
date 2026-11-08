@@ -110,12 +110,14 @@ an effect or curse you marked **Avoid**, or that you pressed **Reject** on, is
 never suggested; a relic you starred is put in when it fits (see **Filters**,
 **Favourites** and *Taking an effect or a relic out of a suggestion* below).
 The same run also compares your vessels (see *Comparing vessels* below).
-**Balanced** looks for damage and survival at once: it ranks by attack rating
-times effective HP, so one percent more of either counts the same, and there is
-nothing to set; from its suggestion you adjust by hand. It always reads the
-whole armament. In the vessel list each vessel then says both gains against the
-same vessel with no relics, for example `AR +89 % / Defense +31 %`, and the best
-vessel is the one with the highest product.
+**Balanced** looks for damage and survival at once. It first works out the most
+attack and the most Defense the vessel's slots can reach, each on its own, and
+then picks the relics that get furthest towards both, so neither side is given
+up for the other. Your held, starred and favourite relics count in all three
+steps. There is nothing to set; from its suggestion you adjust by hand. It
+always reads the whole armament. In the vessel list each vessel then says both
+gains against the same vessel with no relics, for example
+`AR +60 % / Defense +70 %`.
 **Maximise damage**, **Balanced**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count

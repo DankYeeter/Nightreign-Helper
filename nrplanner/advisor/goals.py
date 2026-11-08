@@ -231,10 +231,10 @@ _DAMAGE_TAKEN_SCOPE = (
 #: What both halves cannot know, less the art sentence: this direction rates no
 #: art. The first sentence is what the balance itself assumes.
 _BALANCED_SCOPE = (
-    "Balanced compares the attack rating and effective HP each with what "
-    "this Nightfarer has without relics, and the further one of them is "
-    "ahead, the less another percent of it counts. It reads the whole "
-    "armament, whatever Hit with and Damage type say.",
+    "Balanced first finds the most attack and the most effective HP these "
+    "slots can reach, each on its own, then picks the relics that get "
+    "furthest towards both at once. It reads the whole armament, whatever "
+    "Hit with and Damage type say.",
     *_ATTACK_RATING_SCOPE[:-1],
     *_DAMAGE_TAKEN_SCOPE,
 )
@@ -924,6 +924,39 @@ def balanced_value(damage_multiple: float, survival_multiple: float) -> float:
     return ((damage_multiple ** -k + survival_multiple ** -k) / 2) ** (-1.0 / k)
 
 
+#: How hard `balanced_by_span` pulls the two shares together, as `k` of the
+#: same mean `balanced_value` uses: near the smaller share, but with a slope
+#: the search can climb (a bare minimum is flat wherever the other side
+#: moves).
+SPAN_CURVATURE = 6.0
+#: A share below this (a curse can push one under no relics) counts as this,
+#: so the mean stays defined.
+SHARE_FLOOR = 1e-3
+
+
+def share_of_the_best(figure: float, base: float, best: float) -> float:
+    """How far a figure is from no relics (0) to the best these slots reach
+    for it alone (1). A side no relic can move counts as reached."""
+    if best - base <= 1e-9:
+        return 1.0
+    return (figure - base) / (best - base)
+
+
+def balanced_by_span(damage_share: float, survival_share: float) -> float:
+    """User proposal 2026-11-08: first find the most attack and the most
+    defense the slots can give, each on its own, then take the build that
+    gets the furthest towards both: a mean that sits close to the smaller
+    share (`SPAN_CURVATURE`)."""
+    k = SPAN_CURVATURE
+    # One more than the share, so that no relics is 1 on both sides and a
+    # single relic of either kind raises the mean: the pre-sort ranks relics
+    # one at a time, and with a bare share the other side's 0 would flatten
+    # every single relic to the same value.
+    low = [max(1.0 + share, SHARE_FLOOR)
+           for share in (damage_share, survival_share)]
+    return ((low[0] ** -k + low[1] ** -k) / 2) ** (-1.0 / k)
+
+
 def _balanced(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     """Damage and survival at once: `_max_damage` and `_min_damage_taken`,
     each over what this Nightfarer has with no relic, joined by
@@ -942,9 +975,17 @@ def _balanced(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
         build, dataclasses.replace(ctx, hit_with="", damage_type=""))
     survival = _min_damage_taken(build, ctx)
     damage_base, survival_base = _without_relics(ctx)
+    absolute = balanced_value(damage_figure.value / damage_base,
+                              survival.value / survival_base)
+    value = absolute
+    if len(ctx.balance_span) == 2:
+        top_damage, top_survival = ctx.balance_span
+        value = balanced_by_span(
+            share_of_the_best(damage_figure.value, damage_base, top_damage),
+            share_of_the_best(survival.value, survival_base, top_survival))
     return types.GoalScore(
-        value=balanced_value(damage_figure.value / damage_base,
-                             survival.value / survival_base),
+        value=value,
+        compare_value=absolute,
         display=f"{damage_figure.display}{types.FIGURES_JOIN}{survival.display}",
         unit="",
         unknowns=damage_figure.unknowns,

@@ -228,8 +228,8 @@ starts there.
   number tiles, bars and Win/Lose side by side; Effects & chances, Weapons &
   spells and Deep of Night explain themselves in short bullet legends instead
   of paragraphs; the Red variants tab shows figures and bars. **Balanced**
-  no longer leans so hard towards attack: both halves are measured against
-  your Nightfarer without relics and the half that is ahead counts less.
+  first finds the most attack and the most Defense the vessel can reach,
+  each on its own, then picks the relics that get furthest towards both.
   Defense counts only the strongest damage negation (Physical -12 % and
   Magic -10 % make 12 %, never a sum or an average). The vessel tooltip
   shows how AR and Defense are worked out. A spell school of the other kind (Bestial with a staff) is now

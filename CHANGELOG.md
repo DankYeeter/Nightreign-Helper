@@ -23,11 +23,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   adds, all six maps side by side, and the 24 field bosses the game can turn
   red. The weapon-drop and Everdark lines are gone: the game's files do not
   back the first, and the second is on the Deep of Night tab already.
-- **Balanced no longer leans so hard towards attack.** It used to multiply
-  attack rating by effective HP, so every relic went to whichever side it moved
-  by the larger percentage, usually attack. Now both sides are measured against
-  your Nightfarer without relics, and the further one side is ahead, the less
-  another percent of it counts.
+- **Balanced no longer leans towards attack.** It first finds the most attack
+  and the most Defense the vessel can reach on its own, then picks the relics
+  that get furthest towards both. Held, starred and favourite relics count in
+  every step. Optimize under Balanced takes about three times as long.
 - **Defense counts only the strongest damage negation.** Physical -12 % and
   Magic -10 % now make 12 % less damage taken, where before the eight damage
   types were averaged (+8 % here). The worst damage-taken penalty counts the

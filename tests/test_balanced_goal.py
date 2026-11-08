@@ -207,3 +207,18 @@ def test_the_control_words_come_from_the_registry():
     assert BALANCED.label == "Balanced"
     assert relicpicker.VALUE_CAPTIONS[BALANCED.id] == "Balanced"
     assert relicpicker.chip_text(BALANCED.id) == "BEST FOR BALANCE"
+
+
+def test_a_share_runs_from_no_relics_to_the_best_alone():
+    """User proposal 2026-11-08: each side over its own best."""
+    assert goals.share_of_the_best(72, 72, 122) == 0
+    assert goals.share_of_the_best(122, 72, 122) == 1
+    assert goals.share_of_the_best(97, 72, 122) == 0.5
+    assert goals.share_of_the_best(80, 80, 80) == 1.0
+
+
+def test_halfway_on_both_beats_all_on_one():
+    both = goals.balanced_by_span(0.5, 0.5)
+    assert both > goals.balanced_by_span(1.0, 0.0)
+    assert both > goals.balanced_by_span(0.0, 1.0)
+    assert goals.balanced_by_span(0.6, 0.6) > goals.balanced_by_span(0.9, 0.3)
