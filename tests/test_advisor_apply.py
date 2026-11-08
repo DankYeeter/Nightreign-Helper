@@ -917,9 +917,9 @@ def test_the_comparison_arrives_on_the_list_and_nothing_moves(planner, told):
     assert planner.current_vessel() == here
     assert bar.answer is answer_before
     best = planner.hero_vessels[-1]
-    assert _line_of(planner, best["id"])[0].startswith("BEST  ")
+    assert _line_of(planner, best["id"])[0] == ""  # no BEST tag (2026-11-08)
     assert sum(bool(_line_of(planner, vessel["id"])[0])
-               for vessel in planner.hero_vessels) == 1
+               for vessel in planner.hero_vessels) == 0
     assert planner.compare_status.text().startswith(
         f"Best of {len(planner.hero_vessels)} for ")
     assert best["name"] in planner.compare_status.text()
@@ -960,7 +960,7 @@ def test_the_list_and_the_status_line_read_against_no_relics(planner, told):
     best = planner.hero_vessels[-1]
     value = int(told.value_of[run.vessel_slots(best, True)])
     percent = round((value / 50 - 1) * 100)
-    assert _line_of(planner, best["id"]) == (f"BEST  AR {value} (+{percent} %)", "")
+    assert _line_of(planner, best["id"]) == ("", f"AR {value} (+{percent} %)")
     assert f"AR {value} (+{percent} %)" in planner.compare_status.text()
     assert planner.compare_status.toolTip().endswith(
         "Without relics: Attack rating 50.")

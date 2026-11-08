@@ -128,7 +128,7 @@ def repetition(effect: dict) -> str:
     exclusivity = effect.get("exclusivity", -1)
     if isinstance(exclusivity, int) and exclusivity > 0:
         return EXCLUSIVE
-    if not effect.get("stacks", True) or model.accumulates(effect):
+    if model.single_copy(effect) or model.accumulates(effect):
         return STRONGEST
     # Measured behaviour beats the flags. model.NON_ACCUMULATING lists fields
     # the game refuses to add up despite the params marking them as stacking,

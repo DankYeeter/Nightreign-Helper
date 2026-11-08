@@ -726,10 +726,10 @@ def vessel_line(comparing: Comparing | None,
                                                  Compared.RUNNING) else None)
     if row.unfit_holds:
         return "", "Your held relics do not fit"
-    number = _with_its_base(row)
-    if comparing.state is Compared.DONE and comparing.is_best(row):
-        return f"BEST  {number}", ""
-    return "", number
+    # No `BEST` tag any more (user 2026-11-08: "BEST kann komplett weg"):
+    # the relics on each row show what goes where, and the line above the
+    # list names the best vessel with its Switch button.
+    return "", _with_its_base(row)
 
 
 def _rank_of(comparing: Comparing, row: types.VesselRow) -> int:

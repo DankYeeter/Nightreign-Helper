@@ -181,6 +181,26 @@ EXTRA_MULTIPLIERS = {
 # seen without inventing a cap that has not been observed.
 NON_ACCUMULATING = {"additionalCharacterSkillUse"}
 
+# "Improved Attack Power with 3+ Daggers Equipped" is flagged as stacking, and
+# a second copy of it does not stack in play: the community reports it plainly
+# (two Steam threads, 12/2025 and 01/2026; user question 2026-11-08), while two
+# different weapon types do add up. So a weapon-count gate makes the second
+# copy of the *same* effect worth nothing; other effects keep their flag.
+SINGLE_COPY_FIELDS = {"wepTypeTriggerCount"}
+
+
+def single_copy(eff: dict) -> bool:
+    """Is a second copy of this very effect worth nothing?
+
+    The params' own `stacks` flag, overruled for a weapon-count gate
+    (`SINGLE_COPY_FIELDS`); a starting-item count (`startGoodsId`) is not one.
+    """
+    if not eff.get("stacks", True):
+        return True
+    mods = eff.get("modifiers") or {}
+    return ("startGoodsId" not in mods
+            and any(f in mods for f in SINGLE_COPY_FIELDS))
+
 # Flat additions, not multipliers -- shown as a count rather than a percentage.
 # characterSkillGauge belongs here, not above: its baseline across the 13,472
 # SpEffect rows is 0.0, not 1.0, and the values it takes are point awards
@@ -1237,7 +1257,7 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     for eff in effects:
         eid = eff["id"]
         seen_ids[eid] = seen_ids.get(eid, 0) + 1
-        if not eff["stacks"] and seen_ids[eid] > 1:
+        if single_copy(eff) and seen_ids[eid] > 1:
             build.warnings.append(
                 Warning("duplicate", f"{eff['name']} x{seen_ids[eid]} — only the strongest applies")
             )

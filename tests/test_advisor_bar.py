@@ -2442,7 +2442,7 @@ def test_a_multiplier_differs_in_two_places():
             _row(2, 1.42, figure="Attack multipliers ×1.42"), _row(3, 0.0),
             _row(4, 0.0))
     assert "— ×1.42, 0.22 more than this one." in _status(*rows)[0]
-    assert advisorbar.vessel_line(_comparing(*rows), 2) == ("BEST  ×1.42", "")
+    assert advisorbar.vessel_line(_comparing(*rows), 2) == ("", "×1.42")
 
 
 def test_a_tie_needs_every_key_of_the_rank_level():
@@ -2495,7 +2495,7 @@ def test_best_waits_for_the_last_row():
     assert advisorbar.vessel_line(running, 1) == ("", "AR 100")
     assert advisorbar.vessel_line(running, 2) == ("", "…")
     done = _comparing(_row(1, 100), _row(2, 90))
-    assert advisorbar.vessel_line(done, 1) == ("BEST  AR 100", "")
+    assert advisorbar.vessel_line(done, 1) == ("", "AR 100")
     assert advisorbar.vessel_line(done, 2) == ("", "AR 90")
 
 
@@ -2512,7 +2512,7 @@ def test_missing_favourites_stand_in_the_tooltip_not_on_the_line():
     one = _row(1, 100, pins_left_out=("Urn",))
     two = _row(2, 90, required_left_out=(5,), pins_left_out=("Urn",))
     comparing = _comparing(one, two)
-    assert advisorbar.vessel_line(comparing, 1) == ("BEST  AR 100", "")
+    assert advisorbar.vessel_line(comparing, 1) == ("", "AR 100")
     assert advisorbar.vessel_line(comparing, 2) == ("", "AR 90")
     assert "Misses: 5, Urn." in advisorbar.vessel_compared_lines(comparing, 2, str)
 
@@ -2758,7 +2758,7 @@ def test_the_sentence_and_the_tooltips_carry_the_percent_and_the_base():
         "than this one.")
     assert advisorbar.comparison_status(comparing, 2, None, NAMES)[0] == (
         "This is the best of 4 vessels for Maximise damage: AR 118 (+136 %).")
-    assert advisorbar.vessel_line(comparing, 2) == ("BEST  AR 118 (+136 %)", "")
+    assert advisorbar.vessel_line(comparing, 2) == ("", "AR 118 (+136 %)")
     assert "Without relics: Attack rating 50." in (
         advisorbar.vessel_compared_lines(comparing, 3, str))
     assert advisorbar.comparison_base(comparing) == (

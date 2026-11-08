@@ -400,7 +400,7 @@ class RelicSlot(QFrame):
             name = html.escape(effecttext.name(eff) if eff else f"<{eid}>")
             tag = (iconpack.inline(self.icons, "status", eff.get("icon"))
                    if eff else "")
-            mark = ("" if not eff or (eff["stacks"]
+            mark = ("" if not eff or (not model.single_copy(eff)
                                       and not model.accumulates(eff))
                     else "  ⚠")
             colour = DEBUFF if eff and eff.get("is_curse") else "#cfcfcf"

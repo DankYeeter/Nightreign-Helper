@@ -168,7 +168,7 @@ def test_a_vessel_row_leads_with_both_percentages_and_sorts_by_the_value():
     comparing = _comparing(sharp, even)
     assert comparing.ranked()[0] is even
     assert advisorbar.vessel_line(comparing, 2) == (
-        "BEST  AR +65 % / Defense +34 %", "")
+        "", "AR +65 % / Defense +34 %")
     assert advisorbar.vessel_line(comparing, 1) == (
         "", "AR +89 % / Defense +8 %")
 
