@@ -713,3 +713,31 @@ dieses Korbs lag nicht in den geloeschten Zeilen.**
   Grund-Frost-Bonus 7260400 nicht mit frei (QA 1.20.0).
 - Why bei einer Zustandsquelle nennt nur "-15 % counted against it", nicht den
   freigeschalteten Gewinn (Reliktwahl zeigt +1.1 AR): ui-ux-designer.
+
+## Nachtlauf 08.11.2026 (1.22.0)
+
+- **49 von 160 Zaubern ohne Schadenszahl**, darunter sichtbar schadende:
+  Glintstone Stars, Star Shower, Founding Rain of Stars, Stars of Ruin,
+  Magic Downpour, Freezing Mist, Rykard's Rancor, Lightning Strike, Ancient
+  Dragons' Lightning Strike, Carian Retaliation, Shadow Bait. Vermutete
+  Ursache (nicht gemessen): `extract.spell_damage.follow_bullet` folgt nur
+  `HitBulletID`; `Bullet.intervalCreateBulletId` (laut vendored
+  `Bullet.xml` vorhanden) wird nicht gelesen. Pruefen braucht
+  `regulation.bin` aus dem Spielordner (im Nachtlauf nicht freigegeben).
+  Vorsicht beim Fix: "staerkster Einzeltreffer" kann bei den 111 belegten
+  Zaubern steigen, `SPELLS_WITH_DAMAGE_TODAY` und die Ankerwerte neu messen;
+  `EXTRACT_VERSION` 21 macht den Testabzug ungueltig.
+- **Zustandsquellen der Weapon Arts** (Hoarfrost Stomp u. a., siehe oben):
+  die Art liest nur ihre eigene AtkParam-Zeile, keine Bullets; der Zustand
+  sitzt vermutlich auf einem per TAE/BehaviorParam erzeugten Bullet.
+- **OF-54 (128 statt 129):** alle drei Puppenwerte (123/128/138) passen auch
+  zu einem eigenen Zauberfaktor k in [0,59774; 0,59886) statt 0,6 oder zu
+  einem Puppenabzug x in [0,99625; 0,99807). Die Waffen-0,6 ist am Menue
+  gemessen, die Zauberwerte an der Puppe; ein vierter Puppenwert (z. B. +1,
+  Faktor 1,055: Programm 130, k-Lesart 130, Abzug-Lesart 130 -- trennt nicht;
+  +2, 1,065: 131,7 / 131,2 / 131,4 -- trennt nicht) reicht nicht, eine Waffe
+  an der Puppe gegen ihre Menue-AR wuerde trennen.
+- **Optimizer-Stichprobe:** 10 Nightfarer x alle Vessels x Deep an/aus x 4
+  Ziele (880 Laeufe, eingefrorener Spielstand) gegen Einzeltausch ueber den
+  vollen Pool: eine Abweichung, +0,01 % (Recluse, Decrepit Recluse's Goblet,
+  Deep, Balanced). Kein Handlungsbedarf.

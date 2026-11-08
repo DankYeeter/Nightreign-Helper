@@ -6,6 +6,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-11-08
+
 ### Changed
 - **The World Events tab is redesigned.** Each event shows its game symbol,
   number tiles (Nightlords, enemy HP, base runes, drops), a bar per Nightlord
@@ -31,6 +33,14 @@ History before 1.10.0 was not reconstructed; this file starts here.
   which number to which (`AR 158 → 276 (+75 %)`), what the AR is measured on,
   and that Defense is effective HP. Max HP counts in it, and damage negation
   of different types is averaged, never added up.
+
+### Fixed
+- **A spell school of the other kind is now refused like the kind itself.**
+  Asking the advisor about an incantation school (Bestial, Dragon Cult,
+  Godslayer and the rest) with a staff, or a sorcery school with a seal,
+  ranked the staff's Glintstone Pebble without a word. It now says the staff
+  casts sorceries, as `Incantations` already did. A school of the right kind
+  whose spell the staff does not cast keeps the figure and says so.
 
 ## [1.21.0] - 2026-11-07
 
