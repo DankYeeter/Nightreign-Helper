@@ -23,6 +23,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   adds, all six maps side by side, and the 24 field bosses the game can turn
   red. The weapon-drop and Everdark lines are gone: the game's files do not
   back the first, and the second is on the Deep of Night tab already.
+- **Favourite, Avoid, Allow and Stacks are now kept per Nightfarer.** Guard
+  effects can be a Favourite on the Guardian and stay out of the Duchess's
+  suggestions. What you marked before this update starts out on every
+  Nightfarer; a change after that belongs to the one selected.
 - **Balanced no longer leans towards attack.** It first finds the most attack
   and the most Defense the vessel can reach on its own, then picks the relics
   that get furthest towards both. Held, starred and favourite relics count in

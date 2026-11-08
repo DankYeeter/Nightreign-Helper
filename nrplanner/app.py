@@ -1502,6 +1502,9 @@ class Planner(QMainWindow):
         if portrait is not None:
             self.hero_name_symbol.setPixmap(
                 iconpack.sharp(portrait, HERO_SYMBOL))
+        # Favourite, Avoid, Allow and Stacks are per Nightfarer too
+        # (user 2026-11-08): guarding effects fit a Guardian, not a Duchess.
+        self.effect_filters.set_hero(self.heroes[index]["id"])
         self.apply_hero_weapon()
         self.reload_chalices()
         # Saved builds are per Nightfarer, so the list and the strip both

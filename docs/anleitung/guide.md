@@ -245,7 +245,9 @@ relic, curses included. Each row has two check boxes, **Favourite** and
 **Avoid**: check **Favourite** and every suggestion for this Nightfarer must
 carry that effect, if it can; check **Avoid** and no suggestion uses a
 relic that carries it (a relic you place or hold yourself stays where you
-put it); checking one clears the other on the same row. Effects that belong
+put it); checking one clears the other on the same row. Every Nightfarer
+keeps its own marks: what you check for the Guardian does not touch the
+Duchess. Effects that belong
 to one family sit under a heading: **Avoid** on the heading avoids every
 member below it, and **Allow** on one member lets just that one back in. An
 effect that stacks, such as "Attack power increased for each Night Invader
