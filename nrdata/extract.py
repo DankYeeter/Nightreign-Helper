@@ -138,7 +138,12 @@ MAX_LEVEL = 15
 #      Law of Causality (Holy 800). Their bullets sit in the spell's own id
 #      block (10 000 000 + magic id x 100), and an animation fires them, so no
 #      Magic or Bullet field names them (measured 08.11.2026).
-EXTRACT_VERSION = 22
+#  23  `effects[].triggered` -- the numbers on the rows an effect only
+#      switches on (`triggered_rows`): "Taking Damage Boosts Damage Negation"
+#      is -21% for 10 s, and its own row says nothing but which row to fire.
+#      A cache left on 22 keeps describing those 81 relic effects as
+#      "triggers a linked effect" with no figure.
+EXTRACT_VERSION = 23
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -274,6 +279,82 @@ STATUS_POWER = {
     "madnessAttackPower": "Madness",
     "curseAttackPower": "Death Blight",
 }
+
+# ---- Numbers on the rows an effect only triggers ---------------------------
+# 81 relic effects carry a hand-off and nothing else on their own rows:
+# "Taking Damage Boosts Damage Negation" is cycleOccurrenceSpEffectId 8620101,
+# and the eight cut rates at 0.79 for 10 s sit on 8620102, which that row
+# switches on through state 2284. The state and adjacent payloads above never
+# look, because a hand-off counts as substance. `triggered_rows` walks the
+# hand-offs and returns those rows.
+#
+# Only these fields, because every one of them has a reading the planner
+# already prints. ponytail: a whitelist; a triggered row whose only content
+# is another field stays unreported until the field is added here.
+TRIGGERED_FIELDS = frozenset({
+    "physicsAttackRate", "magicAttackRate", "fireAttackRate",
+    "thunderAttackRate", "darkAttackRate",
+    "slashDamageCutRate", "blowDamageCutRate", "thrustDamageCutRate",
+    "neutralDamageCutRate", "magicDamageCutRate", "fireDamageCutRate",
+    "thunderDamageCutRate", "darkDamageCutRate", "toughnessDamageCutRate",
+    "changeHpPoint", "changeMpPoint", "changeStaminaPoint",
+    "changeHpRate", "changeMpRate",
+    "maxHpRate", "maxMpRate", "maxStaminaRate",
+    "soul", "staminaRecoverChangeSpeed",
+    "sightSearchEnemyRate", "hearingSearchEnemyRate",
+})
+TRIGGER_LINKS = ("replaceSpEffectId", "cycleOccurrenceSpEffectId",
+                 "atkOccurrenceSpEffectId", "applyIdOnGetSoul",
+                 "accumuOverFireId")
+TRIGGER_DEPTH = 6
+#: A state more rows than this wait on is the engine's, not one effect's.
+TRIGGER_STATE_ROWS = 8
+
+
+def triggered_rows(sp_ids, values_of, gated_on, owned, baseline) -> list[dict]:
+    """The rows an effect switches on, with the numbers they hold.
+
+    `values_of` is SpEffect id -> field values, `gated_on` is state -> ids of
+    the rows waiting on it, `owned` the ids other effects name as their own.
+
+    The walk is fenced so that it cannot report another effect's number: it
+    stays inside the id block of the effect's own rows (7032200 reaches
+    7032202, never the engine's poison row 505), it does not enter a row
+    another effect owns, and it skips a row that builds up an ailment --
+    `inflicts` reports that one, and what follows it is the ailment's own
+    tick, not the relic's.
+    """
+    blocks = {sp_id // 100 for sp_id in sp_ids}
+    seen = set(sp_ids)
+    queue = [(sp_id, 0) for sp_id in sp_ids]
+    found: list[dict] = []
+    while queue:
+        sp_id, depth = queue.pop(0)
+        values = values_of.get(sp_id)
+        if values is None:
+            continue
+        if depth and not any((values.get(f) or 0) > 0 for f in STATUS_POWER):
+            numbers = {f: values[f] for f in sorted(TRIGGERED_FIELDS)
+                       if f in values and f in baseline
+                       and values[f] != baseline[f]}
+            if numbers:
+                duration = values.get("effectEndurance", -1.0)
+                if duration > 0:
+                    numbers["effectEndurance"] = duration
+                found.append({"sp_id": sp_id, "modifiers": numbers})
+        if depth >= TRIGGER_DEPTH:
+            continue
+        nxt = [values.get(link) for link in TRIGGER_LINKS]
+        waiting = gated_on.get(values.get("stateInfo") or 0, ())
+        if len(waiting) <= TRIGGER_STATE_ROWS:
+            nxt += waiting
+        for target in nxt:
+            if (isinstance(target, int) and target > 0 and target not in seen
+                    and target not in owned and target // 100 in blocks):
+                seen.add(target)
+                queue.append((target, depth + 1))
+    return found
+
 
 FALLBACK_WEAPON_FAMILIES = {
     "33": "Unarmed",
@@ -2084,6 +2165,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             if _v and _v > 0:
                 owned_sp_ids.add(_v)
 
+    # The same two indexes by id, for `triggered_rows`.
+    sp_values = {r.id: r.values for r in speffect.rows}
+    gated_ids = {state: [r.id for r in rows]
+                 for state, rows in by_gate_state.items()}
+
     MAX_ADJACENT = 8
     NO_DURATION = -1.0   # "lasts until removed" rather than a timed window
 
@@ -2529,6 +2615,14 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # Taken from the param itself rather than matched on the
             # effect's name. Absent unless the effect swaps a spell.
             **({"start_magic_id": swapped_spells[0]} if swapped_spells else {}),
+            # The numbers of the rows this effect only switches on. Absent
+            # where the effect already carries one of these numbers itself:
+            # the state and adjacent payloads have then merged the same rows
+            # into "modifiers", and listing them twice would read as two buffs.
+            **({"triggered": fired} if not (set(modifiers) & TRIGGERED_FIELDS)
+               and (fired := triggered_rows(
+                   sp_ids, sp_values, gated_ids, owned_sp_ids, sp_baseline))
+               else {}),
         }
         return key
 

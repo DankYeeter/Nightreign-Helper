@@ -186,6 +186,14 @@ def evidence(effect: dict) -> str:
                 f"the game says otherwise, so the flag is what counts")
     fields = quantities(effect)
     if not fields:
+        fired = [str(row.get("sp_id")) for row in effect.get("triggered") or ()]
+        if fired:
+            # The flag above is all the files say about a second copy. Both
+            # copies fire the same row, and whether the engine then runs it
+            # twice is its own code's decision, written in no param.
+            return (f"its number sits on the triggered SpEffect "
+                    f"{', '.join(fired)} — the files do not say whether a "
+                    f"second copy adds to it")
         return "carries no quantity, so nothing combines"
     parts = [f"{f} ({'x' if model.is_multiplier(f) else '+'})" for f in fields]
     return "neutral value of " + ", ".join(parts)

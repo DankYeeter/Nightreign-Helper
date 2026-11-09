@@ -6,6 +6,17 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Added
+- **80 relic effects now show their figure.** Effects that only switch another
+  effect on used to read "triggers a linked effect". The number and how long
+  it lasts are now read from the game's files, for example "Taking Damage
+  Boosts Damage Negation": all damage taken -21% for 10 s. The dataset is
+  rebuilt once on the first start.
+
+### Fixed
+- FP restoration figures no longer read as a percentage in the thousands
+  ("Failing to Cast Spell Restores FP").
+
 ## [1.22.0] - 2026-11-08
 
 ### Changed

@@ -367,6 +367,18 @@ def describe(effect: dict) -> str:
         verb = "recovery" if hp_rate < 0 else "loss"
         parts.append(f"HP {verb} rate {abs(hp_rate):g} "
                      f"(the game does not state the unit)")
+    # The FP twin, same sign and same open unit. It used to fall through to
+    # the multiplier branch below, which read "Failing to Cast Spell Restores
+    # FP" (-13.0) as "FP change -1400%".
+    fp_rate = mods.pop("changeMpRate", None)
+    if isinstance(fp_rate, (int, float)) and fp_rate:
+        verb = "recovery" if fp_rate < 0 else "loss"
+        parts.append(f"FP {verb} rate {abs(fp_rate):g} "
+                     f"(the game does not state the unit)")
+    # Stored as a cost, like HP per tick: -2 hands two points back.
+    stamina = mods.pop("changeStaminaPoint", None)
+    if isinstance(stamina, (int, float)) and stamina:
+        parts.append(f"Stamina {-stamina:+g}")
 
     for field_name, value in list(mods.items()):
         if field_name in IGNORE or not isinstance(value, (int, float)):
@@ -409,6 +421,14 @@ def describe(effect: dict) -> str:
         else:
             parts.append(f"{label} buildup {value:g} per proc")
 
+    # The numbers on the rows this effect only switches on (EXTRACT_VERSION
+    # 23). Each row is worded by this same function, so a triggered +15% reads
+    # exactly like a permanent one, and is marked as not permanent.
+    fired = [_triggered_text(row) for row in effect.get("triggered") or ()]
+    fired = list(dict.fromkeys(text for text in fired if text))
+    if fired:
+        parts.append("when triggered: " + " / ".join(fired))
+
     if not parts and mods:
         # Never leave a row blank: say what the row actually carries.
         #
@@ -437,6 +457,21 @@ def describe(effect: dict) -> str:
             f"conditional ({', '.join(conditions)})"
     if effect.get("id") in model.ON_THE_ENEMY_EFFECT_IDS:
         return f"On the enemy: {text}"
+    return text
+
+
+#: Below this a triggered row is one pulse (0.1 s to 0.5 s in the dataset),
+#: and "for 0.3 s" would read as a buff nobody could use.
+PULSE_SECONDS = 1.0
+
+
+def _triggered_text(row: dict) -> str:
+    """One triggered row in words: its numbers, then how long they last."""
+    mods = dict(row.get("modifiers") or {})
+    seconds = mods.pop(model.DURATION_FIELD, 0)
+    text = describe({"modifiers": mods})
+    if text and isinstance(seconds, (int, float)) and seconds >= PULSE_SECONDS:
+        text += f" for {seconds:g} s"
     return text
 
 
