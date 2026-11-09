@@ -6,6 +6,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+## [1.22.0] - 2026-11-09
+
 ### Added
 - **Over 100 relic effects now show their figure.** Effects that only switch
   another effect on used to read "triggers a linked effect". The number and
@@ -16,23 +18,6 @@ History before 1.10.0 was not reconstructed; this file starts here.
   once on the first start.
 - **Heolstor's first form.** The Bosses tab shows what he takes in the first
   half of the fight as well (Holy x1.35, Fire x1.2), not only the second.
-
-### Changed
-- **Stacking follows the game's own rule.** Whether a second relic with the
-  same effect adds anything is now read from the game's code: 203 effects
-  that were listed as stacking are "One copy only", and the totals and the
-  Advisor count them once. Different effects on the same value still
-  multiply, which the same code confirms.
-
-### Fixed
-- "Flask Also Heals Allies" and "Gradual Restoration by Flask" no longer show
-  "HP restored per flask -100%". The figure belonged to a switch the game
-  shares between three effects, not to them.
-- FP restoration figures no longer read as a percentage in the thousands
-  ("Failing to Cast Spell Restores FP").
-- Harmonia's HP was read from a row her arena does not use.
-
-## [1.22.0] - 2026-11-08
 
 ### Changed
 - **The World Events tab is redesigned.** Each event shows its game symbol,
@@ -75,6 +60,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
   which number to which (`AR 158 → 276 (+75 %)`), what the AR is measured on,
   and that Defense is effective HP. Max HP counts in it, and the damage
   negation as described above.
+- **Stacking follows the game's own rule.** Whether a second relic with the
+  same effect adds anything is now read from the game's code: 203 effects
+  that were listed as stacking are "One copy only", and the totals and the
+  Advisor count them once. Different effects on the same value still
+  multiply, which the same code confirms.
 
 ### Fixed
 - **Ten spells that showed no damage now have their figure**: Glintstone
@@ -90,6 +80,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
   ranked the staff's Glintstone Pebble without a word. It now says the staff
   casts sorceries, as `Incantations` already did. A school of the right kind
   whose spell the staff does not cast keeps the figure and says so.
+- "Flask Also Heals Allies" and "Gradual Restoration by Flask" no longer show
+  "HP restored per flask -100%". The figure belonged to a switch the game
+  shares between three effects, not to them.
+- FP restoration figures no longer read as a percentage in the thousands
+  ("Failing to Cast Spell Restores FP").
+- Harmonia's HP was read from a row her arena does not use.
 
 ## [1.21.0] - 2026-11-07
 

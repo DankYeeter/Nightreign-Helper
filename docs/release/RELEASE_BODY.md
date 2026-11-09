@@ -239,4 +239,8 @@ starts there.
   refused with a sentence instead of ranking the staff's own spell. Ten
   spells that showed no damage now have it (Star Shower, Rykard's Rancor,
   Lightning Strike, Carian Retaliation, Law of Causality and five more).
-  The data cache is rebuilt once on first start.
+  Over 100 relic effects that only read "triggers a linked effect" now show
+  their figure and duration, read from the game's files. Whether a second
+  relic with the same effect adds anything now follows the game's own rule:
+  203 effects count once, so some totals fall. The Bosses tab shows
+  Heolstor's first form. **The data cache is rebuilt once on first start.**
