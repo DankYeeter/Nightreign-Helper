@@ -169,6 +169,15 @@ DAMAGE_TYPE_TOOLTIP = "Restricts {direction} to one kind of damage."
 #: translated, it is ignored (AD-051.5): it is days old.
 HIT_WITH_KEY = "hit_with"
 DAMAGE_TYPE_KEY = "damage_type"
+#: The element the player expects from a boss, kept the same way; `""` is
+#: no boss in mind (user decision 2026-11-08, 15:20).
+INCOMING_KEY = "incoming_damage"
+
+#: What the `Incoming` box does. Static, like `DAMAGE_TYPE_TOOLTIP`.
+INCOMING_TOOLTIP = ("Which damage you expect to take. Physical negation "
+                    "always counts in full and elemental negation at a "
+                    "quarter; pick a boss's element to count that one in "
+                    "full as well.")
 
 
 class State(enum.Enum):
@@ -594,9 +603,11 @@ AR_READS = ("AR is your Nightfarer's starting armament at its lowest tier, "
             "armament with no relics.")
 #: What `Defense` is: effective HP (`goals._min_damage_taken`).
 DEFENSE_READS = ("Defense is effective HP: your max HP divided by the share "
-                 "of a hit that gets through. More HP counts in full; only "
-                 "the strongest damage negation counts, of whatever type, "
-                 "never a sum or an average.")
+                 "of a hit that gets through. More HP counts in full, and so "
+                 "does the strongest physical damage negation; the strongest "
+                 "elemental negation adds a quarter of itself, or counts in "
+                 "full for the element chosen under Incoming. Never a sum or "
+                 "an average.")
 
 
 def _from_to(figure: str, base_figure: str) -> str:
@@ -1129,7 +1140,8 @@ def asking_from(planner, goal_id: str) -> Asking | None:
             "wepTypeTrigger", neutral_type) == selected.get("wep_type")}
     declared = tuple(sorted(item for item in baseline.items()
                             if item[0] not in counts))
-    weighting = advisor_goals.DEFAULT_WEIGHTING
+    weighting = advisor_goals.incoming_weighting(
+        planner.advisor_bar.incoming())
     # The hand is read, although the grid is not: it is a feature of the
     # build the player sets, not of an armament that is rolled (AK-293).
     two_handed = planner.stat_sheet.hand_switch.isChecked()
@@ -1578,6 +1590,29 @@ class AdvisorBar(QWidget):
         self._remember_the_choice(self.damage_type_box, DAMAGE_TYPE_KEY)
         question.addWidget(self.damage_type_box)
 
+        # User decision 2026-11-08, 15:20: which damage the survival figure
+        # expects. Shown where that figure is ranked on, in the place the
+        # two pairs above leave free, and narrower than they are -- so the
+        # row's widths, counted on those pairs, hold for it too.
+        self.incoming_label = QLabel("Incoming")
+        question.addWidget(self.incoming_label)
+        self.incoming_box = QComboBox()
+        self.incoming_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.incoming_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.incoming_box.setAccessibleName("Incoming damage")
+        self.incoming_box.setToolTip(INCOMING_TOOLTIP)
+        self.incoming_box.addItem(weapons.DAMAGE_LABELS["Physics"], "")
+        self.incoming_box.insertSeparator(self.incoming_box.count())
+        for element in advisor_goals.ELEMENT_CUT_FIELDS:
+            label = weapons.DAMAGE_LABELS[element]
+            self.incoming_box.addItem(label, element)
+            symbol = iconpack.type_pixmap(icons, label)
+            if symbol is not None:
+                self.incoming_box.setItemIcon(
+                    self.incoming_box.count() - 1, QIcon(symbol))
+        self._remember_the_choice(self.incoming_box, INCOMING_KEY)
+        question.addWidget(self.incoming_box)
+
         # AK-302: visible and live in all fourteen states, a run in flight
         # included -- AK-289 presupposes a marking under a run.
         self.filters_button = QPushButton("Filters")
@@ -1763,6 +1798,29 @@ class AdvisorBar(QWidget):
         self._forget_the_answer()
         self._show(self._resting())
         self._check_the_comparison()
+
+    def the_level_changed(self) -> None:
+        """The level slider moved, and nothing else (user, 2026-11-08).
+
+        A level is a condition of the question, not another build: the slots
+        and what the player owns are as they were. So a suggestion on screen
+        is not thrown away, it is asked again at the new level and stays up
+        until the new one arrives (`ask_again`); a run on its way is asked
+        again likewise. An applied suggestion stays applied, so `Undo apply`
+        survives the slider, and only the vessel figures are marked as
+        belonging to the level before. With nothing on screen there is
+        nothing to keep, and this is `the_build_changed`.
+        """
+        if self._applying:
+            return
+        if self.has_been_applied():
+            self.the_comparison_is_out_of_date()
+            return
+        if self._answer is None and not self.is_working():
+            self.the_build_changed()
+            return
+        self.ask_again(stopped=self._stopped_note, done=self._done_note,
+                       done_tip=self._done_tip, debounce_ms=None)
 
     def _check_the_comparison(self) -> None:
         """AK-434, one seam instead of a call at every cause (AD-062.8)."""
@@ -1981,6 +2039,7 @@ class AdvisorBar(QWidget):
         settings = favourites.settings()
         settings.setValue(HIT_WITH_KEY, self.hit_with())
         settings.setValue(DAMAGE_TYPE_KEY, self.damage_type())
+        settings.setValue(INCOMING_KEY, self.incoming())
         self.the_build_changed()
 
     def _show_the_damage_types(self) -> None:
@@ -1996,6 +2055,10 @@ class AdvisorBar(QWidget):
         for widget in (self.hit_with_label, self.hit_with_box,
                        self.damage_type_label, self.damage_type_box):
             widget.setVisible(wanted)
+        survives = self.goal_id() in (advisor_goals.MIN_DAMAGE_TAKEN.id,
+                                      advisor_goals.BALANCED.id)
+        self.incoming_label.setVisible(survives)
+        self.incoming_box.setVisible(survives)
 
     def _apply_or_undo(self) -> None:
         """One button, and which of the two actions it is is the row's state.
@@ -2029,12 +2092,14 @@ class AdvisorBar(QWidget):
         self._controller.ask(asking.request, asking.inventory, asking.ctx)
 
     def ask_again(self, *, stopped: str = "", done: str = "",
-                  done_tip: str = "") -> None:
+                  done_tip: str = "", debounce_ms: int | None = 0) -> None:
         """The same question with one mark more, asked from the block (AD-061).
 
         Unlike `_ask` the answer stays on screen until the new one arrives, so
         nothing jumps (AK-425), and there is no debounce: the block is locked
-        meanwhile, so nothing can overtake this (AK-424). The state changes at
+        meanwhile, so nothing can overtake this (AK-424). The level slider is
+        the one caller that can overtake itself, a tick at a time, and passes
+        `None` for the controller's own debounce. The state changes at
         once because the window reads it to lock the block.
         """
         asking = self._asking(self.goal_id())
@@ -2048,7 +2113,7 @@ class AdvisorBar(QWidget):
         self._done_tip = done_tip
         self._show(Situation(State.WORKING_QUIETLY))
         self._controller.ask(asking.request, asking.inventory, asking.ctx,
-                             debounce_ms=0)
+                             debounce_ms=debounce_ms)
 
     def is_working(self) -> bool:
         """Is a run being waited for?"""
@@ -2074,6 +2139,11 @@ class AdvisorBar(QWidget):
         the entry `Lightning` carries.
         """
         return self.damage_type_box.currentData() or ""
+
+    def incoming(self) -> str:
+        """The element the survival figure counts in full, `""` for none
+        beyond physical (`goals.incoming_weighting`)."""
+        return self.incoming_box.currentData() or ""
 
     def choose_goal(self, goal_id: str) -> None:
         """Stand on another direction, asked from outside the row (AK-256).

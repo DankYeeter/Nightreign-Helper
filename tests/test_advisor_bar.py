@@ -795,7 +795,8 @@ def test_the_direction_box_carries_the_registry_and_nothing_else(bar):
         == [goals.GOALS[goal_id].label for goal_id in advisorbar.GOAL_ORDER]
     assert bar.findChildren(type(bar.goal_box)) == [bar.goal_box,
                                                     bar.hit_with_box,
-                                                    bar.damage_type_box]
+                                                    bar.damage_type_box,
+                                                    bar.incoming_box]
 
 
 #: A dataset with one spell school and three arts, so the school group of
@@ -1683,11 +1684,38 @@ def test_the_row_breaks_one_px_under_its_one_line_need(
 def test_the_damage_question_counts_in_the_need(bar):
     """AK-395: the direction's own controls are part of the need -- the
     need of `max_damage` is wider by exactly what its two pairs ask."""
-    bar.choose_goal("min_damage_taken")
+    bar.choose_goal("max_attributes")
     narrower = bar._lines.one_line_need()
     bar.choose_goal("max_damage")
     assert (bar._lines.one_line_need() - narrower
             == bar.damage_question_extra_width())
+
+
+@pytest.mark.parametrize("goal_id", ["min_damage_taken", "balanced"])
+def test_the_incoming_pair_takes_less_than_the_damage_question(bar, goal_id):
+    """User decision 2026-11-08: `Incoming` stands where the two pairs of
+    `max_damage` are hidden, and is narrower than they are, so every width
+    counted on those pairs holds for it."""
+    bar.choose_goal("max_attributes")
+    bare = bar._lines.one_line_need()
+    bar.choose_goal(goal_id)
+    assert not bar.incoming_box.isHidden() and bar.hit_with_box.isHidden()
+    assert 0 < (bar._lines.one_line_need() - bare
+                ) <= bar.damage_question_extra_width()
+    bar.choose_goal("max_damage")
+    assert bar.incoming_box.isHidden() and bar.incoming_label.isHidden()
+
+
+def test_the_incoming_box_offers_physical_and_the_four_elements(bar):
+    box = bar.incoming_box
+    entries = [(box.itemText(i), box.itemData(i)) for i in range(box.count())
+               if box.itemText(i)]
+    assert entries == [("Physical", ""), ("Magic", "Magic"), ("Fire", "Fire"),
+                       ("Lightning", "Thunder"), ("Holy", "Dark")]
+    assert bar.incoming() == ""
+    box.setCurrentIndex(box.findData("Fire"))
+    assert bar.incoming() == "Fire"
+    assert goals.incoming_weighting(bar.incoming()).id == "physical+Fire"
 
 
 @pytest.mark.parametrize("goal_id", advisorbar.GOAL_ORDER)
@@ -1923,6 +1951,16 @@ def test_a_change_of_the_level_reaches_the_advisor(planner, monkeypatch):
     because what is asserted is that the one funnel every change ends in
     tells the advisor -- not that a method calls the method beside it.
     """
+    told = []
+    monkeypatch.setattr(planner.advisor_bar, "the_level_changed",
+                        lambda: told.append(True))
+    planner.level_slider.setValue(planner.level_slider.value() + 1)
+    assert told
+
+
+def test_a_level_with_nothing_on_screen_is_a_change_like_any_other(
+        planner, monkeypatch):
+    """With no suggestion there is nothing to keep (user, 2026-11-08)."""
     told = []
     monkeypatch.setattr(planner.advisor_bar, "the_build_changed",
                         lambda: told.append(True))

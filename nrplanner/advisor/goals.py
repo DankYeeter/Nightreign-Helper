@@ -102,11 +102,62 @@ EVEN_WEIGHTING = types.Weighting(
     weights=tuple((field_name, 1.0) for field_name in DAMAGE_CUT_FIELDS),
 )
 
-#: Until a control for OF-3 exists, every run is asked with this one. Changing
+#: The four physical kinds, which every enemy deals: these count in full
+#: (user decision 2026-11-08, 15:20).
+PHYSICAL_CUT_FIELDS = DAMAGE_CUT_FIELDS[:4]
+
+#: The four elements by the id `weapons.DAMAGE_LABELS` gives them, which is
+#: what the `Incoming` box of the advisor row carries.
+ELEMENT_CUT_FIELDS = MappingProxyType({
+    "Magic": "magicDamageCutRate",
+    "Fire": "fireDamageCutRate",
+    "Thunder": "thunderDamageCutRate",
+    "Dark": "darkDamageCutRate",
+})
+
+#: What negation of an element nobody chose is worth beside physical: a
+#: quarter, so it decides between relics that are otherwise level and never
+#: pushes a physical effect out (user decision 2026-11-08, 15:20).
+ELEMENT_WEIGHT = 0.25
+
+_ELEMENT_WORDS = {"Magic": "magic", "Fire": "fire", "Thunder": "lightning",
+                  "Dark": "holy"}
+
+
+def incoming_weighting(element: str = "") -> types.Weighting:
+    """Physical in full, the elements at `ELEMENT_WEIGHT`, and the one
+    element the player expects from a boss in full as well.
+
+    `element` is a key of `ELEMENT_CUT_FIELDS` or `""` for no boss in mind.
+    The id is part of the cache key, so each choice is its own question.
+    """
+    if element and element not in ELEMENT_CUT_FIELDS:
+        raise KeyError(f"no element {element!r}; the incoming damage is one "
+                       f"of {list(ELEMENT_CUT_FIELDS)} or empty")
+    full = set(PHYSICAL_CUT_FIELDS) | (
+        {ELEMENT_CUT_FIELDS[element]} if element else set())
+    counted = ("physical" if not element
+               else f"physical and {_ELEMENT_WORDS[element]}")
+    return types.Weighting(
+        id=f"physical+{element}" if element else "physical",
+        label=f"Physical and {_ELEMENT_WORDS[element]}" if element
+        else "Physical",
+        note=(f"Only the strongest {counted} damage negation counts in full, "
+              f"and the worst such penalty likewise; the strongest negation "
+              f"of {'another' if element else 'an'} element adds a quarter "
+              f"of itself. Negation of different types is never added up or "
+              f"averaged."),
+        weights=tuple((field_name,
+                       1.0 if field_name in full else ELEMENT_WEIGHT)
+                      for field_name in DAMAGE_CUT_FIELDS),
+    )
+
+
+#: What a run is asked with when the player has no boss in mind. Changing
 #: it is a different `Weighting` instance passed by the caller, never an edit
 #: to the goal function -- `weighting.id` is part of the cache key, so a
 #: mutated default would be served stale results.
-DEFAULT_WEIGHTING = EVEN_WEIGHTING
+DEFAULT_WEIGHTING = incoming_weighting()
 
 
 # The four things this figure cannot tell the player, whatever the build --
@@ -221,8 +272,9 @@ _DAMAGE_TAKEN_SCOPE = (
     "Effective HP assumes each damage-reduction rate multiplies the damage "
     "you take; the game files name the fields, not how the engine applies "
     "them.",
-    "Which damage types you will meet is not in the game data, so the "
-    "strongest negation stands for all of them.",
+    "Which damage types you will meet is not in the game data: physical "
+    "negation counts in full, elemental negation at a quarter, and an "
+    "element chosen under Incoming in full.",
     "Ailment and status resistance are not part of this figure.",
     "Only the damage reduction the equipped effects carry is counted; "
     "nothing else that lowers damage in play is in this figure.",
@@ -769,9 +821,10 @@ def _min_damage_taken(build: model.Build,
     """How much this build can take before it falls over, as effective HP.
 
     HP divided by what gets through, where only the strongest damage
-    negation counts and not an average over the eight kinds
-    (`strongest_cut`, user decision 2026-11-08); the context's weighting only
-    says which kinds take part. Bigger is better, so
+    negation among the kinds counted in full stands, and the strongest among
+    the others adds its weight's share (`strongest_cut`, user decisions
+    2026-11-08); the context's weighting says which kinds are which
+    (`incoming_weighting`). Bigger is better, so
     it ranks the same way round as the damage goal does and one comparison
     serves both.
 
@@ -835,7 +888,9 @@ def _min_damage_taken(build: model.Build,
         value=effective,
         display=f"Effective HP {effective:.0f}",
         unit="effective HP",
-        weights_note=STRONGEST_ONLY_NOTE,
+        weights_note=(STRONGEST_ONLY_NOTE
+                      if len(set(weights.values()) - {0}) == 1
+                      else ctx.weighting.note),
     )
 
 
@@ -849,19 +904,33 @@ STRONGEST_ONLY_NOTE = (
 
 
 def strongest_cut(rates: dict, weights: dict) -> float:
-    """The one factor of a hit that gets through: the strongest reduction
-    among the weighted fields times the worst penalty among them.
+    """The one factor of a hit that gets through.
 
-    Physical -12 % and magic -10 % give 0.88, not 0.88 x 0.9 and not their
-    average (user decision 2026-11-08). A field with weight 0 takes no part.
-    A penalty is kept apart from the reduction so that a curse raising one
-    type is not hidden by a relic lowering another.
+    Among the fields with the highest weight: the strongest reduction times
+    the worst penalty. Physical -12 % and magic -10 %, both in full, give
+    0.88, not 0.88 x 0.9 and not their average (user decision 2026-11-08). A
+    penalty is kept apart from the reduction so that a curse raising one type
+    is not hidden by a relic lowering another.
+
+    Among the fields with a lower weight, the strongest reduction and the
+    worst penalty again, each at its weight's share: with physical in full
+    and fire at a quarter, physical -12 % and fire -16 % give 0.88 x 0.96
+    (user decision 2026-11-08, 15:20). A field with weight 0 takes no part.
     """
-    counted = [rates.get(name, 1.0) for name, weight in weights.items()
-               if weight > 0]
-    best = min([rate for rate in counted if rate < 1.0], default=1.0)
-    worst = max([rate for rate in counted if rate > 1.0], default=1.0)
-    return best * worst
+    full = max(weights.values(), default=0)
+    best = worst = 1.0
+    bonus = malus = 0.0
+    for name, weight in weights.items():
+        rate = rates.get(name, 1.0)
+        if weight <= 0:
+            continue
+        if weight == full:
+            best, worst = min(best, rate), max(worst, rate)
+        else:
+            share = weight / full
+            bonus = max(bonus, (1.0 - rate) * share)
+            malus = max(malus, (rate - 1.0) * share)
+    return best * worst * (1.0 - bonus) * (1.0 + malus)
 
 
 #: How hard `BALANCED` pulls the two halves together, as `k` in

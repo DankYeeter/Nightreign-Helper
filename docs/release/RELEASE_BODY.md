@@ -230,8 +230,11 @@ starts there.
   of paragraphs; the Red variants tab shows figures and bars. **Balanced**
   first finds the most attack and the most Defense the vessel can reach,
   each on its own, then picks the relics that get furthest towards both.
-  Defense counts only the strongest damage negation (Physical -12 % and
-  Magic -10 % make 12 %, never a sum or an average). The vessel tooltip
+  Defense counts the strongest physical damage negation in full and the
+  strongest elemental one at a quarter (Physical -12 % and Fire -16 % make
+  about 15.5 %, never a sum or an average); the new **Incoming** box counts
+  one element in full for a boss. Moving the level slider keeps a suggestion
+  and asks it again at the new level. The vessel tooltip
   shows how AR and Defense are worked out. A spell school of the other kind (Bestial with a staff) is now
   refused with a sentence instead of ranking the staff's own spell. Ten
   spells that showed no damage now have it (Star Shower, Rykard's Rancor,

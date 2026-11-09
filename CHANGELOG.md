@@ -31,14 +31,24 @@ History before 1.10.0 was not reconstructed; this file starts here.
   and the most Defense the vessel can reach on its own, then picks the relics
   that get furthest towards both. Held, starred and favourite relics count in
   every step. Optimize under Balanced takes about three times as long.
-- **Defense counts only the strongest damage negation.** Physical -12 % and
-  Magic -10 % now make 12 % less damage taken, where before the eight damage
-  types were averaged (+8 % here). The worst damage-taken penalty counts the
-  same way. Nothing is ever added up.
+- **Defense counts physical damage negation in full and elemental negation
+  at a quarter.** Only the strongest physical negation (Standard, Strike,
+  Slash, Pierce) counts, and the strongest elemental one adds a quarter of
+  itself: Physical -12 % and Fire -16 % make 0.88 x 0.96, about 15.5 % less
+  damage taken, and Fire -16 % alone makes 4 %. Before, the eight damage
+  types were averaged. The worst damage-taken penalty counts the same way.
+  Negation of different types is never added up.
+- **New box "Incoming" under Minimise damage taken and Balanced.** Pick the
+  element a boss deals (Magic, Fire, Lightning, Holy) and that negation
+  counts in full beside physical. The choice is remembered.
+- **Moving the level slider no longer throws a suggestion away.** Optimize
+  always works at the level the slider shows; a suggestion on screen is asked
+  again at the new level and stays up meanwhile, and an applied suggestion
+  stays applied with **Undo apply** still there.
 - **The vessel tooltip now shows how AR and Defense are worked out**: from
   which number to which (`AR 158 → 276 (+75 %)`), what the AR is measured on,
-  and that Defense is effective HP. Max HP counts in it, and only the
-  strongest damage negation.
+  and that Defense is effective HP. Max HP counts in it, and the damage
+  negation as described above.
 
 ### Fixed
 - **Ten spells that showed no damage now have their figure**: Glintstone

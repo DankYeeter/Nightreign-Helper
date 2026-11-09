@@ -118,6 +118,12 @@ steps. There is nothing to set; from its suggestion you adjust by hand. It
 always reads the whole armament. In the vessel list each vessel then says both
 gains against the same vessel with no relics, for example
 `AR +60 % / Defense +70 %`.
+**Defense** is effective HP: max HP over the share of a hit that gets through.
+The strongest physical damage negation counts in full and the strongest
+elemental one adds a quarter of itself; nothing is added up. Under **Minimise
+damage taken** and **Balanced** the box **Incoming** lets you pick the element
+a boss deals (Magic, Fire, Lightning, Holy), which then counts in full beside
+physical.
 **Maximise damage**, **Balanced**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count
@@ -421,11 +427,13 @@ vessel, its cards and its suggestion stay as they were.
   stays for the other slots. Rejections alone save nothing until you apply. A
   vessel compared in another hand opens in that hand, and the tooltip says so.
 - The comparison goes stale — `Out of date — use Optimize again to compare.`,
-  the figures stay but without BEST — when you change the goal or its boxes,
-  the level, the Nightfarer, the Deep of Night box, an Avoid, Favourite or
+  the figures stay — when you change the goal or its boxes,
+  the Nightfarer, the Deep of Night box, an Avoid, Favourite or
   Allow mark, a star, a rejection, a hold, or re-read the save. Opening
   another vessel, **Use** and **Apply all** and editing a slot by hand do not
-  make it stale. If it fails it says `Could not compare the vessels —
+  make it stale. Moving the level slider asks the suggestion and the
+  comparison again at the new level; an applied suggestion stays applied.
+  If it fails it says `Could not compare the vessels —
   {reason}.`
 
 The first time you open a Nightfarer, all of their chalices are read out of
