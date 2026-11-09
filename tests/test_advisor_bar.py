@@ -795,7 +795,8 @@ def test_the_direction_box_carries_the_registry_and_nothing_else(bar):
         == [goals.GOALS[goal_id].label for goal_id in advisorbar.GOAL_ORDER]
     assert bar.findChildren(type(bar.goal_box)) == [bar.goal_box,
                                                     bar.hit_with_box,
-                                                    bar.damage_type_box]
+                                                    bar.damage_type_box,
+                                                    bar.incoming_box]
 
 
 #: A dataset with one spell school and three arts, so the school group of
@@ -1667,8 +1668,9 @@ def test_the_row_breaks_one_px_under_its_one_line_need(
     `STATUS_FLOOR` counted on line two."""
     threshold = advisor_row_at_the_window["threshold"][goal_id]
     hints = advisor_row_at_the_window["at"]["1959"]["hints"]
-    first_line = (FIRST_LINE if goal_id == "max_damage"
-                  else ("heading", "goal_box"))
+    first_line = {"max_damage": FIRST_LINE,
+                  "max_attributes": ("heading", "goal_box")}.get(
+        goal_id, ("heading", "goal_box", "incoming_label", "incoming_box"))
     assert threshold["need"] == (
         sum(hints[name] for name in first_line + SECOND_LINE)
         + advisorbar.STATUS_FLOOR
@@ -1683,11 +1685,38 @@ def test_the_row_breaks_one_px_under_its_one_line_need(
 def test_the_damage_question_counts_in_the_need(bar):
     """AK-395: the direction's own controls are part of the need -- the
     need of `max_damage` is wider by exactly what its two pairs ask."""
-    bar.choose_goal("min_damage_taken")
+    bar.choose_goal("max_attributes")
     narrower = bar._lines.one_line_need()
     bar.choose_goal("max_damage")
     assert (bar._lines.one_line_need() - narrower
             == bar.damage_question_extra_width())
+
+
+@pytest.mark.parametrize("goal_id", ["min_damage_taken", "balanced"])
+def test_the_incoming_pair_takes_less_than_the_damage_question(bar, goal_id):
+    """User decision 2026-11-08: `Incoming` stands where the two pairs of
+    `max_damage` are hidden, and is narrower than they are, so every width
+    counted on those pairs holds for it."""
+    bar.choose_goal("max_attributes")
+    bare = bar._lines.one_line_need()
+    bar.choose_goal(goal_id)
+    assert not bar.incoming_box.isHidden() and bar.hit_with_box.isHidden()
+    assert 0 < (bar._lines.one_line_need() - bare
+                ) <= bar.damage_question_extra_width()
+    bar.choose_goal("max_damage")
+    assert bar.incoming_box.isHidden() and bar.incoming_label.isHidden()
+
+
+def test_the_incoming_box_offers_physical_and_the_four_elements(bar):
+    box = bar.incoming_box
+    entries = [(box.itemText(i), box.itemData(i)) for i in range(box.count())
+               if box.itemText(i)]
+    assert entries == [("Physical", ""), ("Magic", "Magic"), ("Fire", "Fire"),
+                       ("Lightning", "Thunder"), ("Holy", "Dark")]
+    assert bar.incoming() == ""
+    box.setCurrentIndex(box.findData("Fire"))
+    assert bar.incoming() == "Fire"
+    assert goals.incoming_weighting(bar.incoming()).id == "physical+Fire"
 
 
 @pytest.mark.parametrize("goal_id", advisorbar.GOAL_ORDER)
@@ -1923,6 +1952,16 @@ def test_a_change_of_the_level_reaches_the_advisor(planner, monkeypatch):
     because what is asserted is that the one funnel every change ends in
     tells the advisor -- not that a method calls the method beside it.
     """
+    told = []
+    monkeypatch.setattr(planner.advisor_bar, "the_level_changed",
+                        lambda: told.append(True))
+    planner.level_slider.setValue(planner.level_slider.value() + 1)
+    assert told
+
+
+def test_a_level_with_nothing_on_screen_is_a_change_like_any_other(
+        planner, monkeypatch):
+    """With no suggestion there is nothing to keep (user, 2026-11-08)."""
     told = []
     monkeypatch.setattr(planner.advisor_bar, "the_build_changed",
                         lambda: told.append(True))
@@ -2442,7 +2481,7 @@ def test_a_multiplier_differs_in_two_places():
             _row(2, 1.42, figure="Attack multipliers ×1.42"), _row(3, 0.0),
             _row(4, 0.0))
     assert "— ×1.42, 0.22 more than this one." in _status(*rows)[0]
-    assert advisorbar.vessel_line(_comparing(*rows), 2) == ("BEST  ×1.42", "")
+    assert advisorbar.vessel_line(_comparing(*rows), 2) == ("", "×1.42")
 
 
 def test_a_tie_needs_every_key_of_the_rank_level():
@@ -2495,7 +2534,7 @@ def test_best_waits_for_the_last_row():
     assert advisorbar.vessel_line(running, 1) == ("", "AR 100")
     assert advisorbar.vessel_line(running, 2) == ("", "…")
     done = _comparing(_row(1, 100), _row(2, 90))
-    assert advisorbar.vessel_line(done, 1) == ("BEST  AR 100", "")
+    assert advisorbar.vessel_line(done, 1) == ("", "AR 100")
     assert advisorbar.vessel_line(done, 2) == ("", "AR 90")
 
 
@@ -2512,7 +2551,7 @@ def test_missing_favourites_stand_in_the_tooltip_not_on_the_line():
     one = _row(1, 100, pins_left_out=("Urn",))
     two = _row(2, 90, required_left_out=(5,), pins_left_out=("Urn",))
     comparing = _comparing(one, two)
-    assert advisorbar.vessel_line(comparing, 1) == ("BEST  AR 100", "")
+    assert advisorbar.vessel_line(comparing, 1) == ("", "AR 100")
     assert advisorbar.vessel_line(comparing, 2) == ("", "AR 90")
     assert "Misses: 5, Urn." in advisorbar.vessel_compared_lines(comparing, 2, str)
 
@@ -2758,7 +2797,7 @@ def test_the_sentence_and_the_tooltips_carry_the_percent_and_the_base():
         "than this one.")
     assert advisorbar.comparison_status(comparing, 2, None, NAMES)[0] == (
         "This is the best of 4 vessels for Maximise damage: AR 118 (+136 %).")
-    assert advisorbar.vessel_line(comparing, 2) == ("BEST  AR 118 (+136 %)", "")
+    assert advisorbar.vessel_line(comparing, 2) == ("", "AR 118 (+136 %)")
     assert "Without relics: Attack rating 50." in (
         advisorbar.vessel_compared_lines(comparing, 3, str))
     assert advisorbar.comparison_base(comparing) == (

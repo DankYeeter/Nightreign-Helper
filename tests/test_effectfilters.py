@@ -260,3 +260,51 @@ def test_a_damaged_stacks_value_reads_as_empty_and_never_as_an_error(
         store, damaged, stacks):
     store.setValue(effectfilters.KEYS[effectfilters.STACKS], damaged)
     assert effectfilters.stored_stacks() == stacks
+
+
+_UNUSED_HERO_IDS = iter(range(9101, 9200))
+
+
+@pytest.fixture
+def two_heroes(store):
+    """Two Nightfarer ids no dataset uses and no other test has written,
+    their keys emptied afterwards (an emptied key is a written key, so the
+    next test takes fresh ones)."""
+    ids = next(_UNUSED_HERO_IDS), next(_UNUSED_HERO_IDS)
+    yield ids
+    for hero_id in ids:
+        for kind in effectfilters.KEYS:
+            store.setValue(effectfilters.key_for(kind, hero_id), "")
+    store.sync()
+
+
+def test_each_nightfarer_keeps_its_own_markings(store, two_heroes):
+    """User 2026-11-08: guarding effects are a Favourite on a Guardian and
+    nothing on a Duchess."""
+    guardian, duchess = two_heroes
+    filters = effectfilters.EffectFilters(hero_id=guardian)
+    filters.mark(7000100, effectfilters.REQUIRED)
+    heard = []
+    filters.changed.connect(lambda: heard.append(1))
+    filters.set_hero(duchess)
+    assert filters.required == frozenset()
+    assert heard == [1]
+    filters.mark(8850550, effectfilters.EXCLUDED)
+    filters.set_hero(guardian)
+    assert filters.required == {7000100}
+    assert filters.excluded == frozenset()
+    again = effectfilters.EffectFilters(hero_id=duchess)
+    assert again.excluded == {8850550} and again.required == frozenset()
+
+
+def test_a_nightfarer_without_own_markings_starts_from_the_shared_ones(
+        store, two_heroes):
+    """What was marked before markings were per Nightfarer is not lost."""
+    store.setValue(effectfilters.KEYS[effectfilters.REQUIRED], "7000200")
+    filters = effectfilters.EffectFilters(hero_id=two_heroes[0])
+    assert filters.required == {7000200}
+    filters.mark(7000200, None)
+    assert effectfilters.EffectFilters(
+        hero_id=two_heroes[0]).required == frozenset()
+    assert effectfilters.EffectFilters(
+        hero_id=two_heroes[1]).required == {7000200}

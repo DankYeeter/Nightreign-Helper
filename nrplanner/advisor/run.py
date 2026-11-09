@@ -245,6 +245,33 @@ class ResultCache:
 
 # --- the run ---------------------------------------------------------------
 
+def _best_value(result: types.AdvisorResult) -> float:
+    """The figure the best suggestion reaches, the base state's without one."""
+    if result.suggestions:
+        return result.suggestions[0].score.value
+    base = {line.goal_id: line.value for line in result.baseline}
+    return base[result.goal_id]
+
+
+def _with_the_balance_span(request: types.AdvisorRequest, inventory,
+                           ctx: types.GoalContext,
+                           goals: Mapping[str, types.Goal],
+                           should_cancel: Callable[[], bool]
+                           ) -> types.GoalContext:
+    """`ctx` with the most attack and the most defense these slots reach,
+    each asked on its own with the same holds, stars and favourites
+    (user 2026-11-08). The damage half reads no `Hit with` and no damage
+    type, as `goals._balanced` does."""
+    plain = dataclasses.replace(ctx, hit_with="", damage_type="")
+    damage = run(dataclasses.replace(request, goal_id="max_damage",
+                                     hit_with="", damage_type=""),
+                 inventory, plain, goals, should_cancel)
+    survival = run(dataclasses.replace(request, goal_id="min_damage_taken"),
+                   inventory, ctx, goals, should_cancel)
+    return dataclasses.replace(
+        ctx, balance_span=(_best_value(damage), _best_value(survival)))
+
+
 def _refuse_a_request_that_asks_about_another_run(
         request: types.AdvisorRequest, inventory,
         ctx: types.GoalContext) -> None:
@@ -441,6 +468,9 @@ def run(request: types.AdvisorRequest, inventory,
                        f"knows {sorted(goals)}")
     goal = goals[request.goal_id]
     problem = request.problem
+    if request.goal_id == "balanced" and not ctx.balance_span:
+        ctx = _with_the_balance_span(request, inventory, ctx, goals,
+                                     should_cancel)
 
     placed, pins_left_out = _lay_the_pins(inventory, problem, ctx, goals, goal,
                                           should_cancel)
@@ -685,7 +715,9 @@ def vessel_row(vessel_id: int, result: types.AdvisorResult) -> types.VesselRow:
     return types.VesselRow(
         vessel_id=vessel_id,
         figure=best.display if best else result.baseline_display,
-        value=best.value if best else base.get(result.goal_id, 0.0),
+        value=(best.value if best.compare_value is None
+               else best.compare_value) if best
+        else base.get(result.goal_id, 0.0),
         other_value=base.get(other, 0.0) + gain.get(other, 0.0),
         required_left_out=result.required_left_out,
         pins_left_out=tuple(pin.name for pin in result.pins_left_out),

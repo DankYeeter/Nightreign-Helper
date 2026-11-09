@@ -228,12 +228,19 @@ starts there.
   number tiles, bars and Win/Lose side by side; Effects & chances, Weapons &
   spells and Deep of Night explain themselves in short bullet legends instead
   of paragraphs; the Red variants tab shows figures and bars. **Balanced**
-  no longer leans so hard towards attack: both halves are measured against
-  your Nightfarer without relics and the half that is ahead counts less
-  (Raider's Goblet on a 324-relic save: AR +89 % / Defense +34 % became
-  AR +69 % / Defense +45 %). The vessel tooltip shows how AR and Defense are
-  worked out. A spell school of the other kind (Bestial with a staff) is now
+  first finds the most attack and the most Defense the vessel can reach,
+  each on its own, then picks the relics that get furthest towards both.
+  Defense counts the strongest physical damage negation in full and the
+  strongest elemental one at a quarter (Physical -12 % and Fire -16 % make
+  about 15.5 %, never a sum or an average); the new **Incoming** box counts
+  one element in full for a boss. Moving the level slider keeps a suggestion
+  and asks it again at the new level. The vessel tooltip
+  shows how AR and Defense are worked out. A spell school of the other kind (Bestial with a staff) is now
   refused with a sentence instead of ranking the staff's own spell. Ten
   spells that showed no damage now have it (Star Shower, Rykard's Rancor,
-  Lightning Strike, Carian Retaliation, Law of Causality and five more). The data cache is rebuilt once on first
-  start.
+  Lightning Strike, Carian Retaliation, Law of Causality and five more).
+  Over 100 relic effects that only read "triggers a linked effect" now show
+  their figure and duration, read from the game's files. Whether a second
+  relic with the same effect adds anything now follows the game's own rule:
+  203 effects count once, so some totals fall. The Bosses tab shows
+  Heolstor's first form. **The data cache is rebuilt once on first start.**

@@ -5,7 +5,8 @@
 puts all of it in the one settings store the program has, under one fixed
 key each. The ids and family names are the **value**, never the key
 (AD-030, OF-15): nothing here derives a key from anything, and the key
-space this adds is five, for good. No `__schema` step either -- a store that
+space is five per Nightfarer (`key_for`, user 2026-11-08), plus the five
+shared keys of older versions, which a Nightfarer reads until it has its own. No `__schema` step either -- a store that
 never held a key reads back as empty, which is exactly what an older
 program state means by it.
 
@@ -69,7 +70,25 @@ FAMILY_SEPARATOR = "\n"
 MOST_STACKS = 10
 
 
-def stored(kind: str) -> frozenset[int]:
+def key_for(kind: str, hero_id: int | None = None) -> str:
+    """The store key of one set for one Nightfarer (user 2026-11-08: "pro
+    charakter"), `advisor/<hero id>/<set>`; the old shared key for `None`.
+    A Nightfarer whose own key was never written reads the shared one, so
+    the markings made before this change start out on every Nightfarer."""
+    if hero_id is None:
+        return KEYS[kind]
+    return f"advisor/{int(hero_id)}/{kind}"
+
+
+def _raw(kind: str, hero_id: int | None) -> str:
+    settings = favourites.settings()
+    own = key_for(kind, hero_id)
+    if hero_id is not None and not settings.contains(own):
+        own = KEYS[kind]
+    return str(settings.value(own, "", type=str))
+
+
+def stored(kind: str, hero_id: int | None = None) -> frozenset[int]:
     """The ids under this key. Anything that is not an integer is skipped,
     so a damaged value reads as empty and never as an error.
 
@@ -77,7 +96,7 @@ def stored(kind: str) -> frozenset[int]:
     store hands back a *list* as soon as the text holds a comma, and this
     text is nothing but commas.
     """
-    raw = favourites.settings().value(KEYS[kind], "", type=str)
+    raw = _raw(kind, hero_id)
     ids = set()
     for part in str(raw).split(","):
         try:
@@ -87,10 +106,10 @@ def stored(kind: str) -> frozenset[int]:
     return frozenset(ids)
 
 
-def stored_text(kind: str) -> frozenset[str]:
+def stored_text(kind: str, hero_id: int | None = None) -> frozenset[str]:
     """The family names under this key, one per line; blank lines and the
     whitespace around a name (a stray `\\r` included) fall away."""
-    raw = favourites.settings().value(KEYS[kind], "", type=str)
+    raw = _raw(kind, hero_id)
     return frozenset(part.strip() for part in str(raw).split(FAMILY_SEPARATOR)
                      if part.strip())
 
@@ -110,11 +129,11 @@ def stack_count(text: str, effect_id: int) -> int | None:
     return None
 
 
-def stored_stacks() -> dict[int, int]:
+def stored_stacks(hero_id: int | None = None) -> dict[int, int]:
     """Effect id -> stacks, stored as `id=count,id=count`. A part that does not
     read as an id and a count in that effect's range is skipped, as in `stored`:
     a value saved under an older, wider limit reads as empty (AK-470)."""
-    raw = favourites.settings().value(KEYS[STACKS], "", type=str)
+    raw = _raw(STACKS, hero_id)
     stacks = {}
     for part in str(raw).split(","):
         effect_id, _, text = part.partition("=")
@@ -129,13 +148,15 @@ def stored_stacks() -> dict[int, int]:
 
 
 def store(excluded: Iterable[int], required: Iterable[int],
-          allowed: Iterable[int], avoided_families: Iterable[str]) -> None:
+          allowed: Iterable[int], avoided_families: Iterable[str],
+          hero_id: int | None = None) -> None:
     """All four keys, through one store object and one `sync()`."""
     settings = favourites.settings()
     for kind, ids in ((EXCLUDED, excluded), (REQUIRED, required),
                       (ALLOWED, allowed)):
-        settings.setValue(KEYS[kind], ",".join(str(i) for i in sorted(ids)))
-    settings.setValue(KEYS[AVOIDED_FAMILIES],
+        settings.setValue(key_for(kind, hero_id),
+                          ",".join(str(i) for i in sorted(ids)))
+    settings.setValue(key_for(AVOIDED_FAMILIES, hero_id),
                       FAMILY_SEPARATOR.join(sorted(avoided_families)))
     settings.sync()
 
@@ -154,19 +175,35 @@ class EffectFilters(QObject):
     changed = Signal()
 
     def __init__(self, parent: QObject | None = None,
-                 families: Mapping[int, str] | None = None) -> None:
+                 families: Mapping[int, str] | None = None,
+                 hero_id: int | None = None) -> None:
         super().__init__(parent)
         self.families: Mapping[int, str] = dict(families or {})
-        self.required = stored(REQUIRED)
-        as_stored = (stored(EXCLUDED), stored(ALLOWED))
+        self._load(hero_id)
+
+    def _load(self, hero_id: int | None) -> None:
+        self.hero_id = hero_id
+        self.required = stored(REQUIRED, hero_id)
+        as_stored = (stored(EXCLUDED, hero_id), stored(ALLOWED, hero_id))
         self.allowed = as_stored[1] - self.required
         self.excluded = as_stored[0] - self.required - self.allowed
-        self.avoided_families = stored_text(AVOIDED_FAMILIES)
-        self.stacks = stored_stacks()
+        self.avoided_families = stored_text(AVOIDED_FAMILIES, hero_id)
+        self.stacks = stored_stacks(hero_id)
         if (self.excluded, self.allowed) != as_stored:
             store(self.excluded, self.required, self.allowed,
-                  self.avoided_families)
+                  self.avoided_families, hero_id)
         self._resolve()
+
+    def set_hero(self, hero_id: int | None) -> None:
+        """Load the markings of this Nightfarer; every set is its own."""
+        if hero_id == self.hero_id:
+            return
+        before = (self.excluded, self.required, self.allowed,
+                  self.avoided_families, self.stacks)
+        self._load(hero_id)
+        if before != (self.excluded, self.required, self.allowed,
+                      self.avoided_families, self.stacks):
+            self.changed.emit()
 
     def mark(self, effect_id: int, kind: str | None) -> None:
         """Put one effect into the `kind` set, or into none for `None`."""
@@ -193,7 +230,7 @@ class EffectFilters(QObject):
             return
         self.stacks = stacks
         settings = favourites.settings()
-        settings.setValue(KEYS[STACKS], ",".join(
+        settings.setValue(key_for(STACKS, self.hero_id), ",".join(
             f"{i}={stacks[i]}" for i in sorted(stacks)))
         settings.sync()
         self.changed.emit()
@@ -212,7 +249,7 @@ class EffectFilters(QObject):
             return
         (self.excluded, self.required, self.allowed,
          self.avoided_families) = after
-        store(*after)
+        store(*after, hero_id=self.hero_id)
         self._resolve()
         self.changed.emit()
 

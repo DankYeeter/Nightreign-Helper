@@ -230,7 +230,11 @@ def _laid_out(bar, controls) -> dict:
         "geometry": {name: list(QRect(widget.mapTo(bar, QPoint(0, 0)),
                                       widget.size()).getRect())
                      for name, widget in drawn},
-        "hints": {name: widget.sizeHint().width() for name, widget in drawn},
+        # The `Incoming` pair stands where the damage question is hidden, so
+        # it is not among `drawn`; only its need is read.
+        "hints": {**{name: widget.sizeHint().width() for name, widget in drawn},
+                  "incoming_label": bar.incoming_label.sizeHint().width(),
+                  "incoming_box": bar.incoming_box.sizeHint().width()},
         "minimums": {name: widget.minimumWidth() for name, widget in drawn},
         "outside_the_row": [name for name, widget in drawn
                             if not bar.rect().contains(QRect(

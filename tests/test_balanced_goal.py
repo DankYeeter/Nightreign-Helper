@@ -69,7 +69,8 @@ def test_the_tooltip_works_out_both_percentages():
     first, ar_line, defense_line = advisorbar.how_the_figures_read(row)
     assert first == "AR 158 → 276 (+75 %), Defense 1200 → 1284 (+7 %)."
     assert ar_line == advisorbar.AR_READS
-    assert "never added up" in defense_line and "HP" in defense_line
+    assert "strongest physical damage negation" in defense_line
+    assert "quarter" in defense_line and "HP" in defense_line
 
 
 def test_both_figures_are_positive_for_every_nightfarer(game_data):
@@ -168,7 +169,7 @@ def test_a_vessel_row_leads_with_both_percentages_and_sorts_by_the_value():
     comparing = _comparing(sharp, even)
     assert comparing.ranked()[0] is even
     assert advisorbar.vessel_line(comparing, 2) == (
-        "BEST  AR +65 % / Defense +34 %", "")
+        "", "AR +65 % / Defense +34 %")
     assert advisorbar.vessel_line(comparing, 1) == (
         "", "AR +89 % / Defense +8 %")
 
@@ -207,3 +208,18 @@ def test_the_control_words_come_from_the_registry():
     assert BALANCED.label == "Balanced"
     assert relicpicker.VALUE_CAPTIONS[BALANCED.id] == "Balanced"
     assert relicpicker.chip_text(BALANCED.id) == "BEST FOR BALANCE"
+
+
+def test_a_share_runs_from_no_relics_to_the_best_alone():
+    """User proposal 2026-11-08: each side over its own best."""
+    assert goals.share_of_the_best(72, 72, 122) == 0
+    assert goals.share_of_the_best(122, 72, 122) == 1
+    assert goals.share_of_the_best(97, 72, 122) == 0.5
+    assert goals.share_of_the_best(80, 80, 80) == 1.0
+
+
+def test_halfway_on_both_beats_all_on_one():
+    both = goals.balanced_by_span(0.5, 0.5)
+    assert both > goals.balanced_by_span(1.0, 0.0)
+    assert both > goals.balanced_by_span(0.0, 1.0)
+    assert goals.balanced_by_span(0.6, 0.6) > goals.balanced_by_span(0.9, 0.3)

@@ -1031,7 +1031,8 @@ class Planner(QMainWindow):
         self.level_slider.setMinimum(1)
         self.level_slider.setMaximum(15)
         self.level_slider.setTickPosition(QSlider.TicksBelow)
-        self.level_slider.valueChanged.connect(lambda *_: self.recompute())
+        self.level_slider.valueChanged.connect(
+            lambda *_: self.recompute(level_only=True))
         layout.addWidget(self.level_slider)
         self.level_note = QLabel()
         self.level_note.setWordWrap(True)
@@ -1502,6 +1503,9 @@ class Planner(QMainWindow):
         if portrait is not None:
             self.hero_name_symbol.setPixmap(
                 iconpack.sharp(portrait, HERO_SYMBOL))
+        # Favourite, Avoid, Allow and Stacks are per Nightfarer too
+        # (user 2026-11-08): guarding effects fit a Guardian, not a Duchess.
+        self.effect_filters.set_hero(self.heroes[index]["id"])
         self.apply_hero_weapon()
         self.reload_chalices()
         # Saved builds are per Nightfarer, so the list and the strip both
@@ -3715,7 +3719,7 @@ class Planner(QMainWindow):
             self._build = self._rebuild()
         return self._build
 
-    def recompute(self) -> None:
+    def recompute(self, *, level_only: bool = False) -> None:
         # Both halves of the guard say the same thing -- the window is still
         # being built -- and both are needed: the level slider is made in the
         # left pane and the advisor's row in the middle one, so between the
@@ -3734,8 +3738,13 @@ class Planner(QMainWindow):
         # this is the one place the stored build has to be kept up to date.
         self._store_chalice()
         # ...and the one place the advisor can hear that the build it was
-        # asked about is not the build any more (AK-12).
-        self.advisor_bar.the_build_changed()
+        # asked about is not the build any more (AK-12). The level alone is
+        # a condition of the question: the suggestion is kept and asked
+        # again (user, 2026-11-08).
+        if level_only:
+            self.advisor_bar.the_level_changed()
+        else:
+            self.advisor_bar.the_build_changed()
         hero = self.current_hero()
         level = self.level_slider.value()
         self.level_label.setText(str(level))

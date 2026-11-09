@@ -110,12 +110,20 @@ an effect or curse you marked **Avoid**, or that you pressed **Reject** on, is
 never suggested; a relic you starred is put in when it fits (see **Filters**,
 **Favourites** and *Taking an effect or a relic out of a suggestion* below).
 The same run also compares your vessels (see *Comparing vessels* below).
-**Balanced** looks for damage and survival at once: it ranks by attack rating
-times effective HP, so one percent more of either counts the same, and there is
-nothing to set; from its suggestion you adjust by hand. It always reads the
-whole armament. In the vessel list each vessel then says both gains against the
-same vessel with no relics, for example `AR +89 % / Defense +31 %`, and the best
-vessel is the one with the highest product.
+**Balanced** looks for damage and survival at once. It first works out the most
+attack and the most Defense the vessel's slots can reach, each on its own, and
+then picks the relics that get furthest towards both, so neither side is given
+up for the other. Your held, starred and favourite relics count in all three
+steps. There is nothing to set; from its suggestion you adjust by hand. It
+always reads the whole armament. In the vessel list each vessel then says both
+gains against the same vessel with no relics, for example
+`AR +60 % / Defense +70 %`.
+**Defense** is effective HP: max HP over the share of a hit that gets through.
+The strongest physical damage negation counts in full and the strongest
+elemental one adds a quarter of itself; nothing is added up. Under **Minimise
+damage taken** and **Balanced** the box **Incoming** lets you pick the element
+a boss deals (Magic, Fire, Lightning, Holy), which then counts in full beside
+physical.
 **Maximise damage**, **Balanced**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count
@@ -243,7 +251,9 @@ relic, curses included. Each row has two check boxes, **Favourite** and
 **Avoid**: check **Favourite** and every suggestion for this Nightfarer must
 carry that effect, if it can; check **Avoid** and no suggestion uses a
 relic that carries it (a relic you place or hold yourself stays where you
-put it); checking one clears the other on the same row. Effects that belong
+put it); checking one clears the other on the same row. Every Nightfarer
+keeps its own marks: what you check for the Guardian does not touch the
+Duchess. Effects that belong
 to one family sit under a heading: **Avoid** on the heading avoids every
 member below it, and **Allow** on one member lets just that one back in. An
 effect that stacks, such as "Attack power increased for each Night Invader
@@ -417,11 +427,13 @@ vessel, its cards and its suggestion stay as they were.
   stays for the other slots. Rejections alone save nothing until you apply. A
   vessel compared in another hand opens in that hand, and the tooltip says so.
 - The comparison goes stale — `Out of date — use Optimize again to compare.`,
-  the figures stay but without BEST — when you change the goal or its boxes,
-  the level, the Nightfarer, the Deep of Night box, an Avoid, Favourite or
+  the figures stay — when you change the goal or its boxes,
+  the Nightfarer, the Deep of Night box, an Avoid, Favourite or
   Allow mark, a star, a rejection, a hold, or re-read the save. Opening
   another vessel, **Use** and **Apply all** and editing a slot by hand do not
-  make it stale. If it fails it says `Could not compare the vessels —
+  make it stale. Moving the level slider asks the suggestion and the
+  comparison again at the new level; an applied suggestion stays applied.
+  If it fails it says `Could not compare the vessels —
   {reason}.`
 
 The first time you open a Nightfarer, all of their chalices are read out of

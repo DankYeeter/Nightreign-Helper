@@ -1945,7 +1945,7 @@ def test_the_survival_goal_uses_the_weights_it_is_handed(game_data, wylder):
 
     score = goals.GOALS["min_damage_taken"]
     assert score.score(protected, ctx).value == score.score(plain, ctx).value
-    assert score.score(plain, ctx).weights_note == fire_only.note
+    assert score.score(plain, ctx).weights_note == goals.STRONGEST_ONLY_NOTE
 
 
 def test_a_weighting_with_no_weights_is_refused(game_data, wylder):
@@ -2076,8 +2076,10 @@ CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
 #: Every gated effect the sheet offers a switch for, less those in
 #: `model.NO_SWITCH`: 413 that are not curses plus the seven above (same
 #: dataset, counted 2026-09-14), less the 19 of `ON_THE_ENEMY_EFFECT_IDS` that
-#: had a switch (2026-11-07). The baseline's whole vocabulary (AD-036.6).
-SWITCHABLE_CONDITIONS = 401
+#: had a switch (2026-11-07), less the three flask effects whose only gate
+#: was the engine's shared switch 7010211 (EXTRACT_VERSION 23). The
+#: baseline's whole vocabulary (AD-036.6).
+SWITCHABLE_CONDITIONS = 398
 
 #: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 315
 #: copies) change their `min_damage_taken` figure between the baseline and
@@ -2253,3 +2255,66 @@ def test_the_baseline_moves_the_counted_copies_of_the_frozen_save(
     orders_differ, moved = what_the_baseline_moves(planner, frozen_inventory)
     assert orders_differ, "the baseline left the survival order as it was"
     assert len(moved) == COPIES_THE_BASELINE_MOVES, sorted(moved)
+
+
+def test_only_the_strongest_negation_counts():
+    """User decision 2026-11-08: physical -12 % and magic -10 % are 12 %
+    less damage, not a sum and not an average over the eight kinds."""
+    weights = dict(goals.EVEN_WEIGHTING.weights)
+    rates = {name: 0.88 for name in ("slashDamageCutRate",
+             "blowDamageCutRate", "thrustDamageCutRate",
+             "neutralDamageCutRate")}
+    rates["magicDamageCutRate"] = 0.9
+    assert goals.strongest_cut(rates, weights) == 0.88
+
+
+def test_a_penalty_on_one_type_is_not_hidden_by_negation_on_another():
+    weights = dict(goals.EVEN_WEIGHTING.weights)
+    rates = {"magicDamageCutRate": 0.9, "fireDamageCutRate": 1.1}
+    assert goals.strongest_cut(rates, weights) == 0.9 * 1.1
+    assert goals.strongest_cut({}, weights) == 1.0
+
+
+def test_physical_counts_in_full_and_an_element_a_quarter():
+    """User decision 2026-11-08, 15:20: fire -16 % no longer stands for every
+    hit; it adds a quarter of itself to the physical figure."""
+    weights = dict(goals.DEFAULT_WEIGHTING.weights)
+    fire_only = {"fireDamageCutRate": 0.84}
+    assert goals.strongest_cut(fire_only, weights) == pytest.approx(0.96)
+    physical = {"slashDamageCutRate": 0.88, "blowDamageCutRate": 0.88}
+    assert goals.strongest_cut(physical, weights) == 0.88
+    both = {**physical, **fire_only, "magicDamageCutRate": 0.9}
+    assert goals.strongest_cut(both, weights) == pytest.approx(0.88 * 0.96)
+    # A physical relic beats the fire one, and fire still decides a tie.
+    assert (goals.strongest_cut(physical, weights)
+            < goals.strongest_cut(fire_only, weights))
+    assert (goals.strongest_cut(both, weights)
+            < goals.strongest_cut(physical, weights))
+
+
+def test_an_elemental_penalty_counts_a_quarter_too():
+    weights = dict(goals.DEFAULT_WEIGHTING.weights)
+    assert goals.strongest_cut({"darkDamageCutRate": 1.2}, weights) \
+        == pytest.approx(1.05)
+    assert goals.strongest_cut({"neutralDamageCutRate": 1.2}, weights) == 1.2
+
+
+def test_the_boss_element_counts_in_full():
+    """`Incoming: Fire`: fire joins the physical kinds, the strongest of them
+    stands, and the other elements stay at a quarter."""
+    weights = dict(goals.incoming_weighting("Fire").weights)
+    rates = {"slashDamageCutRate": 0.88, "fireDamageCutRate": 0.84,
+             "magicDamageCutRate": 0.9}
+    assert goals.strongest_cut(rates, weights) == pytest.approx(0.84 * 0.975)
+    assert goals.incoming_weighting("Fire").id \
+        != goals.incoming_weighting("Dark").id != goals.DEFAULT_WEIGHTING.id
+    with pytest.raises(KeyError):
+        goals.incoming_weighting("Physics")
+
+
+def test_the_default_weighting_says_its_rule(game_data, wylder):
+    ctx = advisor.context(game_data, wylder)
+    build = evaluate(advisor.problem([advisor.RED]), (), ctx)
+    score = goals.MIN_DAMAGE_TAKEN.score(build, ctx)
+    assert score.weights_note == goals.DEFAULT_WEIGHTING.note
+    assert "quarter" in score.weights_note

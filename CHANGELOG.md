@@ -6,7 +6,18 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
-## [1.22.0] - 2026-11-08
+## [1.22.0] - 2026-11-09
+
+### Added
+- **Over 100 relic effects now show their figure.** Effects that only switch
+  another effect on used to read "triggers a linked effect". The number and
+  how long it lasts are now read from the game's files, for example "Taking
+  Damage Boosts Damage Negation": all damage taken -21% for 10 s. Effects
+  that fire a hit of their own show what it hits for ("Multiple Periodical
+  Glintblades": Magic 60) and the status it builds up. The dataset is rebuilt
+  once on the first start.
+- **Heolstor's first form.** The Bosses tab shows what he takes in the first
+  half of the fight as well (Holy x1.35, Fire x1.2), not only the second.
 
 ### Changed
 - **The World Events tab is redesigned.** Each event shows its game symbol,
@@ -23,16 +34,37 @@ History before 1.10.0 was not reconstructed; this file starts here.
   adds, all six maps side by side, and the 24 field bosses the game can turn
   red. The weapon-drop and Everdark lines are gone: the game's files do not
   back the first, and the second is on the Deep of Night tab already.
-- **Balanced no longer leans so hard towards attack.** It used to multiply
-  attack rating by effective HP, so every relic went to whichever side it moved
-  by the larger percentage, usually attack. Now both sides are measured against
-  your Nightfarer without relics, and the further one side is ahead, the less
-  another percent of it counts. On a 324-relic save (Raider, level 15) Raider's
-  Goblet moved from AR +89 % / Defense +34 % to AR +69 % / Defense +45 %.
+- **Favourite, Avoid, Allow and Stacks are now kept per Nightfarer.** Guard
+  effects can be a Favourite on the Guardian and stay out of the Duchess's
+  suggestions. What you marked before this update starts out on every
+  Nightfarer; a change after that belongs to the one selected.
+- **Balanced no longer leans towards attack.** It first finds the most attack
+  and the most Defense the vessel can reach on its own, then picks the relics
+  that get furthest towards both. Held, starred and favourite relics count in
+  every step. Optimize under Balanced takes about three times as long.
+- **Defense counts physical damage negation in full and elemental negation
+  at a quarter.** Only the strongest physical negation (Standard, Strike,
+  Slash, Pierce) counts, and the strongest elemental one adds a quarter of
+  itself: Physical -12 % and Fire -16 % make 0.88 x 0.96, about 15.5 % less
+  damage taken, and Fire -16 % alone makes 4 %. Before, the eight damage
+  types were averaged. The worst damage-taken penalty counts the same way.
+  Negation of different types is never added up.
+- **New box "Incoming" under Minimise damage taken and Balanced.** Pick the
+  element a boss deals (Magic, Fire, Lightning, Holy) and that negation
+  counts in full beside physical. The choice is remembered.
+- **Moving the level slider no longer throws a suggestion away.** Optimize
+  always works at the level the slider shows; a suggestion on screen is asked
+  again at the new level and stays up meanwhile, and an applied suggestion
+  stays applied with **Undo apply** still there.
 - **The vessel tooltip now shows how AR and Defense are worked out**: from
   which number to which (`AR 158 → 276 (+75 %)`), what the AR is measured on,
-  and that Defense is effective HP. Max HP counts in it, and damage negation
-  of different types is averaged, never added up.
+  and that Defense is effective HP. Max HP counts in it, and the damage
+  negation as described above.
+- **Stacking follows the game's own rule.** Whether a second relic with the
+  same effect adds anything is now read from the game's code: 203 effects
+  that were listed as stacking are "One copy only", and the totals and the
+  Advisor count them once. Different effects on the same value still
+  multiply, which the same code confirms.
 
 ### Fixed
 - **Ten spells that showed no damage now have their figure**: Glintstone
@@ -48,6 +80,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
   ranked the staff's Glintstone Pebble without a word. It now says the staff
   casts sorceries, as `Incantations` already did. A school of the right kind
   whose spell the staff does not cast keeps the figure and says so.
+- "Flask Also Heals Allies" and "Gradual Restoration by Flask" no longer show
+  "HP restored per flask -100%". The figure belonged to a switch the game
+  shares between three effects, not to them.
+- FP restoration figures no longer read as a percentage in the thousands
+  ("Failing to Cast Spell Restores FP").
+- Harmonia's HP was read from a row her arena does not use.
 
 ## [1.21.0] - 2026-11-07
 

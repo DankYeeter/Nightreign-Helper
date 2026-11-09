@@ -471,10 +471,47 @@ def test_a_change_of_the_build_after_applying_still_ends_the_answer(planner):
     a_live_answer(planner, an_answer_for(offers))
     planner.apply_all()
 
-    planner.level_slider.setValue(planner.level_slider.value() + 1)
+    planner.stat_sheet.hand_switch.click()
 
     assert planner.advisor_bar.answer is None
     assert planner.advisor_bar.situation.state is advisorbar.State.NOTHING_YET
+
+
+def test_the_level_alone_keeps_an_applied_answer(planner):
+    """User, 2026-11-08: moving to level 15 must not reset what Optimize
+    gave. The slots are as they were, so `Undo apply` survives the slider."""
+    offers = two_offers(planner)
+    answer = a_live_answer(planner, an_answer_for(offers))
+    planner.apply_all()
+    applied = keys_of(planner)
+
+    planner.level_slider.setValue(
+        14 if planner.level_slider.value() == 15 else 15)
+
+    assert planner.advisor_bar.answer is answer
+    assert planner.advisor_bar.situation.state is advisorbar.State.APPLIED
+    assert keys_of(planner) == applied
+
+
+def test_the_level_alone_asks_a_standing_suggestion_again(planner,
+                                                          monkeypatch):
+    """...and a suggestion not yet applied stays up while it is asked again
+    at the new level, with the controller's own debounce: the slider moves a
+    tick at a time."""
+    offers = two_offers(planner)
+    answer = a_live_answer(planner, an_answer_for(offers))
+    asked = []
+    monkeypatch.setattr(
+        planner.advisor_bar._controller, "ask",
+        lambda request, inventory, ctx, debounce_ms=None: asked.append(
+            (request.level, debounce_ms)))
+
+    level = 14 if planner.level_slider.value() == 15 else 15
+    planner.level_slider.setValue(level)
+
+    assert planner.advisor_bar.answer is answer
+    assert asked == [(level, None)]
+    assert planner.advisor_bar.is_working()
 
 
 def test_a_new_answer_makes_the_old_applying_unundoable(planner):
@@ -917,9 +954,9 @@ def test_the_comparison_arrives_on_the_list_and_nothing_moves(planner, told):
     assert planner.current_vessel() == here
     assert bar.answer is answer_before
     best = planner.hero_vessels[-1]
-    assert _line_of(planner, best["id"])[0].startswith("BEST  ")
+    assert _line_of(planner, best["id"])[0] == ""  # no BEST tag (2026-11-08)
     assert sum(bool(_line_of(planner, vessel["id"])[0])
-               for vessel in planner.hero_vessels) == 1
+               for vessel in planner.hero_vessels) == 0
     assert planner.compare_status.text().startswith(
         f"Best of {len(planner.hero_vessels)} for ")
     assert best["name"] in planner.compare_status.text()
@@ -960,7 +997,7 @@ def test_the_list_and_the_status_line_read_against_no_relics(planner, told):
     best = planner.hero_vessels[-1]
     value = int(told.value_of[run.vessel_slots(best, True)])
     percent = round((value / 50 - 1) * 100)
-    assert _line_of(planner, best["id"]) == (f"BEST  AR {value} (+{percent} %)", "")
+    assert _line_of(planner, best["id"]) == ("", f"AR {value} (+{percent} %)")
     assert f"AR {value} (+{percent} %)" in planner.compare_status.text()
     assert planner.compare_status.toolTip().endswith(
         "Without relics: Attack rating 50.")
@@ -1101,9 +1138,7 @@ def test_a_click_in_the_other_hand_is_not_out_of_date_but_a_miss(planner, told):
 @pytest.mark.parametrize("what_changes", [
     lambda planner: planner.active_slots()[0].hold_button.setChecked(True),
     lambda planner: planner.stat_sheet.hand_switch.click(),
-    lambda planner: planner.level_slider.setValue(
-        14 if planner.level_slider.value() == 15 else 15),
-], ids=["hold", "hand", "level"])
+], ids=["hold", "hand"])
 def test_what_outdates_it_at_the_window(planner, told, what_changes):
     """AK-434: figures stay, `BEST` goes, and the sentence says so."""
     _compared(planner)
@@ -1113,6 +1148,25 @@ def test_what_outdates_it_at_the_window(planner, told, what_changes):
     assert planner.switch_button.isHidden()
     lines = [_line_of(planner, vessel["id"]) for vessel in planner.hero_vessels]
     assert all(line[0] == "" and line[1].startswith("AR ") for line in lines)
+
+
+def test_the_level_compares_anew_and_keeps_the_suggestion(planner, told):
+    """User, 2026-11-08: the level is asked again, not declared out of
+    date -- the suggestion stays and the vessels are compared at the new
+    level."""
+    _compared(planner)
+    bar = planner.advisor_bar
+    before = bar.answer
+    assert before is not None
+    level = 14 if planner.level_slider.value() == 15 else 15
+    planner.level_slider.setValue(level)
+    assert bar.answer is before
+    assert planner.compare_status.text() != (
+        "Out of date — use Optimize again to compare.")
+    _spin_until(lambda: bar.answer is not before and bar.answer is not None)
+    assert bar._asked.request.level == level
+    _spin_until(lambda: bar.comparing is not None
+                and bar.comparing.state is advisorbar.Compared.DONE)
 
 
 def test_cancel_takes_the_comparison_off_the_list(planner, told):

@@ -355,6 +355,10 @@ class GoalScore:
     unit: str
     unknowns: tuple[str, ...] = ()
     weights_note: str = ""
+    #: Where `value` only ranks builds of one run (`goals._balanced` against
+    #: that run's own maxima), the figure that compares runs -- vessels with
+    #: one another; `None` where `value` does both.
+    compare_value: float | None = None
 
 
 @dataclass(frozen=True)
@@ -528,6 +532,11 @@ class GoalContext:
     #: (AD-051 points 1 and 3).
     hit_with: str = ""
     damage_type: str = ""
+    #: (highest attack rating, highest effective HP) the same slots reach
+    #: under `Maximise damage` and `Minimise damage taken`, which
+    #: `run.run` fills before a `Balanced` search (user 2026-11-08); empty
+    #: everywhere else, and `goals._balanced` then falls back to its curve.
+    balance_span: tuple[float, ...] = ()
 
 
 @dataclass(frozen=True)

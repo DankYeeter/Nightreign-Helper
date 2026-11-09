@@ -102,11 +102,62 @@ EVEN_WEIGHTING = types.Weighting(
     weights=tuple((field_name, 1.0) for field_name in DAMAGE_CUT_FIELDS),
 )
 
-#: Until a control for OF-3 exists, every run is asked with this one. Changing
+#: The four physical kinds, which every enemy deals: these count in full
+#: (user decision 2026-11-08, 15:20).
+PHYSICAL_CUT_FIELDS = DAMAGE_CUT_FIELDS[:4]
+
+#: The four elements by the id `weapons.DAMAGE_LABELS` gives them, which is
+#: what the `Incoming` box of the advisor row carries.
+ELEMENT_CUT_FIELDS = MappingProxyType({
+    "Magic": "magicDamageCutRate",
+    "Fire": "fireDamageCutRate",
+    "Thunder": "thunderDamageCutRate",
+    "Dark": "darkDamageCutRate",
+})
+
+#: What negation of an element nobody chose is worth beside physical: a
+#: quarter, so it decides between relics that are otherwise level and never
+#: pushes a physical effect out (user decision 2026-11-08, 15:20).
+ELEMENT_WEIGHT = 0.25
+
+_ELEMENT_WORDS = {"Magic": "magic", "Fire": "fire", "Thunder": "lightning",
+                  "Dark": "holy"}
+
+
+def incoming_weighting(element: str = "") -> types.Weighting:
+    """Physical in full, the elements at `ELEMENT_WEIGHT`, and the one
+    element the player expects from a boss in full as well.
+
+    `element` is a key of `ELEMENT_CUT_FIELDS` or `""` for no boss in mind.
+    The id is part of the cache key, so each choice is its own question.
+    """
+    if element and element not in ELEMENT_CUT_FIELDS:
+        raise KeyError(f"no element {element!r}; the incoming damage is one "
+                       f"of {list(ELEMENT_CUT_FIELDS)} or empty")
+    full = set(PHYSICAL_CUT_FIELDS) | (
+        {ELEMENT_CUT_FIELDS[element]} if element else set())
+    counted = ("physical" if not element
+               else f"physical and {_ELEMENT_WORDS[element]}")
+    return types.Weighting(
+        id=f"physical+{element}" if element else "physical",
+        label=f"Physical and {_ELEMENT_WORDS[element]}" if element
+        else "Physical",
+        note=(f"Only the strongest {counted} damage negation counts in full, "
+              f"and the worst such penalty likewise; the strongest negation "
+              f"of {'another' if element else 'an'} element adds a quarter "
+              f"of itself. Negation of different types is never added up or "
+              f"averaged."),
+        weights=tuple((field_name,
+                       1.0 if field_name in full else ELEMENT_WEIGHT)
+                      for field_name in DAMAGE_CUT_FIELDS),
+    )
+
+
+#: What a run is asked with when the player has no boss in mind. Changing
 #: it is a different `Weighting` instance passed by the caller, never an edit
 #: to the goal function -- `weighting.id` is part of the cache key, so a
 #: mutated default would be served stale results.
-DEFAULT_WEIGHTING = EVEN_WEIGHTING
+DEFAULT_WEIGHTING = incoming_weighting()
 
 
 # The four things this figure cannot tell the player, whatever the build --
@@ -221,8 +272,9 @@ _DAMAGE_TAKEN_SCOPE = (
     "Effective HP assumes each damage-reduction rate multiplies the damage "
     "you take; the game files name the fields, not how the engine applies "
     "them.",
-    "The game data gives no relative frequency of damage types, so the "
-    "weighting between them is an assumption.",
+    "Which damage types you will meet is not in the game data: physical "
+    "negation counts in full, elemental negation at a quarter, and an "
+    "element chosen under Incoming in full.",
     "Ailment and status resistance are not part of this figure.",
     "Only the damage reduction the equipped effects carry is counted; "
     "nothing else that lowers damage in play is in this figure.",
@@ -231,10 +283,10 @@ _DAMAGE_TAKEN_SCOPE = (
 #: What both halves cannot know, less the art sentence: this direction rates no
 #: art. The first sentence is what the balance itself assumes.
 _BALANCED_SCOPE = (
-    "Balanced compares the attack rating and effective HP each with what "
-    "this Nightfarer has without relics, and the further one of them is "
-    "ahead, the less another percent of it counts. It reads the whole "
-    "armament, whatever Hit with and Damage type say.",
+    "Balanced first finds the most attack and the most effective HP these "
+    "slots can reach, each on its own, then picks the relics that get "
+    "furthest towards both at once. It reads the whole armament, whatever "
+    "Hit with and Damage type say.",
     *_ATTACK_RATING_SCOPE[:-1],
     *_DAMAGE_TAKEN_SCOPE,
 )
@@ -768,8 +820,11 @@ def _min_damage_taken(build: model.Build,
                       ctx: types.GoalContext) -> types.GoalScore:
     """How much this build can take before it falls over, as effective HP.
 
-    HP divided by what gets through, one damage kind at a time, then averaged
-    over the eight with the weights the context carries. Bigger is better, so
+    HP divided by what gets through, where only the strongest damage
+    negation among the kinds counted in full stands, and the strongest among
+    the others adds its weight's share (`strongest_cut`, user decisions
+    2026-11-08); the context's weighting says which kinds are which
+    (`incoming_weighting`). Bigger is better, so
     it ranks the same way round as the damage goal does and one comparison
     serves both.
 
@@ -828,15 +883,54 @@ def _min_damage_taken(build: model.Build,
     # `derived` is (before relics, after relics); the figure the player has is
     # the second.
     after = hp[1]
-    total = sum(weights.values())
-    effective = sum(weight * after / build.rates.get(field_name, 1.0)
-                    for field_name, weight in weights.items()) / total
+    effective = after / strongest_cut(build.rates, weights)
     return types.GoalScore(
         value=effective,
         display=f"Effective HP {effective:.0f}",
         unit="effective HP",
-        weights_note=ctx.weighting.note,
+        weights_note=(STRONGEST_ONLY_NOTE
+                      if len(set(weights.values()) - {0}) == 1
+                      else ctx.weighting.note),
     )
+
+
+#: Said wherever the Defense figure is explained (user decision 2026-11-08,
+#: "Nur der hoechste Wert zaehlt"): negation of different damage types is
+#: neither added up nor averaged; the strongest one stands for all.
+STRONGEST_ONLY_NOTE = (
+    "Only the strongest damage negation counts, whatever its type, and the "
+    "worst damage-taken penalty likewise; negation of different types is "
+    "never added up or averaged.")
+
+
+def strongest_cut(rates: dict, weights: dict) -> float:
+    """The one factor of a hit that gets through.
+
+    Among the fields with the highest weight: the strongest reduction times
+    the worst penalty. Physical -12 % and magic -10 %, both in full, give
+    0.88, not 0.88 x 0.9 and not their average (user decision 2026-11-08). A
+    penalty is kept apart from the reduction so that a curse raising one type
+    is not hidden by a relic lowering another.
+
+    Among the fields with a lower weight, the strongest reduction and the
+    worst penalty again, each at its weight's share: with physical in full
+    and fire at a quarter, physical -12 % and fire -16 % give 0.88 x 0.96
+    (user decision 2026-11-08, 15:20). A field with weight 0 takes no part.
+    """
+    full = max(weights.values(), default=0)
+    best = worst = 1.0
+    bonus = malus = 0.0
+    for name, weight in weights.items():
+        rate = rates.get(name, 1.0)
+        if weight <= 0:
+            continue
+        if weight == full:
+            best, worst = min(best, rate), max(worst, rate)
+        else:
+            share = weight / full
+            bonus = max(bonus, (1.0 - rate) * share)
+            malus = max(malus, (rate - 1.0) * share)
+    return best * worst * (1.0 - bonus) * (1.0 + malus)
 
 
 #: How hard `BALANCED` pulls the two halves together, as `k` in
@@ -899,6 +993,39 @@ def balanced_value(damage_multiple: float, survival_multiple: float) -> float:
     return ((damage_multiple ** -k + survival_multiple ** -k) / 2) ** (-1.0 / k)
 
 
+#: How hard `balanced_by_span` pulls the two shares together, as `k` of the
+#: same mean `balanced_value` uses: near the smaller share, but with a slope
+#: the search can climb (a bare minimum is flat wherever the other side
+#: moves).
+SPAN_CURVATURE = 6.0
+#: A share below this (a curse can push one under no relics) counts as this,
+#: so the mean stays defined.
+SHARE_FLOOR = 1e-3
+
+
+def share_of_the_best(figure: float, base: float, best: float) -> float:
+    """How far a figure is from no relics (0) to the best these slots reach
+    for it alone (1). A side no relic can move counts as reached."""
+    if best - base <= 1e-9:
+        return 1.0
+    return (figure - base) / (best - base)
+
+
+def balanced_by_span(damage_share: float, survival_share: float) -> float:
+    """User proposal 2026-11-08: first find the most attack and the most
+    defense the slots can give, each on its own, then take the build that
+    gets the furthest towards both: a mean that sits close to the smaller
+    share (`SPAN_CURVATURE`)."""
+    k = SPAN_CURVATURE
+    # One more than the share, so that no relics is 1 on both sides and a
+    # single relic of either kind raises the mean: the pre-sort ranks relics
+    # one at a time, and with a bare share the other side's 0 would flatten
+    # every single relic to the same value.
+    low = [max(1.0 + share, SHARE_FLOOR)
+           for share in (damage_share, survival_share)]
+    return ((low[0] ** -k + low[1] ** -k) / 2) ** (-1.0 / k)
+
+
 def _balanced(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
     """Damage and survival at once: `_max_damage` and `_min_damage_taken`,
     each over what this Nightfarer has with no relic, joined by
@@ -917,9 +1044,17 @@ def _balanced(build: model.Build, ctx: types.GoalContext) -> types.GoalScore:
         build, dataclasses.replace(ctx, hit_with="", damage_type=""))
     survival = _min_damage_taken(build, ctx)
     damage_base, survival_base = _without_relics(ctx)
+    absolute = balanced_value(damage_figure.value / damage_base,
+                              survival.value / survival_base)
+    value = absolute
+    if len(ctx.balance_span) == 2:
+        top_damage, top_survival = ctx.balance_span
+        value = balanced_by_span(
+            share_of_the_best(damage_figure.value, damage_base, top_damage),
+            share_of_the_best(survival.value, survival_base, top_survival))
     return types.GoalScore(
-        value=balanced_value(damage_figure.value / damage_base,
-                             survival.value / survival_base),
+        value=value,
+        compare_value=absolute,
         display=f"{damage_figure.display}{types.FIGURES_JOIN}{survival.display}",
         unit="",
         unknowns=damage_figure.unknowns,
