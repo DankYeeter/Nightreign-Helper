@@ -421,6 +421,42 @@ def _profile(rows: list[param.ParamRow]) -> dict[str, Any] | None:
     }
 
 
+def _other_forms(rows: list[param.ParamRow],
+                 main: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """What the same boss takes in the forms `main` is not.
+
+    Only for rows its own map names on the placed character. Heolstor is the
+    case: his arena names 75800000 (1408 HP, Holy x1.35, Fire x1.2) and
+    75802000 (2880 HP, Lightning and Holy x1.2), and the profile of the larger
+    alone told a player nothing about the first half of the fight. Rows that
+    take damage and status exactly as `main` does are the same form, however
+    their HP differs.
+    """
+    if not main:
+        return []
+
+    def key(profile: dict[str, Any]) -> tuple:
+        return (tuple(sorted(profile["damage"].items())),
+                tuple(sorted(profile["status"].items())))
+
+    forms: dict[tuple, dict[str, Any]] = {}
+    for row in rows:
+        profile = _profile([row])
+        if not profile or key(profile) == key(main):
+            continue
+        kept = forms.get(key(profile))
+        if kept is None or (profile["hp"] or 0) > (kept["hp"] or 0):
+            forms[key(profile)] = profile
+    return sorted(forms.values(), key=lambda form: form["hp"] or 0)
+
+
+def _forms_entry(rows: list[param.ParamRow],
+                 main: dict[str, Any] | None) -> dict[str, list]:
+    """`other_forms` as a key of the weakness block, absent where none."""
+    forms = _other_forms(rows, main)
+    return {"other_forms": forms} if forms else {}
+
+
 def derive(game_dir, members: dict, defs: dict,
            npc: param.ParamTable) -> dict[int, dict]:
     """defeat flag -> {entity, map, chars, profile} for every boss it can."""
@@ -491,6 +527,7 @@ def derive(game_dir, members: dict, defs: dict,
         block = (entity // 10) * 10
         chars: list[int] = []
         rows_for: dict[int, list] = {}
+        named_on_map: set[int] = set()
         for name, record in parts:
             ints = struct.unpack_from(f"<{len(record) // 4}i", record, 0)
             if not any(block <= v <= block + 9 for v in ints):
@@ -508,6 +545,8 @@ def derive(game_dir, members: dict, defs: dict,
                      if v in npc_ids and v // 10000 == chr_id]
             rows_for[chr_id] = ([r for r in npc.rows if r.id in exact]
                                 or by_chr.get(chr_id, []))
+            if exact:
+                named_on_map.add(chr_id)
 
         if not chars:
             continue
@@ -521,6 +560,8 @@ def derive(game_dir, members: dict, defs: dict,
             "primary": primary,
             "confidence": "exact",
             "profile": _profile(rows_for.get(primary, [])),
+            **_forms_entry(rows_for.get(primary, []) if primary in named_on_map
+                           else [], _profile(rows_for.get(primary, []))),
             # Character ids as text: this block is written to JSON, which has
             # no other kind of key, so an int would give the freshly built
             # dataset a different shape from the one read back (D-001).
@@ -549,6 +590,7 @@ def derive(game_dir, members: dict, defs: dict,
                 continue
 
             seen: dict[int, list] = {}
+            named: dict[int, dict[int, None]] = {}
             placements: dict[int, int] = {}
             for name, _record in parts:
                 model = name.split("_")[0]
@@ -559,6 +601,16 @@ def derive(game_dir, members: dict, defs: dict,
                     continue
                 seen.setdefault(chr_id, by_chr.get(chr_id, []))
                 placements[chr_id] = placements.get(chr_id, 0) + 1
+                # The rows the map names on the placed character, as on the
+                # exact path. Without them every row of the character was a
+                # candidate, and Harmonia read 640 HP off 76200110, a row no
+                # part of her arena names (they name 160 and 237).
+                words = memoryview(_record)[: len(_record) // 4 * 4]
+                for (value,) in struct.iter_unpack("<i", words):
+                    if value in npc_ids and value // 10000 == chr_id:
+                        named.setdefault(chr_id, {})[value] = None
+            for chr_id, ids in named.items():
+                seen[chr_id] = [r for r in by_chr.get(chr_id, []) if r.id in ids]
 
             found, group = _candidates(seen, placements)
             if not found:
@@ -575,6 +627,8 @@ def derive(game_dir, members: dict, defs: dict,
                 "group_boss": group,
                 "placements": placements.get(best),
                 "profile": best_profile,
+                **_forms_entry(seen[best] if best in named else [],
+                               best_profile),
                 # Text key, for the reason given on the exact path above.
                 "parts": {str(best): best_profile},
             }

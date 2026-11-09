@@ -30,6 +30,10 @@ from . import model
 STACKS = "stacks"                 # every copy counts
 STRONGEST = "strongest only"      # isStrongestEffect: the best copy wins
 EXCLUSIVE = "exclusive group"     # exclusivityId: one of the group applies
+ONE_COPY = "one copy only"        # the engine holds one instance of its row
+#: The spCategory whose rows the game holds more than once at a time. Read
+#: out of the executable, not a param: `nrdata.extract.STACKING_CATEGORY`.
+STACKING_CATEGORY = 10
 # A REJECTED hypothesis, kept because it is convincing and wrong, and would
 # otherwise be re-derived by the next person who notices the same field.
 #
@@ -130,6 +134,8 @@ def repetition(effect: dict) -> str:
         return EXCLUSIVE
     if not effect.get("stacks", True) or model.accumulates(effect):
         return STRONGEST
+    if holds_one_instance(effect):
+        return ONE_COPY
     # Measured behaviour beats the flags. model.NON_ACCUMULATING lists fields
     # the game refuses to add up despite the params marking them as stacking,
     # and the tab has to say the same thing the totals do -- a column claiming
@@ -142,6 +148,21 @@ def repetition(effect: dict) -> str:
     # STATE_FIELD -- and the game says otherwise, so the check is gone rather
     # than merely doubted.
     return STACKS
+
+
+def holds_one_instance(effect: dict) -> bool:
+    """Does a second copy of this effect leave the game with one of it?
+
+    Two ways. Its own rows are none the game holds twice
+    (`effects[].one_instance`). Or they are, and the number is on a row they
+    only switch on: two copies then fire that row twice, and unless it is of
+    the stacking category too the second firing restarts or is dropped.
+    """
+    if effect.get("one_instance"):
+        return True
+    fired = effect.get("triggered") or ()
+    return bool(fired) and not quantities(effect) and any(
+        row.get("sp_category") != STACKING_CATEGORY for row in fired)
 
 
 def classify(effect: dict) -> str:
@@ -160,6 +181,8 @@ def classify(effect: dict) -> str:
         return f"Stacks ({how})"
     if what == EXCLUSIVE:
         return f"Exclusive group ({how})"
+    if what == ONE_COPY:
+        return f"One copy only ({how})"
     return f"Strongest only ({how})"
 
 
@@ -174,6 +197,17 @@ def evidence(effect: dict) -> str:
     if model.accumulates(effect):
         return ("saveCategory 9 — it stacks per event, and a second relic "
                 "carrying it adds nothing")
+    if holds_one_instance(effect):
+        fired = [row for row in effect.get("triggered") or ()
+                 if row.get("sp_category") != STACKING_CATEGORY]
+        if effect.get("one_instance") or not fired:
+            return ("its SpEffect row is not of category 10 — the game's "
+                    "code holds one instance of such a row, so a second "
+                    "copy adds nothing")
+        rows = ", ".join(str(row.get("sp_id")) for row in fired)
+        return (f"its number sits on the triggered SpEffect {rows}, which is "
+                f"not of category 10 — the game's code holds one instance of "
+                f"such a row, so two copies give the buff once")
     measured = sorted(f for f in (effect.get("modifiers") or {})
                       if f in model.NON_ACCUMULATING)
     if measured:
@@ -188,12 +222,10 @@ def evidence(effect: dict) -> str:
     if not fields:
         fired = [str(row.get("sp_id")) for row in effect.get("triggered") or ()]
         if fired:
-            # The flag above is all the files say about a second copy. Both
-            # copies fire the same row, and whether the engine then runs it
-            # twice is its own code's decision, written in no param.
+            # Every row involved is of the category the game holds twice.
             return (f"its number sits on the triggered SpEffect "
-                    f"{', '.join(fired)} — the files do not say whether a "
-                    f"second copy adds to it")
+                    f"{', '.join(fired)} — category 10, which the game's "
+                    f"code holds once per copy")
         return "carries no quantity, so nothing combines"
     parts = [f"{f} ({'x' if model.is_multiplier(f) else '+'})" for f in fields]
     return "neutral value of " + ", ".join(parts)

@@ -1242,6 +1242,19 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
                 Warning("duplicate", f"{eff['name']} x{seen_ids[eid]} — only the strongest applies")
             )
             continue
+        # The engine holds one instance of this effect's row, whatever the
+        # relics say (`nrdata.extract.STACKING_CATEGORY`). `FORCED` copies
+        # are a declared count, not a second relic, and stay. A member of an
+        # exclusivity group is left to that rule below, which says the same
+        # thing in the game's own terms.
+        if (eff.get("one_instance") and seen_ids[eid] > 1
+                and not eff.get(FORCED)
+                and not eff.get("exclusivity", -1) > 0):
+            build.warnings.append(Warning(
+                "duplicate",
+                f"{eff['name']} x{seen_ids[eid]} — the game keeps one "
+                f"instance of this effect"))
+            continue
         counted.append(eff)
 
     # An effect the current Nightfarer cannot use contributes to no total.

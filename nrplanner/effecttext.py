@@ -121,6 +121,7 @@ FLAT_LABELS = {
     # Units are not stated anywhere: 22 could be seconds, ticks or
     # points. Labelled so the raw figure is visible without implying one.
     "weakPointValue": "Weak point value (unit not stated)",
+    "ultimateArtDuration": "Ultimate Art duration value (unit not stated)",
     "poizonAttackPower": "Poison buildup",
     "diseaseAttackPower": "Scarlet Rot buildup",
     "bloodAttackPower": "Blood Loss buildup",
@@ -429,6 +430,17 @@ def describe(effect: dict) -> str:
     if fired:
         parts.append("when triggered: " + " / ".join(fired))
 
+    # What the effect's own bullet or attack row hits for: the row's attack
+    # value, the same figure a spell's damage is given in. The files state no
+    # scaling for it, so none is implied.
+    hit = effect.get("proc_damage") or {}
+    if hit:
+        parts.append("its own hit: " + ", ".join(
+            f"{PROC_DAMAGE_LABELS.get(kind, kind)} {value:g}"
+            for kind, value in hit.items()) + " attack value")
+    for label, value in sorted((effect.get("proc_inflicts") or {}).items()):
+        parts.append(f"its own hit builds up {label} {value:g}")
+
     if not parts and mods:
         # Never leave a row blank: say what the row actually carries.
         #
@@ -460,6 +472,10 @@ def describe(effect: dict) -> str:
     return text
 
 
+#: The dataset's damage keys in the game's words.
+PROC_DAMAGE_LABELS = {"Physics": "Physical", "Thunder": "Lightning",
+                      "Dark": "Holy"}
+
 #: Below this a triggered row is one pulse (0.1 s to 0.5 s in the dataset),
 #: and "for 0.3 s" would read as a buff nobody could use.
 PULSE_SECONDS = 1.0
@@ -469,7 +485,10 @@ def _triggered_text(row: dict) -> str:
     """One triggered row in words: its numbers, then how long they last."""
     mods = dict(row.get("modifiers") or {})
     seconds = mods.pop(model.DURATION_FIELD, 0)
-    text = describe({"modifiers": mods})
+    # State 600 (`extract.CONCEALED_STATE`).
+    concealed = mods.pop("stateInfo", None) == 600
+    text = ", ".join(filter(None, [describe({"modifiers": mods}),
+                                   "concealed" if concealed else ""]))
     if text and isinstance(seconds, (int, float)) and seconds >= PULSE_SECONDS:
         text += f" for {seconds:g} s"
     return text

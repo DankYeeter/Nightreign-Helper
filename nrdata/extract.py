@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import bisect
 import collections
+import functools
 import hashlib
 import json
 import os
@@ -143,6 +144,9 @@ MAX_LEVEL = 15
 #      is -21% for 10 s, and its own row says nothing but which row to fire.
 #      A cache left on 22 keeps describing those 81 relic effects as
 #      "triggers a linked effect" with no figure.
+#      With it `effects[].proc_damage` and `proc_inflicts` (what the effect's
+#      own bullet hits for), `effects[].one_instance` (`STACKING_CATEGORY`),
+#      and `other_forms` on a Nightlord's weakness (Heolstor's first half).
 EXTRACT_VERSION = 23
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
@@ -232,6 +236,9 @@ BULLET_DEF_SIZE = 334
 SPELL_BULLET_BLOCK_BASE = 10_000_000
 SPELL_BULLET_BLOCK_SIZE = 100
 BEHAVIOR_REF_BULLET = 1
+BEHAVIOR_REF_ATTACK = 0
+#: The mists hit for Physical 1 only to register a touch; that is not damage.
+PROC_DAMAGE_FLOOR = 1
 
 # SpEffectParam's row is 1024 bytes and the shipped def describes 976 of them.
 # Offset 1020 holds the spell a swap relic hands the player (AD-050.4).
@@ -302,7 +309,33 @@ TRIGGERED_FIELDS = frozenset({
     "maxHpRate", "maxMpRate", "maxStaminaRate",
     "soul", "staminaRecoverChangeSpeed",
     "sightSearchEnemyRate", "hearingSearchEnemyRate",
+    "ultimateArtDuration",
 })
+#: Concealment. Five rows set it, and the three with a game text are Cold
+#: Mirage ("Conceals oneself"), "Frostbite in Vicinity Conceals Self" and the
+#: Duchess's "difficult to spot". `_buff_lines` words it "invulnerable" after
+#: Cold Mirage's caption; the relic that is named invulnerability sets 2394.
+CONCEALED_STATE = 600
+# ---- Which SpEffect can be on a character twice -----------------------------
+# Not in any param: read out of nightreign.exe (data_version 10350000,
+# 09.11.2026). The function at 0x14050d05f puts a SpEffect on a character. It
+# walks the list of active ones first and asks of each (0x140510b20) "is this
+# the same id?" -- and that test answers no without looking when the active
+# one's spCategory is 10. Only then is a second node appended (0x14050d368).
+# For every other category the same id is found: category 20 has the active
+# node written over, which restarts its timer (0x140511450, 0x140511700), and
+# category 0 has the new one dropped. So a row of category 10 stacks with
+# itself and no other row does.
+#
+# The totals then take every active node in turn and multiply its rate in
+# (0x140503730, 0x140504387: `mulss` into the running product, node after
+# node), which is why two *different* effects on one field multiply.
+#
+# It agrees with the one case measured in the game: "+1 additional Character
+# Skill use" would not add up over several relics (`model.NON_ACCUMULATING`),
+# and its row 7033200 is category 20.
+STACKING_CATEGORY = 10
+
 TRIGGER_LINKS = ("replaceSpEffectId", "cycleOccurrenceSpEffectId",
                  "atkOccurrenceSpEffectId", "applyIdOnGetSoul",
                  "accumuOverFireId")
@@ -311,48 +344,88 @@ TRIGGER_DEPTH = 6
 TRIGGER_STATE_ROWS = 8
 
 
-def triggered_rows(sp_ids, values_of, gated_on, owned, baseline) -> list[dict]:
-    """The rows an effect switches on, with the numbers they hold.
+def effect_rows(sp_ids, values_of, gated_on, owned, applied_by=None):
+    """Every SpEffect row an effect reaches, as (id, hops, values), own first.
 
     `values_of` is SpEffect id -> field values, `gated_on` is state -> ids of
-    the rows waiting on it, `owned` the ids other effects name as their own.
+    the rows waiting on it, `owned` the ids other effects name as their own,
+    and `applied_by` turns a row's behaviorId into the SpEffect ids its
+    bullets put on whoever they touch -- the only link to the number of an
+    aura ("Raised stamina recovery for nearby allies" is a bullet applying
+    7050001).
 
-    The walk is fenced so that it cannot report another effect's number: it
-    stays inside the id block of the effect's own rows (7032200 reaches
-    7032202, never the engine's poison row 505), it does not enter a row
-    another effect owns, and it skips a row that builds up an ailment --
-    `inflicts` reports that one, and what follows it is the ailment's own
-    tick, not the relic's.
+    Fenced to the id block of the effect's own rows, and never into a row
+    another effect owns.
     """
     blocks = {sp_id // 100 for sp_id in sp_ids}
     seen = set(sp_ids)
     queue = [(sp_id, 0) for sp_id in sp_ids]
-    found: list[dict] = []
     while queue:
         sp_id, depth = queue.pop(0)
         values = values_of.get(sp_id)
         if values is None:
             continue
-        if depth and not any((values.get(f) or 0) > 0 for f in STATUS_POWER):
-            numbers = {f: values[f] for f in sorted(TRIGGERED_FIELDS)
-                       if f in values and f in baseline
-                       and values[f] != baseline[f]}
-            if numbers:
-                duration = values.get("effectEndurance", -1.0)
-                if duration > 0:
-                    numbers["effectEndurance"] = duration
-                found.append({"sp_id": sp_id, "modifiers": numbers})
+        yield sp_id, depth, values
         if depth >= TRIGGER_DEPTH:
             continue
         nxt = [values.get(link) for link in TRIGGER_LINKS]
         waiting = gated_on.get(values.get("stateInfo") or 0, ())
         if len(waiting) <= TRIGGER_STATE_ROWS:
             nxt += waiting
+        behavior = values.get("behaviorId") or 0
+        if applied_by is not None and behavior > 0:
+            nxt += applied_by(behavior)
         for target in nxt:
             if (isinstance(target, int) and target > 0 and target not in seen
                     and target not in owned and target // 100 in blocks):
                 seen.add(target)
                 queue.append((target, depth + 1))
+
+
+def triggered_rows(sp_ids, values_of, gated_on, owned, baseline,
+                   applied_by=None) -> list[dict]:
+    """The rows an effect switches on, with the numbers they hold.
+
+    The arguments are `effect_rows`'s, whose fences this relies on.
+
+    So it cannot report another effect's number (7032200 reaches 7032202,
+    never the engine's poison row 505), and it skips a row that builds up an
+    ailment -- `inflicts` reports that one, and what follows it is the
+    ailment's own tick, not the relic's.
+    """
+    # An effect whose state also fires behaviours outside its own block does
+    # more than this walk can see, and the part inside the block would stand
+    # for the whole: "Items confer effect to all nearby allies" sets state
+    # 2013, which fires 708504 and 708505 besides its own 7050101, and
+    # 7050102's FP figure is one item's share of it.
+    blocks = {sp_id // 100 for sp_id in sp_ids}
+    for sp_id in sp_ids:
+        state = (values_of.get(sp_id) or {}).get("stateInfo") or 0
+        waiting = gated_on.get(state, ())
+        if len(waiting) <= TRIGGER_STATE_ROWS and any(
+                row // 100 not in blocks
+                and ((values_of.get(row) or {}).get("behaviorId") or 0) > 0
+                for row in waiting):
+            return []
+    found: list[dict] = []
+    for sp_id, depth, values in effect_rows(sp_ids, values_of, gated_on,
+                                            owned, applied_by):
+        if not depth or any((values.get(f) or 0) > 0 for f in STATUS_POWER):
+            continue
+        numbers = {f: values[f] for f in sorted(TRIGGERED_FIELDS)
+                   if f in values and f in baseline
+                   and values[f] != baseline[f]}
+        # Not the 0.1 s pulse the Duchess's row opens with.
+        if (values.get("stateInfo") == CONCEALED_STATE
+                and values.get("effectEndurance", 0) >= 1):
+            numbers["stateInfo"] = CONCEALED_STATE
+        if numbers:
+            duration = values.get("effectEndurance", -1.0)
+            if duration > 0:
+                numbers["effectEndurance"] = duration
+            found.append({"sp_id": sp_id,
+                          "sp_category": values.get("spCategory"),
+                          "modifiers": numbers})
     return found
 
 
@@ -1112,7 +1185,7 @@ def _buff_lines(values: dict) -> list[str]:
             f"stamina recovery speed {values['staminaRecoverChangeSpeed']:+}")
     if values.get("disableDisease"):
         lines.append("immune to Scarlet Rot")
-    if values.get("stateInfo") == 600:
+    if values.get("stateInfo") == CONCEALED_STATE:
         lines.append("invulnerable")
     return lines
 
@@ -2138,6 +2211,15 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         for r in rows:
             if r.id == sp_id:
                 continue
+            # A row that waits on several states is a switch the engine
+            # shares, not this effect's payload. 7010211 is the one case:
+            # it waits on "Flask Also Heals Allies", "Gradual Restoration by
+            # Flask" and the event buff "Unifying Fate" alike and zeroes the
+            # flask's plain heal while their own delivery runs. Merged, it
+            # read "HP restored per flask -100%" on three effects, one of
+            # which the game captions "increased HP restoration".
+            if sum(1 for g in STATE_GATES if r.values.get(g)) > 1:
+                continue
             for name in sp_baseline:
                 value = r.values.get(name)
                 if (value is not None
@@ -2440,6 +2522,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         sp_ids = [
             row.values.get(f"passiveSpEffectId_{i}") for i in (1, 2, 3)
         ]
+        passive_categories = [
+            sp_by_id[s].values.get("spCategory") for s in sp_ids
+            if s and s > 0 and s in sp_by_id]
         # permanentSpEffectId and onHitSpEffect were never read, and they hold
         # the whole payload for a handful of effects: "Max HP increased for
         # each great enemy defeated" carries nothing on its passive rows, and
@@ -2615,14 +2700,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # Taken from the param itself rather than matched on the
             # effect's name. Absent unless the effect swaps a spell.
             **({"start_magic_id": swapped_spells[0]} if swapped_spells else {}),
-            # The numbers of the rows this effect only switches on. Absent
-            # where the effect already carries one of these numbers itself:
-            # the state and adjacent payloads have then merged the same rows
-            # into "modifiers", and listing them twice would read as two buffs.
-            **({"triggered": fired} if not (set(modifiers) & TRIGGERED_FIELDS)
-               and (fired := triggered_rows(
-                   sp_ids, sp_values, gated_ids, owned_sp_ids, sp_baseline))
-               else {}),
+            # None of its own rows is one the game holds twice
+            # (`STACKING_CATEGORY`): a second relic carrying this effect
+            # leaves one of it. Absent where a copy adds.
+            **({"one_instance": True} if passive_categories
+               and STACKING_CATEGORY not in passive_categories else {}),
         }
         return key
 
@@ -3398,6 +3480,113 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # Hoarfrost Stomp's frost is not on it (01.11.2026).
             **({"inflicts": inflicts} if inflicts else {}),
         })
+
+    # ---- What an effect only sets off: its buff rows and its own hit -------
+    # Here and not in register_effect, because half the links run through the
+    # bullet and attack tables read above. A SpEffect row's behaviorId names a
+    # Behavior row, that row a bullet (refType 1), and the bullet either hits
+    # for an AtkParam row -- "Multiple Periodical Glintblades" is Magic 60 --
+    # or lays a SpEffect on whoever it touches, which is how every aura hands
+    # out its number. The player's table is asked first; the four "... Follows
+    # Charge Attacks that Land" rows are only in the NPC ones (910610300).
+    behavior_ref: dict[int, tuple[int, int]] = {}
+    for _member in ("BehaviorParam", "BehaviorParam_PC"):   # the PC row wins
+        for _r in param.read(members[_member], behavior_def).rows:
+            behavior_ref[_r.id] = (_r.values.get("refType"),
+                                   _r.values.get("refId"))
+    _npc_atk = {
+        r.id: r for r in param.read(
+            members["AtkParam_Npc"],
+            only(atk_def, {*SPELL_DAMAGE_FIELDS.values(),
+                           *HIT_SP_EFFECT_FIELDS})).rows
+    }
+
+    @functools.lru_cache(maxsize=None)
+    def behavior_reach(behavior_id: int) -> tuple[tuple, tuple]:
+        """(attack rows, SpEffect ids laid on what is touched) of a behaviour."""
+        ref_type, ref_id = behavior_ref.get(behavior_id, (None, None))
+        if not isinstance(ref_id, int) or ref_id <= 0:
+            return (), ()
+        atk_rows: list = []
+        laid: list[int] = []
+        seen_bullets: set[int] = set()
+
+        def follow(bullet_id, depth: int) -> None:
+            if (not isinstance(bullet_id, int) or bullet_id <= 0
+                    or bullet_id in seen_bullets or depth > MAX_BULLET_DEPTH):
+                return
+            seen_bullets.add(bullet_id)
+            bullet = bullet_by_id.get(bullet_id)
+            if bullet is None:
+                return
+            atk_id = bullet.values.get("atkId_Bullet", -1)
+            atk_rows.append(atk_by_id.get(atk_id) or _npc_atk.get(atk_id))
+            laid.extend(hit_sp_ids(bullet))
+            follow(bullet.values.get("HitBulletID", -1), depth + 1)
+            follow(bullet.values.get(BULLET_INTERVAL_FIELD, -1), depth + 1)
+
+        if ref_type == BEHAVIOR_REF_BULLET:
+            follow(ref_id, 0)
+        elif ref_type == BEHAVIOR_REF_ATTACK:
+            atk_rows.append(atk_by_id.get(ref_id) or _npc_atk.get(ref_id))
+        atk_rows = [row for row in atk_rows if row is not None]
+        for atk_row in atk_rows:
+            laid.extend(hit_sp_ids(atk_row))
+        return tuple(atk_rows), tuple(
+            s for s in laid if isinstance(s, int) and s > 0)
+
+    def laid_by(behavior_id: int) -> list[int]:
+        """What a behaviour's bullets lay on allies: nothing where one of
+        them deals damage, because that bullet touches the enemy, and
+        "[Guardian] Successful guards send out shockwaves" would read as
+        costing the wearer HP (7033405, on a Physical 100 hit)."""
+        atk_rows, laid = behavior_reach(behavior_id)
+        for atk_row in atk_rows:
+            if any(isinstance(atk_row.values.get(field), int)
+                   and atk_row.values[field] > PROC_DAMAGE_FLOOR
+                   for field in SPELL_DAMAGE_FIELDS.values()):
+                return []
+        return list(laid)
+
+    for _effect in effects.values():
+        _sp_ids = _effect["sp_effect_ids"]
+        # Absent where the effect already carries one of these numbers
+        # itself: the state and adjacent payloads have then merged the same
+        # rows into "modifiers", and listing them twice would read as two
+        # buffs.
+        if not (set(_effect["modifiers"]) & TRIGGERED_FIELDS):
+            _fired = triggered_rows(
+                _sp_ids, sp_values, gated_ids, owned_sp_ids, sp_baseline,
+                laid_by)
+            if _fired:
+                _effect["triggered"] = _fired
+
+        # The effect's own hit: strongest single one per damage type, as a
+        # spell's is, and the buildup its hits lay on what they touch.
+        _best: dict[str, int] = {}
+        _laid: list[int] = []
+        for _sp_id, _depth, _values in effect_rows(
+                _sp_ids, sp_values, gated_ids, owned_sp_ids,
+                laid_by):
+            _behavior = _values.get("behaviorId") or 0
+            if _behavior <= 0:
+                continue
+            _atk_rows, _hit_sp = behavior_reach(_behavior)
+            _laid.extend(_hit_sp)
+            for _atk_row in _atk_rows:
+                _hit = {
+                    damage: _atk_row.values[field]
+                    for damage, field in SPELL_DAMAGE_FIELDS.items()
+                    if isinstance(_atk_row.values.get(field), int)
+                    and _atk_row.values[field] > PROC_DAMAGE_FLOOR
+                }
+                if sum(_hit.values()) > sum(_best.values()):
+                    _best = _hit
+        if _best:
+            _effect["proc_damage"] = _best
+        _buildup = hit_inflicts(_laid)
+        if _buildup:
+            _effect["proc_inflicts"] = _buildup
 
     # ---- Chances the engine keeps in PlayerCommonParam's undescribed tail --
     # PlayerCommonParam's row is 760 bytes and its paramdef describes only the
