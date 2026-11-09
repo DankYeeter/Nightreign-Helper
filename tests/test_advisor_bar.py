@@ -1668,8 +1668,9 @@ def test_the_row_breaks_one_px_under_its_one_line_need(
     `STATUS_FLOOR` counted on line two."""
     threshold = advisor_row_at_the_window["threshold"][goal_id]
     hints = advisor_row_at_the_window["at"]["1959"]["hints"]
-    first_line = (FIRST_LINE if goal_id == "max_damage"
-                  else ("heading", "goal_box"))
+    first_line = {"max_damage": FIRST_LINE,
+                  "max_attributes": ("heading", "goal_box")}.get(
+        goal_id, ("heading", "goal_box", "incoming_label", "incoming_box"))
     assert threshold["need"] == (
         sum(hints[name] for name in first_line + SECOND_LINE)
         + advisorbar.STATUS_FLOOR
