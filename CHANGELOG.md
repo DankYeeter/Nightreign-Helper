@@ -6,6 +6,32 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Added
+- **Over 100 relic effects now show their figure.** Effects that only switch
+  another effect on used to read "triggers a linked effect". The number and
+  how long it lasts are now read from the game's files, for example "Taking
+  Damage Boosts Damage Negation": all damage taken -21% for 10 s. Effects
+  that fire a hit of their own show what it hits for ("Multiple Periodical
+  Glintblades": Magic 60) and the status it builds up. The dataset is rebuilt
+  once on the first start.
+- **Heolstor's first form.** The Bosses tab shows what he takes in the first
+  half of the fight as well (Holy x1.35, Fire x1.2), not only the second.
+
+### Changed
+- **Stacking follows the game's own rule.** Whether a second relic with the
+  same effect adds anything is now read from the game's code: 203 effects
+  that were listed as stacking are "One copy only", and the totals and the
+  Advisor count them once. Different effects on the same value still
+  multiply, which the same code confirms.
+
+### Fixed
+- "Flask Also Heals Allies" and "Gradual Restoration by Flask" no longer show
+  "HP restored per flask -100%". The figure belonged to a switch the game
+  shares between three effects, not to them.
+- FP restoration figures no longer read as a percentage in the thousands
+  ("Failing to Cast Spell Restores FP").
+- Harmonia's HP was read from a row her arena does not use.
+
 ## [1.22.0] - 2026-11-08
 
 ### Changed

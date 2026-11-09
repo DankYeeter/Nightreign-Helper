@@ -2076,8 +2076,10 @@ CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
 #: Every gated effect the sheet offers a switch for, less those in
 #: `model.NO_SWITCH`: 413 that are not curses plus the seven above (same
 #: dataset, counted 2026-09-14), less the 19 of `ON_THE_ENEMY_EFFECT_IDS` that
-#: had a switch (2026-11-07). The baseline's whole vocabulary (AD-036.6).
-SWITCHABLE_CONDITIONS = 401
+#: had a switch (2026-11-07), less the three flask effects whose only gate
+#: was the engine's shared switch 7010211 (EXTRACT_VERSION 23). The
+#: baseline's whole vocabulary (AD-036.6).
+SWITCHABLE_CONDITIONS = 398
 
 #: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 315
 #: copies) change their `min_damage_taken` figure between the baseline and

@@ -1196,6 +1196,17 @@ class BossTab(QWidget):
             "How much status you have to apply before it lands — lower is "
             "easier. Green marks this Nightlord's easiest statuses."))
 
+        # The same boss where its own arena names a row that takes damage
+        # differently -- Heolstor's first half. The figures above are the
+        # form with the most HP.
+        for form in (weakness or {}).get("other_forms") or []:
+            parts.append(self._section(f"OTHER FORM — {form['hp']:g} HP"))
+            parts.append(self._bars(form["damage"], form["weak_damage"]))
+            parts.append(self._status(form["status"], form["weak_status"]))
+            parts.append(self._note(
+                "The files give this form its own figures and do not say "
+                "when the fight is in it."))
+
         stance = profile.get("stance") or {}
         if stance:
             parts.append(self._section("STANCE"))
