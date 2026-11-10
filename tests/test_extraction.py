@@ -217,8 +217,8 @@ def test_extracted_game_data_never_falls_back_to_a_cached_snapshot(
     )
 
 
-SETTLED = ("single", "group")
-CONFIDENCE = {"single", "group", "ambiguous", "unresolved"}
+SETTLED = ("single", "group", "script")
+CONFIDENCE = {"single", "group", "script", "ambiguous", "unresolved"}
 
 
 def _map_of(place: str) -> str:
@@ -574,9 +574,10 @@ def test_one_rule_reads_every_card_of_the_block(extracted_game_data):
 
     unsettled = {place: entry["weakness"]["confidence"]
                  for place, entry in places.items()
-                 if entry["weakness"]["confidence"] != "single"}
+                 if entry["weakness"]["confidence"] not in ("single",
+                                                            "script")}
     assert not unsettled, f"{len(unsettled)} of {len(places)} cards unsettled"
-    assert sum(1 for entry in places.values() if entry["name"]) == 59
+    assert sum(1 for entry in places.values() if entry["name"]) == 64
 
     assert places["4666"]["name"] == "Black Blade Kindred"
     assert places["4920"]["chr"] == 3600
@@ -589,13 +590,22 @@ def test_one_rule_reads_every_card_of_the_block(extracted_game_data):
     assert places["4659"]["name"] == "Decaying Rancor Dragon"
     assert places["4662"]["name"] == "Wormface"
 
-    # A character without a name is a valid answer, and no name is taken
-    # from another card: c4021 stands on `4930` as it does on `4688`, but
-    # `m49_30` never calls the event (AD-043 option D, AD-044 point 3).
-    assert sorted(place for place, entry in places.items()
-                  if not entry["name"]) == ["4890", "4918", "4930",
-                                            "5211", "5212"]
-    assert places["4930"]["chr"] == 4021
+    # The five cards no health bar names. Still no name from another card:
+    # each takes the one NpcName id its own script carries. On four of them
+    # that id is a character the map does not place at all, so the boss is
+    # the one the script brings in and the figures are his, not those of the
+    # 143 HP crowd the map is full of. `4930` places c4021 itself, a variant
+    # of the c4020 its id names, and keeps its own row.
+    assert not [place for place, entry in places.items() if not entry["name"]]
+    assert {place: (places[place]["name"], places[place]["chr"],
+                    places[place]["weakness"]["confidence"])
+            for place in ("4890", "4918", "4930", "5211", "5212")} == {
+        "4890": ("Wormface", 4580, "script"),
+        "4918": ("Great Wyrm", 4911, "script"),
+        "4930": ("Royal Revenant", 4021, "single"),
+        "5211": ("Divine Beast Dancing Lion", 5210, "script"),
+        "5212": ("Knight Artorias", 7720, "script"),
+    }
 
 
 def test_a_write_that_breaks_off_leaves_the_old_snapshot(monkeypatch,

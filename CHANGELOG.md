@@ -6,6 +6,24 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Added
+- **The last five field bosses have a name and their own figures.** Wormface,
+  Great Wyrm, Royal Revenant, Divine Beast Dancing Lion and Knight Artorias
+  were shown without a name. Four of them are brought in by the place's
+  script and are not on its map, so the tab showed the weaknesses of a
+  lesser enemy standing there instead.
+- **"Demon's Plating" shows its scale.** Attack power by runes held: x1.2 at
+  50,000, x1.3 at 100,000, x1.9 at 900,000.
+- **Flask effects show what the flask does.** "Flask Also Heals Allies",
+  "Gradual Restoration by Flask" and "Unifying Fate" (FP at rate 30, 15 for
+  an ally) used to show no figure.
+
+### Changed
+- **29 more effects are "One copy only".** Their number sits on a row the
+  game holds once, for example "Successful guarding fills more of the Art
+  gauge" and "Physical attack power increases after using grease items".
+  The dataset is rebuilt once on the first start.
+
 ## [1.22.0] - 2026-11-09
 
 ### Added

@@ -197,3 +197,31 @@ def test_two_copies_of_a_category_ten_effect_still_both_count(game_data):
     once = model.compute(hero, 15, [effect], game_data["curves"])
     twice = model.compute(hero, 15, [effect, effect], game_data["curves"])
     assert twice.rates["physicsAttackRate"] > once.rates["physicsAttackRate"]
+
+
+def test_flask_rows_are_those_of_the_state_and_no_others():
+    values = {7010250: {"changeMpEstusFlaskRate": -30, "spCategory": 20},
+              7010260: {"changeMpEstusFlaskRate": -15, "spCategory": 20},
+              7010220: {"changeHpEstusFlaskRate": -50, "spCategory": 20}}
+    rows = extract.flask_rows(2262, values)
+    assert [(row["sp_id"], row["modifiers"]) for row in rows] == [
+        (7010250, {"changeMpEstusFlaskRate": -30}),
+        (7010260, {"changeMpEstusFlaskRate": -15})]
+    assert extract.flask_rows(9999, values) == []
+    assert effecttext.describe({"id": 1, "modifiers": {}, "triggered": rows[:1]}
+                               ).startswith("when triggered: Flask restores FP "
+                                            "at rate 30")
+
+
+def test_boss_a_script_brings_in_is_named_only_when_it_is_the_only_one():
+    import struct
+    from nrdata import bossdata
+    by_chr = {7720: [object()], 4580: [object()], 5240: [object()]}
+    named = {7720, 4580}
+    one = struct.pack("<3i", 12, 907720600, 5240)
+    assert bossdata._spawned_boss(one, {5240}, by_chr, named) == (
+        7720, 907720600)
+    # Placed on the map already: then it is not one the script brings in.
+    assert bossdata._spawned_boss(one, {5240, 7720}, by_chr, named) is None
+    two = one + struct.pack("<i", 904580600)
+    assert bossdata._spawned_boss(two, {5240}, by_chr, named) is None
