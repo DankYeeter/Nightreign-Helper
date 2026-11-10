@@ -672,8 +672,37 @@ def _attach_effects(entries, archives, by_chr: dict[int, list],
             entry["profile"]["defence_buffs"] = defence
 
 
+#: An NpcName id is 90, the character's four digits, three of variant.
+NAME_ID_LO, NAME_ID_HI = 900000000, 909999999
+
+
+def _spawned_boss(script: bytes, placed: set[int], by_chr: dict[int, list],
+                  named: set[int]) -> tuple[int, int] | None:
+    """(character, name id) of the boss a place's script brings in itself.
+
+    Five places put no boss on the map at all: m52_12 places c5240 forty-nine
+    times, 163 HP each, and its script carries 907720600 -- "Knight
+    Artorias", c7720, 2880 HP, who stands on no part of it. The id is read as
+    the name id it is shaped like only where exactly one such character
+    comes out of the script, the game has a name and NpcParam rows for it,
+    and the map does not place it; anything less names nobody.
+    """
+    found: dict[int, int] = {}
+    words = memoryview(script)[: len(script) // 4 * 4]
+    for (value,) in struct.iter_unpack("<i", words):
+        if NAME_ID_LO <= value <= NAME_ID_HI:
+            chr_id = (value - NAME_ID_LO) // 1000
+            if (chr_id in named and chr_id in by_chr
+                    and chr_id not in placed and chr_id not in CREW):
+                found.setdefault(chr_id, value)
+    if len(found) != 1:
+        return None
+    return next(iter(found.items()))
+
+
 def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
-                  sp_rows: dict[int, param.ParamRow]) -> dict[int, dict]:
+                  sp_rows: dict[int, param.ParamRow],
+                  named: set[int] | None = None) -> dict[int, dict]:
     """place id -> the same entry `derive` gives per defeat flag.
 
     The second entry into a map, and the one the place lotteries use: the
@@ -782,19 +811,46 @@ def derive_places(archives, npc: param.ParamTable, places: dict[int, str],
         # place nobody was chosen on has nothing to label, and a missing or
         # unreadable script costs the name and nothing else (AD-043).
         on_entities = entities.get(entry["primary"], [])
-        if on_entities:
+        script = b""
+        if on_entities or named is not None:
             path = f"/event/{map_name}.emevd.dcx"
             arc = next((a for a in archives.values() if path in a), None)
-            names: dict[int, int] = {}
             if arc is not None:
                 try:
-                    names = _healthbar_names(arc.read(path))
+                    script = arc.read(path)
                 except Exception:  # noqa: BLE001 - as for the map above
-                    names = {}
+                    script = b""
+        if on_entities and script:
+            try:
+                names = _healthbar_names(script)
+            except Exception:  # noqa: BLE001 - as for the map above
+                names = {}
             for entity in on_entities:
                 if entity in names:
                     entry["name_id"] = names[entity]
                     break
+        # Nobody the map places has a name: the boss is one its script
+        # brings in (`_spawned_boss`). Its figures are those of the
+        # character's largest row, since no part names one.
+        if (named is not None and script and "name_id" not in entry
+                and entry["primary"] not in named):
+            spawned = _spawned_boss(script, set(placements), by_chr, named)
+            if spawned is not None:
+                chr_id, name_id = spawned
+                profile = _profile(by_chr[chr_id])
+                # The placed character is a variant of the named one (c4021
+                # under "Royal Revenant", whose id says c4020): the name is
+                # its own, and so are the figures of the row the map names.
+                if (entry["primary"] is not None
+                        and entry["primary"] // 10 == chr_id // 10):
+                    entry["name_id"] = name_id
+                elif profile:
+                    entry.update(primary=chr_id, chars=[chr_id],
+                                 confidence="script", profile=profile,
+                                 parts={str(chr_id): profile},
+                                 name_id=name_id)
+                    entry.pop("group_boss", None)
+                    entry.pop("placements", None)
         out[place] = entry
 
     _attach_effects(out.values(), archives, by_chr, sp_rows)

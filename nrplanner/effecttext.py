@@ -376,6 +376,14 @@ def describe(effect: dict) -> str:
         verb = "recovery" if fp_rate < 0 else "loss"
         parts.append(f"FP {verb} rate {abs(fp_rate):g} "
                      f"(the game does not state the unit)")
+    # What a flask restores once an effect has taken it over
+    # (`extract.FLASK_ROWS`), on the scale a plain flask is 60 on.
+    for field_name, what in (("changeHpEstusFlaskRate", "HP"),
+                             ("changeMpEstusFlaskRate", "FP")):
+        flask = mods.pop(field_name, None)
+        if isinstance(flask, (int, float)) and flask:
+            parts.append(f"Flask restores {what} at rate {abs(flask):g} "
+                         f"(a plain flask: HP at 60)")
     # Stored as a cost, like HP per tick: -2 hands two points back.
     stamina = mods.pop("changeStaminaPoint", None)
     if isinstance(stamina, (int, float)) and stamina:

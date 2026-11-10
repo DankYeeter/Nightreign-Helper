@@ -147,7 +147,15 @@ MAX_LEVEL = 15
 #      With it `effects[].proc_damage` and `proc_inflicts` (what the effect's
 #      own bullet hits for), `effects[].one_instance` (`STACKING_CATEGORY`),
 #      and `other_forms` on a Nightlord's weakness (Heolstor's first half).
-EXTRACT_VERSION = 23
+#  24  what was still open after 23. `effects[].one_instance` also where the
+#      number sits on a state or adjacent payload row of another category
+#      (29 rollable effects); the flask effects' own rows (`FLASK_ROWS`) and
+#      "Demon's Plating"'s curve (`RUNES_HELD_CURVE`) on the event buffs; and
+#      the five field bosses no health bar names, by the name id their own
+#      script carries (`bossdata._spawned_boss`, confidence "script"). A
+#      cache left on 23 shows four of those places with the figures of an
+#      add and without a name.
+EXTRACT_VERSION = 24
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -787,12 +795,6 @@ def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
                     row.values["patternId"])
 
     npc = param.read(members["NpcParam"], defs.get("NpcParam"))
-    # One call for both lotteries: the same rule reads both sets of cards
-    # (AD-044), and their id spaces do not overlap (T-299 3b).
-    weakness = bossdata.derive_places(
-        archives, npc,
-        {place: _map_of_place(place) for place in set(categories) | set(days)},
-        sp_rows)
 
     # Names are the game's own (NpcName). Two routes to one: the map script
     # hands a name id in per entity for the health bar, and the structured id
@@ -810,6 +812,15 @@ def _subbosses(members: dict, defs: dict, text: dict[str, dict[int, str]],
         label = (npc_names.get(row.values.get("nameId", -1)) or "").strip()
         if label:
             chr_names.setdefault(row.id // 10000, label)
+
+    # One call for both lotteries: the same rule reads both sets of cards
+    # (AD-044), and their id spaces do not overlap (T-299 3b). The named
+    # characters go in so that a place whose map holds none of them can be
+    # given the boss its script brings in.
+    weakness = bossdata.derive_places(
+        archives, npc,
+        {place: _map_of_place(place) for place in set(categories) | set(days)},
+        sp_rows, named=set(chr_names))
 
     out: dict[str, Any] = {}
     for place in sorted(set(categories) | set(days)):
@@ -1190,6 +1201,84 @@ def _buff_lines(values: dict) -> list[str]:
     return lines
 
 
+# ---- What a flask does once an effect has taken it over -------------------
+# Three effects set a state and nothing else: "Flask Also Heals Allies"
+# (2344), "Gradual Restoration by Flask" (2015) and the event buff "Unifying
+# Fate" (2262). Row 7010211 waits on all three and zeroes the flask's plain
+# heal; what the flask does instead is in the same id block, and nothing in a
+# param says which row answers which state. They are told apart by what they
+# hold, which is unambiguous: one pair restores FP and one effect says FP; one
+# pair is followed by a timed HP rate and one effect says "slowly"; the third
+# is what is left. Each has an ally copy that a bullet lays (7010221 through
+# 900102221, and so on). A plain flask is `changeHpEstusFlaskRate` -60 on
+# rows 501000..501012, so these are on the same scale.
+FLASK_ROWS = {
+    2344: (7010220, 7010221),             # 50 to the drinker, 30 to allies
+    2015: (7010230, 7010231),             # 10 at once, then a rate for 8 s
+    2262: (7010250, 7010260),             # FP: 30 to the drinker, 15 to allies
+}
+FLASK_FIELDS = ("changeHpEstusFlaskRate", "changeMpEstusFlaskRate",
+                "changeHpRate")
+
+
+def flask_rows(state: int, values_of) -> list[dict]:
+    """The rows of `FLASK_ROWS` for this state, in `triggered`'s shape."""
+    found = []
+    for sp_id in FLASK_ROWS.get(state, ()):
+        values = values_of.get(sp_id) or {}
+        numbers = {field: values[field] for field in FLASK_FIELDS
+                   if values.get(field)}
+        if not numbers:
+            continue
+        if values.get("effectEndurance", 0) >= 1:
+            numbers["effectEndurance"] = values["effectEndurance"]
+        found.append({"sp_id": sp_id,
+                      "sp_category": values.get("spCategory"),
+                      "modifiers": numbers})
+    return found
+
+
+# "Demon's Plating" -- "Enhances attack power depending on runes in
+# possession" -- has no number on any SpEffect row: its row 8970030 is state
+# 2118 and nothing else. The number is a curve, and which one is in the code,
+# not in a param (nightreign.exe 0x1406c3299, data_version 10350000): where
+# the attacker carries state 0x846 the runes held go through CalcCorrectGraph
+# row 60 (the lookup at 0x140e87b10 with id 0x3c, the curve at 0x1406d2670)
+# and the result multiplies the attack.
+RUNES_HELD_STATE = 2118
+RUNES_HELD_CURVE = 60
+
+
+def _runes_held_lines(members: dict, defs: dict) -> list[str]:
+    """The attack multiplier of `RUNES_HELD_CURVE`, point by point."""
+    graph = param.read(members["CalcCorrectGraph"],
+                       defs.get("CalcCorrectGraph"))
+    row = next((r for r in graph.rows if r.id == RUNES_HELD_CURVE), None)
+    if row is None:
+        return []
+    points = [(row.values[f"stageMaxVal{i}"], row.values[f"stageMaxGrowVal{i}"])
+              for i in range(5)]
+    steps = [f"×{rate:.3g} at {runes:,.0f}" for runes, rate in points
+             if runes > 0]
+    if not steps:
+        return []
+    return ["attack power by runes held: " + ", ".join(steps)
+            + ", rising evenly in between"]
+
+
+def _flask_lines(state: Any, sp_rows: dict) -> list[str]:
+    """`flask_rows` in the wording of a buff line: the FP a flask restores."""
+    rates = [abs(row["modifiers"]["changeMpEstusFlaskRate"])
+             for row in flask_rows(state or 0, sp_rows)
+             if row["modifiers"].get("changeMpEstusFlaskRate")]
+    if not rates:
+        return []
+    line = f"a flask also restores FP at rate {rates[0]:g}"
+    if len(rates) > 1:
+        line += f", {rates[1]:g} for an ally it reaches"
+    return [line + " (a plain flask restores HP at rate 60)"]
+
+
 def _event_buffs(members: dict, defs: dict,
                  text: dict[str, dict[int, str]]) -> list[dict]:
     """The buffs the world events pay out, with who they land on.
@@ -1261,7 +1350,10 @@ def _event_buffs(members: dict, defs: dict,
             # effectTarget* flags cannot answer this.
             "shares_with_allies": _states_allies(info.get(row.id) or ""),
             "fires_at": root.get("accumuOverVal") or None,
-            "lines": _buff_lines(root),
+            "lines": _buff_lines(root) + (
+                _runes_held_lines(members, defs)
+                if root.get("stateInfo") == RUNES_HELD_STATE else []
+            ) + _flask_lines(root.get("stateInfo"), sp_rows),
             # A buff whose magnitude lives on a *separate* row applied on a
             # trigger, not on the marker itself. Traces of Grace-Given Lord is
             # the case that matters: graceSpEffectId is what a new Site of
@@ -2197,6 +2289,14 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             if _v:
                 by_gate_state[_v].append(_r)
 
+    # The category of each payload row that handed an effect a number, filled
+    # by the two payload readers below and emptied per effect. The number is
+    # on that row, so that row's category says whether two copies give it
+    # twice (`STACKING_CATEGORY`): "Successful guarding fills more of the Art
+    # gauge" is a marker of category 10, and the +1.0 sits on 7030602,
+    # category 20, which the game holds once however many markers there are.
+    payload_categories: list[Any] = []
+
     def state_payload(sp_id: int) -> dict[str, Any]:
         row = sp_by_id.get(sp_id)
         if row is None:
@@ -2220,12 +2320,16 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # which the game captions "increased HP restoration".
             if sum(1 for g in STATE_GATES if r.values.get(g)) > 1:
                 continue
+            gave = False
             for name in sp_baseline:
                 value = r.values.get(name)
                 if (value is not None
                         and not isinstance(value, list)
                         and value != sp_baseline[name]):
                     out.setdefault(name, value)
+                    gave = gave or name in TRIGGERED_FIELDS or name == GAUGE_FIELD
+            if gave:
+                payload_categories.append(r.values.get("spCategory"))
         return out
 
     # ---- Payload rows sitting immediately after the effect's own row -------
@@ -2298,6 +2402,8 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
                 values["effectEndurance"] = duration
             if values:
                 tiers.append(values)
+                if (set(values) & TRIGGERED_FIELDS) or GAUGE_FIELD in values:
+                    payload_categories.append(row.values.get("spCategory"))
             nxt += 1
         # A real ladder repeats the same fields with different numbers. Rows
         # that merely sit next to each other but describe different things are
@@ -2536,6 +2642,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
         modifiers: dict[str, Any] = {}
         categories: list[int] = []
         inflicts: dict[str, Any] = {}
+        payload_categories.clear()
         for sp_id in sp_ids:
             modifiers.update(sp_modifiers(sp_id))
         # Only when the effect says nothing of substance on its own. An effect
@@ -2703,8 +2810,12 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             # None of its own rows is one the game holds twice
             # (`STACKING_CATEGORY`): a second relic carrying this effect
             # leaves one of it. Absent where a copy adds.
-            **({"one_instance": True} if passive_categories
-               and STACKING_CATEGORY not in passive_categories else {}),
+            **({"one_instance": True} if (
+                passive_categories
+                and STACKING_CATEGORY not in passive_categories)
+               or (payload_source and any(
+                   category != STACKING_CATEGORY
+                   for category in payload_categories)) else {}),
         }
         return key
 
@@ -3558,6 +3669,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             _fired = triggered_rows(
                 _sp_ids, sp_values, gated_ids, owned_sp_ids, sp_baseline,
                 laid_by)
+            # A flask effect's rows hang on no link at all (`FLASK_ROWS`).
+            for _sp_id in _sp_ids:
+                _fired = _fired or flask_rows(
+                    (sp_values.get(_sp_id) or {}).get("stateInfo") or 0,
+                    sp_values)
             if _fired:
                 _effect["triggered"] = _fired
 

@@ -95,7 +95,7 @@ NO_NIGHTLORD_YET = ("Select a Nightlord above to see which field and night "
                     "bosses can appear for it.")
 
 #: The two confidences that come with a name out of the files (AD-040).
-NAMED = ("single", "group")
+NAMED = ("single", "group", "script")
 
 #: AK-322.3. What a card is called where the files do not name its boss. The
 #: same words in the tree and at the head of the panel, because they are the
