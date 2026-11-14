@@ -144,7 +144,7 @@ QPushButton:disabled {{
     color: #6f7187; border-color: rgba(255, 255, 255, 18);
     background: rgba(255, 255, 255, 8);
 }}
-QPushButton:default, QPushButton#primary {{
+QPushButton#primary {{
     color: #231a08; border: 1px solid {ACCENT};
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
         stop:0 {ACCENT_BRIGHT}, stop:1 {ACCENT});
@@ -156,7 +156,7 @@ QPushButton#primary:disabled {{
 QComboBox, QLineEdit, QSpinBox {{
     background: rgba(0, 0, 0, 80); color: {TEXT};
     border: 1px solid rgba(255, 255, 255, 34); border-radius: 8px;
-    padding: 2px 6px;
+    padding: 2px 4px;
     selection-background-color: {ACCENT}; selection-color: #14150f;
 }}
 QComboBox:hover, QLineEdit:hover {{ border-color: rgba(255, 255, 255, 70); }}

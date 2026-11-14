@@ -885,6 +885,7 @@ class Planner(QMainWindow):
         self.variant_panel.setStyleSheet(
             f"QFrame {{ background: {PANEL}; border: 1px solid {BORDER};"
             f" border-radius: 5px; }}"
+            " QLabel { background: transparent; }"
         )
         strip_outer = QVBoxLayout(self.variant_panel)
         strip_outer.setContentsMargins(6, 5, 6, 6)
