@@ -180,7 +180,7 @@ QHeaderView {{ background: transparent; }}
 QHeaderView::section {{
     background: rgba(255, 255, 255, 14); color: {ACCENT};
     border: 0; border-bottom: 1px solid rgba(255, 255, 255, 30);
-    padding: 5px 8px;
+    padding: 4px 0px;
 }}
 QTableCornerButton::section {{ background: transparent; border: 0; }}
 QMenu {{
