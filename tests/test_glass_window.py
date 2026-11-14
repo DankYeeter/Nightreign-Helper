@@ -69,7 +69,7 @@ def test_a_picture_in_the_icon_pack_is_the_one_shown(qapp, tmp_path,
     picture.save(str(tmp_path / backdrop.BACKDROP_FILE))
     scene = backdrop.game_scene(QSize(320, 180))
     assert (scene.width(), scene.height()) == (320, 180)
-    shown = scene.toImage().pixelColor(160, 170)
+    shown = backdrop.veiled(scene).toImage().pixelColor(160, 170)
     # The picture, under the veil that keeps text readable: still red, and
     # darker than it was.
     assert shown.red() > shown.blue() + 40

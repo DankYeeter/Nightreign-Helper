@@ -677,7 +677,14 @@ class Planner(QMainWindow):
         frame_row.setContentsMargins(10, 8, 10, 8)
         frame_row.setSpacing(10)
         frame_row.addWidget(self.rail)
-        frame_row.addWidget(tabs, 1)
+        # The pages stand on one pane of their own, so that every view is
+        # set off from the picture and not only the ones that bring panes.
+        self.page_pane = QFrame()
+        self.page_pane.setObjectName("pagePane")
+        pane_box = QVBoxLayout(self.page_pane)
+        pane_box.setContentsMargins(4, 4, 4, 4)
+        pane_box.addWidget(tabs)
+        frame_row.addWidget(self.page_pane, 1)
         self.setCentralWidget(self.backdrop)
         self.rail.chosen.connect(tabs.setCurrentIndex)
         tabs.currentChanged.connect(self.rail.show_current)
@@ -734,7 +741,7 @@ class Planner(QMainWindow):
 
         planner = QWidget()
         root = QHBoxLayout(planner)
-        root.setContentsMargins(0, 0, 0, 0)
+        root.setContentsMargins(4, 4, 4, 4)
         # The splitter draws its own gaps, so the layout no longer adds any.
         root.setSpacing(0)
 

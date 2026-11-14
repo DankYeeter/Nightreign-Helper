@@ -14,8 +14,8 @@ MUTED = "#9a9db3"
 #: A panel is a translucent fill over the window's picture (`backdrop`), so
 #: these two carry their alpha: `#AARRGGBB`, which `QColor` and a style sheet
 #: both read.
-PANEL = "#12ffffff"
-BORDER = "#24ffffff"
+PANEL = "#1affffff"
+BORDER = "#3affffff"
 #: What a panel has behind it where there is no picture: a dialog, a popup,
 #: a pixmap filled by hand.
 SOLID = "#12152b"
@@ -126,19 +126,26 @@ QToolTip {{
     border: 1px solid rgba(255, 255, 255, 50); padding: 4px 6px;
 }}
 QTabWidget::pane {{ border: 0; background: transparent; }}
+#pagePane {{
+    background: rgba(14, 17, 40, 178);
+    border: 1px solid rgba(255, 255, 255, 46);
+    border-radius: 16px;
+}}
 QScrollArea {{ background: transparent; border: 0; }}
 QScrollArea > QWidget > QWidget {{ background: transparent; }}
 #glassPane {{
-    background: rgba(255, 255, 255, 13);
-    border: 1px solid rgba(255, 255, 255, 28);
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 12);
+    border: 1px solid rgba(255, 255, 255, 34);
+    border-radius: 12px;
 }}
 QPushButton {{
-    background: rgba(255, 255, 255, 20); color: {TEXT};
-    border: 1px solid rgba(255, 255, 255, 40); border-radius: 8px;
+    background: rgba(255, 255, 255, 36); color: {TEXT};
+    border: 1px solid rgba(255, 255, 255, 80); border-radius: 8px;
     padding: 4px 8px;
 }}
-QPushButton:hover {{ background: rgba(255, 255, 255, 38); }}
+QPushButton:hover {{
+    background: rgba(255, 255, 255, 60); border-color: {ACCENT};
+}}
 QPushButton:pressed {{ background: rgba(255, 255, 255, 12); }}
 QPushButton:disabled {{
     color: #6f7187; border-color: rgba(255, 255, 255, 18);
@@ -154,12 +161,12 @@ QPushButton#primary:disabled {{
     background: rgba(255, 255, 255, 8);
 }}
 QComboBox, QLineEdit, QSpinBox {{
-    background: rgba(0, 0, 0, 80); color: {TEXT};
-    border: 1px solid rgba(255, 255, 255, 34); border-radius: 8px;
+    background: rgba(0, 0, 0, 110); color: {TEXT};
+    border: 1px solid rgba(255, 255, 255, 70); border-radius: 8px;
     padding: 2px 4px;
     selection-background-color: {ACCENT}; selection-color: #14150f;
 }}
-QComboBox:hover, QLineEdit:hover {{ border-color: rgba(255, 255, 255, 70); }}
+QComboBox:hover, QLineEdit:hover {{ border-color: rgba(255, 255, 255, 130); }}
 QComboBox:focus, QLineEdit:focus {{ border-color: {ACCENT}; }}
 QComboBox::drop-down {{ border: 0; width: 20px; }}
 QComboBox QAbstractItemView {{

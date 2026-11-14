@@ -132,6 +132,20 @@ def painted_scene(size: QSize) -> QPixmap:
     return scene
 
 
+#: How far the picture is pushed back, 0-255. The picture is the mood, the
+#: panes are the program: a reader has to tell at a glance what can be
+#: pressed from what is only behind it.
+VEIL = 96
+
+
+def veiled(scene: QPixmap) -> QPixmap:
+    """`scene` under the dark veil that sets the panes off from it."""
+    p = QPainter(scene)
+    p.fillRect(scene.rect(), QColor(6, 8, 20, VEIL))
+    p.end()
+    return scene
+
+
 def game_scene(size: QSize) -> QPixmap | None:
     """The picture out of the player's own icon pack, fitted and dimmed."""
     path = paths.icons_dir() / BACKDROP_FILE
@@ -152,10 +166,6 @@ def game_scene(size: QSize) -> QPixmap | None:
     p.drawImage((w - cover.width()) // 2, (h - cover.height()) // 2, cover)
     # Text has to stay readable over any picture: a dark veil, heavier at
     # the top where the headings are.
-    veil = QLinearGradient(0, 0, 0, h)
-    veil.setColorAt(0, QColor(5, 7, 15, 190))
-    veil.setColorAt(1, QColor(5, 7, 15, 120))
-    p.fillRect(scene.rect(), veil)
     p.end()
     return scene
 
@@ -173,7 +183,8 @@ class Backdrop(QWidget):
 
     def paintEvent(self, _event) -> None:
         if self._scene is None or self._scene.size() != self.size():
-            self._scene = game_scene(self.size()) or painted_scene(self.size())
+            self._scene = veiled(game_scene(self.size())
+                                 or painted_scene(self.size()))
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self._scene)
 
@@ -288,8 +299,8 @@ class NavRail(QFrame):
 
 RAIL_STYLE = f"""
 #navRail {{
-    background: rgba(255, 255, 255, 14);
-    border: 1px solid rgba(255, 255, 255, 30);
+    background: rgba(14, 17, 40, 178);
+    border: 1px solid rgba(255, 255, 255, 46);
     border-radius: 16px;
 }}
 #navRail QLabel#brand {{
