@@ -7,6 +7,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ## [Unreleased]
 
 ### Added
+- **New box "Advisor" above the level slider: early game or late game.**
+  Bonuses in points lose value as you level: "Increased Maximum HP" is always +100 HP,
+  which is 36 to 50% more HP on level 1 and 8 to 14% on level 15, while
+  physical damage negation stays at the same share. Early game is levels 1
+  to 10 and is worked out on level 5, Late game is levels 10 to 15 and is
+  worked out on level 13; "Set level" keeps using the level slider.
 - **The last five field bosses have a name and their own figures.** Wormface,
   Great Wyrm, Royal Revenant, Divine Beast Dancing Lion and Knight Artorias
   were shown without a name. Four of them are brought in by the place's
@@ -15,14 +21,28 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - **"Demon's Plating" shows its scale.** Attack power by runes held: x1.2 at
   50,000, x1.3 at 100,000, x1.9 at 900,000.
 - **Flask effects show what the flask does.** "Flask Also Heals Allies",
-  "Gradual Restoration by Flask" and "Unifying Fate" (FP at rate 30, 15 for
+  "Gradual Restoration by Flask" and "Unifying Fate" (30% of max FP, 15% for
   an ally) used to show no figure.
+- **"Integration of Intelligence" names how often it is reported to trigger.**
+  About 10% of hits, from one player's count; the game's files do not hold
+  the figure, and the World Events tab says so.
 
 ### Changed
 - **29 more effects are "One copy only".** Their number sits on a row the
   game holds once, for example "Successful guarding fills more of the Art
   gauge" and "Physical attack power increases after using grease items".
   The dataset is rebuilt once on the first start.
+
+### Fixed
+- **Attributes between levels 2 and 12 and between 12 and 15 were up to 1 too
+  high.** The game cuts the value off where the program rounded it: Wylder
+  has Strength 20 on level 3, not 21. 242 of the 1,200 values change, and the
+  attack ratings that scale with them. The dataset is rebuilt once on the
+  first start.
+- **Healing over time names its unit.** "HP recovery rate 0.5 (the game does
+  not state the unit)" now reads "HP recovery 0.5% of max HP per tick", and
+  the flask effects read in per cent of the maximum ("Flask Also Heals
+  Allies": 50% for you, 30% for allies, where a plain flask is 60%).
 
 ## [1.22.0] - 2026-11-09
 

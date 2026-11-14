@@ -1692,6 +1692,29 @@ def test_the_damage_question_counts_in_the_need(bar):
             == bar.damage_question_extra_width())
 
 
+def test_the_phase_box_offers_the_set_level_and_the_two_phases(planner):
+    """User decision 2026-11-14: early game or late game, beside the level
+    the slider holds, which stays the opening entry. Under the slider and
+    not on the row, whose widths are counted (measured 2026-11-14)."""
+    box = planner.phase_box
+    assert [(box.itemText(i), box.itemData(i)) for i in range(box.count())] \
+        == [("Advisor: set level", ""),
+            ("Advisor: early game (Lv 1-10)", "early"),
+            ("Advisor: late game (Lv 10-15)", "late")]
+    assert planner.phase() == ""
+    assert box not in planner.advisor_bar.findChildren(type(box))
+    box.setCurrentIndex(box.findData("late"))
+    assert planner.phase() == "late"
+
+
+def test_a_phase_stands_for_one_level_and_no_phase_for_the_set_one():
+    assert goals.phase_level("", 7) == 7
+    assert goals.phase_level("early", 7) == goals.PHASE_LEVELS["early"] == 5
+    assert goals.phase_level("late", 7) == goals.PHASE_LEVELS["late"] == 13
+    with pytest.raises(KeyError):
+        goals.phase_level("mid", 7)
+
+
 @pytest.mark.parametrize("goal_id", ["min_damage_taken", "balanced"])
 def test_the_incoming_pair_takes_less_than_the_damage_question(bar, goal_id):
     """User decision 2026-11-08: `Incoming` stands where the two pairs of

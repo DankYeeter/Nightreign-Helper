@@ -83,7 +83,7 @@ def test_pulse_carries_no_duration_and_stamina_reads_as_a_gain():
 
 def test_fp_rate_is_not_read_as_a_multiplier():
     text = effecttext.describe({"id": 1, "modifiers": {"changeMpRate": -13.0}})
-    assert text.startswith("FP recovery rate 13") and "%" not in text
+    assert text == "FP recovery 13% of max FP per tick"
 
 
 def test_evidence_names_the_triggered_row_that_decides():
@@ -209,8 +209,8 @@ def test_flask_rows_are_those_of_the_state_and_no_others():
         (7010260, {"changeMpEstusFlaskRate": -15})]
     assert extract.flask_rows(9999, values) == []
     assert effecttext.describe({"id": 1, "modifiers": {}, "triggered": rows[:1]}
-                               ).startswith("when triggered: Flask restores FP "
-                                            "at rate 30")
+                               ).startswith("when triggered: Flask restores "
+                                            "30% of max FP")
 
 
 def test_boss_a_script_brings_in_is_named_only_when_it_is_the_only_one():

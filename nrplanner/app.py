@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
-from . import (advisorblock, chalices, datasource, effectfilterdialog,
+from . import (advisorbar, advisorblock, chalices, datasource, effectfilterdialog,
                iconpack,
                effectfilters, effecttext, errortext, favourites, firstrun,
                gamepath, inventory, model, savereader, shortcut,
@@ -1026,7 +1026,29 @@ class Planner(QMainWindow):
         self.level_label.setStyleSheet(
             f"color: {ACCENT}; font-size: 17px; font-weight: bold;"
         )
-        layout.addWidget(self.level_label)
+        # User decision 2026-11-14: early or late game -- which level the
+        # advisor asks its question on; the sheet keeps the slider's. Beside
+        # the figure and not under the note: another line here raises the
+        # window's least height, and the slots then no longer scroll at 560.
+        level_line = QHBoxLayout()
+        level_line.setContentsMargins(0, 0, 0, 0)
+        level_line.addWidget(self.level_label)
+        level_line.addStretch(1)
+        self.phase_box = QComboBox()
+        self.phase_box.setAccessibleName("Advisor level")
+        self.phase_box.setToolTip(advisorbar.PHASE_TOOLTIP)
+        self.phase_box.addItem("Advisor: set level", "")
+        self.phase_box.addItem("Advisor: early game (Lv 1-10)", "early")
+        self.phase_box.addItem("Advisor: late game (Lv 10-15)", "late")
+        # Restored without a signal and written only on a choice the player
+        # made, as the advisor row keeps its own boxes (AK-347).
+        found_at = self.phase_box.findData(favourites.settings().value(
+            advisorbar.PHASE_KEY, "", type=str))
+        if found_at >= 0:
+            self.phase_box.setCurrentIndex(found_at)
+        self.phase_box.activated.connect(self._phase_chosen)
+        level_line.addWidget(self.phase_box)
+        layout.addLayout(level_line)
         self.level_slider = QSlider(Qt.Horizontal)
         self.level_slider.setMinimum(1)
         self.level_slider.setMaximum(15)
@@ -1039,6 +1061,18 @@ class Planner(QMainWindow):
         self.level_note.setStyleSheet(f"color: {MUTED}; font-size: 10px;")
         layout.addWidget(self.level_note)
         return panel
+
+    def phase(self) -> str:
+        """`"early"`, `"late"` or `""` for the level on the slider
+        (`advisor.goals.phase_level`)."""
+        return self.phase_box.currentData() or ""
+
+    def _phase_chosen(self, _index: int) -> None:
+        """Another level for the advisor's question, and nothing else: what
+        the slider's own move does to the row (`the_level_changed`)."""
+        favourites.settings().setValue(advisorbar.PHASE_KEY, self.phase())
+        if hasattr(self, "advisor_bar"):
+            self.advisor_bar.the_level_changed()
 
     def _build_middle(self) -> QWidget:
         # Three pieces stacked: what does not scroll, the advisor's row, and
