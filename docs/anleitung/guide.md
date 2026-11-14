@@ -126,8 +126,9 @@ a boss deals (Magic, Fire, Lightning, Holy), which then counts in full beside
 physical.
 The box **Phase** says which part of a run to optimise for. Bonuses in
 points, such as Increased Maximum HP (+100 HP) or Strength +3, are worth less
-with every level, bonuses in percent stay the same. **Early game** is judged
-on level 5, **Late game** on level 13, and **Set level** on the level slider.
+with every level, bonuses in percent stay the same. **Early game** is levels
+1 to 10, worked out on level 5; **Late game** is levels 10 to 15, worked out
+on level 13; **Set level** uses the level slider.
 **Maximise damage**, **Balanced**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count

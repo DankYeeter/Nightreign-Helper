@@ -1698,7 +1698,8 @@ def test_the_phase_box_offers_the_set_level_and_the_two_phases(bar):
     the slider holds, which stays the opening entry."""
     box = bar.phase_box
     assert [(box.itemText(i), box.itemData(i)) for i in range(box.count())] \
-        == [("Set level", ""), ("Early game", "early"), ("Late game", "late")]
+        == [("Set level", ""), ("Early game (Lv 1-10)", "early"),
+            ("Late game (Lv 10-15)", "late")]
     assert bar.phase() == ""
     for goal_id in advisorbar.GOAL_ORDER:
         bar.choose_goal(goal_id)

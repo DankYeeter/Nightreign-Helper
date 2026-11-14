@@ -181,9 +181,12 @@ PHASE_KEY = "advisor_phase"
 PHASE_TOOLTIP = (
     "Which part of a run to optimise for. Bonuses in points, such as "
     "Increased Maximum HP (+100 HP) or Strength +3, are worth less with "
-    "every level; bonuses in percent stay the same. Early game is judged "
-    f"on level {advisor_goals.PHASE_LEVELS['early']}, Late game on level "
-    f"{advisor_goals.PHASE_LEVELS['late']}, Set level on the level slider.")
+    "every level; bonuses in percent stay the same. Early game is levels "
+    "1 to 10 and Late game levels 10 to 15, with nothing in between; each "
+    "is worked out on one level in its middle, "
+    f"{advisor_goals.PHASE_LEVELS['early']} and "
+    f"{advisor_goals.PHASE_LEVELS['late']}. Set level uses the level "
+    "slider.")
 
 #: What the `Incoming` box does. Static, like `DAMAGE_TYPE_TOOLTIP`.
 INCOMING_TOOLTIP = ("Which damage you expect to take. Physical negation "
@@ -1639,8 +1642,8 @@ class AdvisorBar(QWidget):
         self.phase_box.setAccessibleName("Phase of the run")
         self.phase_box.setToolTip(PHASE_TOOLTIP)
         self.phase_box.addItem("Set level", "")
-        self.phase_box.addItem("Early game", "early")
-        self.phase_box.addItem("Late game", "late")
+        self.phase_box.addItem("Early game (Lv 1-10)", "early")
+        self.phase_box.addItem("Late game (Lv 10-15)", "late")
         self._remember_the_choice(self.phase_box, PHASE_KEY)
         question.addWidget(self.phase_box)
 
