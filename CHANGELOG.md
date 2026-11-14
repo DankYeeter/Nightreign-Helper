@@ -7,8 +7,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ## [Unreleased]
 
 ### Added
-- **New box "Phase" in the advisor: Early game or Late game.** Bonuses in
-  points lose value as you level: "Increased Maximum HP" is always +100 HP,
+- **New box "Advisor" above the level slider: early game or late game.**
+  Bonuses in points lose value as you level: "Increased Maximum HP" is always +100 HP,
   which is 36 to 50% more HP on level 1 and 8 to 14% on level 15, while
   physical damage negation stays at the same share. Early game is levels 1
   to 10 and is worked out on level 5, Late game is levels 10 to 15 and is

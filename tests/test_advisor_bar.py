@@ -796,8 +796,7 @@ def test_the_direction_box_carries_the_registry_and_nothing_else(bar):
     assert bar.findChildren(type(bar.goal_box)) == [bar.goal_box,
                                                     bar.hit_with_box,
                                                     bar.damage_type_box,
-                                                    bar.incoming_box,
-                                                    bar.phase_box]
+                                                    bar.incoming_box]
 
 
 #: A dataset with one spell school and three arts, so the school group of
@@ -1693,19 +1692,19 @@ def test_the_damage_question_counts_in_the_need(bar):
             == bar.damage_question_extra_width())
 
 
-def test_the_phase_box_offers_the_set_level_and_the_two_phases(bar):
+def test_the_phase_box_offers_the_set_level_and_the_two_phases(planner):
     """User decision 2026-11-14: early game or late game, beside the level
-    the slider holds, which stays the opening entry."""
-    box = bar.phase_box
+    the slider holds, which stays the opening entry. Under the slider and
+    not on the row, whose widths are counted (measured 2026-11-14)."""
+    box = planner.phase_box
     assert [(box.itemText(i), box.itemData(i)) for i in range(box.count())] \
-        == [("Set level", ""), ("Early game (Lv 1-10)", "early"),
-            ("Late game (Lv 10-15)", "late")]
-    assert bar.phase() == ""
-    for goal_id in advisorbar.GOAL_ORDER:
-        bar.choose_goal(goal_id)
-        assert not box.isHidden() and not bar.phase_label.isHidden()
+        == [("Advisor: set level", ""),
+            ("Advisor: early game (Lv 1-10)", "early"),
+            ("Advisor: late game (Lv 10-15)", "late")]
+    assert planner.phase() == ""
+    assert box not in planner.advisor_bar.findChildren(type(box))
     box.setCurrentIndex(box.findData("late"))
-    assert bar.phase() == "late"
+    assert planner.phase() == "late"
 
 
 def test_a_phase_stands_for_one_level_and_no_phase_for_the_set_one():
