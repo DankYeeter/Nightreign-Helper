@@ -15,8 +15,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
 - **"Demon's Plating" shows its scale.** Attack power by runes held: x1.2 at
   50,000, x1.3 at 100,000, x1.9 at 900,000.
 - **Flask effects show what the flask does.** "Flask Also Heals Allies",
-  "Gradual Restoration by Flask" and "Unifying Fate" (FP at rate 30, 15 for
+  "Gradual Restoration by Flask" and "Unifying Fate" (30% of max FP, 15% for
   an ally) used to show no figure.
+- **"Integration of Intelligence" names how often it is reported to trigger.**
+  About 10% of hits, from one player's count; the game's files do not hold
+  the figure, and the World Events tab says so.
 
 ### Changed
 - **29 more effects are "One copy only".** Their number sits on a row the
@@ -30,6 +33,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   has Strength 20 on level 3, not 21. 242 of the 1,200 values change, and the
   attack ratings that scale with them. The dataset is rebuilt once on the
   first start.
+- **Healing over time names its unit.** "HP recovery rate 0.5 (the game does
+  not state the unit)" now reads "HP recovery 0.5% of max HP per tick", and
+  the flask effects read in per cent of the maximum ("Flask Also Heals
+  Allies": 50% for you, 30% for allies, where a plain flask is 60%).
 
 ## [1.22.0] - 2026-11-09
 
