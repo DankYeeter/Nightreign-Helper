@@ -796,7 +796,8 @@ def test_the_direction_box_carries_the_registry_and_nothing_else(bar):
     assert bar.findChildren(type(bar.goal_box)) == [bar.goal_box,
                                                     bar.hit_with_box,
                                                     bar.damage_type_box,
-                                                    bar.incoming_box]
+                                                    bar.incoming_box,
+                                                    bar.phase_box]
 
 
 #: A dataset with one spell school and three arts, so the school group of
@@ -1690,6 +1691,28 @@ def test_the_damage_question_counts_in_the_need(bar):
     bar.choose_goal("max_damage")
     assert (bar._lines.one_line_need() - narrower
             == bar.damage_question_extra_width())
+
+
+def test_the_phase_box_offers_the_set_level_and_the_two_phases(bar):
+    """User decision 2026-11-14: early game or late game, beside the level
+    the slider holds, which stays the opening entry."""
+    box = bar.phase_box
+    assert [(box.itemText(i), box.itemData(i)) for i in range(box.count())] \
+        == [("Set level", ""), ("Early game", "early"), ("Late game", "late")]
+    assert bar.phase() == ""
+    for goal_id in advisorbar.GOAL_ORDER:
+        bar.choose_goal(goal_id)
+        assert not box.isHidden() and not bar.phase_label.isHidden()
+    box.setCurrentIndex(box.findData("late"))
+    assert bar.phase() == "late"
+
+
+def test_a_phase_stands_for_one_level_and_no_phase_for_the_set_one():
+    assert goals.phase_level("", 7) == 7
+    assert goals.phase_level("early", 7) == goals.PHASE_LEVELS["early"] == 5
+    assert goals.phase_level("late", 7) == goals.PHASE_LEVELS["late"] == 13
+    with pytest.raises(KeyError):
+        goals.phase_level("mid", 7)
 
 
 @pytest.mark.parametrize("goal_id", ["min_damage_taken", "balanced"])

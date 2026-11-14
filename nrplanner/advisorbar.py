@@ -173,6 +173,18 @@ DAMAGE_TYPE_KEY = "damage_type"
 #: no boss in mind (user decision 2026-11-08, 15:20).
 INCOMING_KEY = "incoming_damage"
 
+#: Which part of a run the question is about, kept the same way; `""` is the
+#: level on the slider (user decision 2026-11-14).
+PHASE_KEY = "advisor_phase"
+
+#: What the `Phase` box does. Static, like `INCOMING_TOOLTIP`.
+PHASE_TOOLTIP = (
+    "Which part of a run to optimise for. Bonuses in points, such as "
+    "Increased Maximum HP (+100 HP) or Strength +3, are worth less with "
+    "every level; bonuses in percent stay the same. Early game is judged "
+    f"on level {advisor_goals.PHASE_LEVELS['early']}, Late game on level "
+    f"{advisor_goals.PHASE_LEVELS['late']}, Set level on the level slider.")
+
 #: What the `Incoming` box does. Static, like `DAMAGE_TYPE_TOOLTIP`.
 INCOMING_TOOLTIP = ("Which damage you expect to take. Physical negation "
                     "always counts in full and elemental negation at a "
@@ -1028,7 +1040,11 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     if owned is None:
         return None
     hero = planner.current_hero()
-    level = planner.level_slider.value()
+    # User decision 2026-11-14: a phase chosen on the row stands in for the
+    # slider, so the whole question -- base state, key, every figure -- is
+    # asked on that one level.
+    level = advisor_goals.phase_level(planner.advisor_bar.phase(),
+                                      planner.level_slider.value())
 
     cards = planner.active_slots()
     slots = tuple(types.Slot(index=index, colour=slot.colour, deep=slot.deep)
@@ -1613,6 +1629,21 @@ class AdvisorBar(QWidget):
         self._remember_the_choice(self.incoming_box, INCOMING_KEY)
         question.addWidget(self.incoming_box)
 
+        # User decision 2026-11-14: early or late game. In every direction,
+        # because points lose against percent in all three.
+        self.phase_label = QLabel("Phase")
+        question.addWidget(self.phase_label)
+        self.phase_box = QComboBox()
+        self.phase_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.phase_box.setMaximumWidth(GOAL_BOX_WIDTH)
+        self.phase_box.setAccessibleName("Phase of the run")
+        self.phase_box.setToolTip(PHASE_TOOLTIP)
+        self.phase_box.addItem("Set level", "")
+        self.phase_box.addItem("Early game", "early")
+        self.phase_box.addItem("Late game", "late")
+        self._remember_the_choice(self.phase_box, PHASE_KEY)
+        question.addWidget(self.phase_box)
+
         # AK-302: visible and live in all fourteen states, a run in flight
         # included -- AK-289 presupposes a marking under a run.
         self.filters_button = QPushButton("Filters")
@@ -2040,6 +2071,7 @@ class AdvisorBar(QWidget):
         settings.setValue(HIT_WITH_KEY, self.hit_with())
         settings.setValue(DAMAGE_TYPE_KEY, self.damage_type())
         settings.setValue(INCOMING_KEY, self.incoming())
+        settings.setValue(PHASE_KEY, self.phase())
         self.the_build_changed()
 
     def _show_the_damage_types(self) -> None:
@@ -2144,6 +2176,11 @@ class AdvisorBar(QWidget):
         """The element the survival figure counts in full, `""` for none
         beyond physical (`goals.incoming_weighting`)."""
         return self.incoming_box.currentData() or ""
+
+    def phase(self) -> str:
+        """`"early"`, `"late"` or `""` for the level on the slider
+        (`goals.phase_level`)."""
+        return self.phase_box.currentData() or ""
 
     def choose_goal(self, goal_id: str) -> None:
         """Stand on another direction, asked from outside the row (AK-256).
