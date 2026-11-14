@@ -155,7 +155,10 @@ MAX_LEVEL = 15
 #      script carries (`bossdata._spawned_boss`, confidence "script"). A
 #      cache left on 23 shows four of those places with the figures of an
 #      add and without a name.
-EXTRACT_VERSION = 24
+#  25  `heroes[].levels` between the levels the files hold is cut off
+#      instead of rounded: 242 of the 1,200 values come out one lower. A
+#      cache left on 24 shows those attributes one above the game's.
+EXTRACT_VERSION = 25
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -2539,9 +2542,20 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             hi = min([a for a in anchors if a.values["totalLevel"] >= lvl], key=lambda a: a.values["totalLevel"], default=anchors[-1])
             lo_lvl, hi_lvl = lo.values["totalLevel"], hi.values["totalLevel"]
             span = hi_lvl - lo_lvl
-            t = 0.0 if span == 0 else (lvl - lo_lvl) / span
+            # Cut off, not rounded, and in whole numbers so that an exact
+            # 15.0 cannot come out as 14. The files hold levels 1, 2, 12 and
+            # 15 only and do not say how the game fills the rest; the
+            # published per-level tables do, on two Nightfarers: Wylder (the
+            # eleven levels between the anchors, five attributes, all 55
+            # values cut off; rounding misses 9) and the Guardian as he was
+            # before patch 1.02.2 (Vigor 19 -> 54 is 3.5 a level, and the
+            # table reads 22, 29, 36, 43, 50 on levels 3, 5, 7, 9, 11) --
+            # eldenring.wiki.gg Nightreign:Attributes and Nightreign:Guardian,
+            # the Fextralife Wylder page, read 14.11.2026.
             levels[str(lvl)] = {
-                label: round(lo.values[key] + (hi.values[key] - lo.values[key]) * t)
+                label: lo.values[key] + (
+                    0 if span == 0 else
+                    (hi.values[key] - lo.values[key]) * (lvl - lo_lvl) // span)
                 for key, label in STAT_FIELDS
             }
 
@@ -3873,7 +3887,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
             "world_event_count": len(world_events["events"]),
             "note": (
                 "Stats for levels other than the game's explicit anchor levels "
-                "are linearly interpolated."
+                "are linearly interpolated and cut off to a whole number."
             ),
         },
         "curves": curves,

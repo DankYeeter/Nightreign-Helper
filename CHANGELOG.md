@@ -24,6 +24,13 @@ History before 1.10.0 was not reconstructed; this file starts here.
   gauge" and "Physical attack power increases after using grease items".
   The dataset is rebuilt once on the first start.
 
+### Fixed
+- **Attributes between levels 2 and 12 and between 12 and 15 were up to 1 too
+  high.** The game cuts the value off where the program rounded it: Wylder
+  has Strength 20 on level 3, not 21. 242 of the 1,200 values change, and the
+  attack ratings that scale with them. The dataset is rebuilt once on the
+  first start.
+
 ## [1.22.0] - 2026-11-09
 
 ### Added

@@ -5,7 +5,7 @@
     "read_on": "2026-09-03",
     "game_data_version": "10350000",
     "measured_by": "docs/berichte/T-038-qa-engineer.md (T-038), QA-095",
-    "levels": "Level 12 for every Nightfarer except the Guardian, whose column stands on level 11: 265 of 271 armaments fit that level and 2 fit level 12 (QA-098). The game states the attributes for levels 1, 2, 12 and 15 only, so the four Guardian rows here stand on **interpolated** attributes while the other nineteen stand on stated ones.",
+    "levels": "Level 12 for every Nightfarer. The Guardian column was measured before patch 1.02.2, which raised his Strength and Dexterity per level: on level 12 he then had Strength 34 and Dexterity 24, where the game now gives 36 and 26 (eldenring.wiki.gg Nightreign:Guardian, level table read 14.11.2026). The four Guardian rows therefore carry `attributes_then` and are rated with those two values. QA-098 read the same column as 'level 11': rounded, today's level 11 is also 34 and 24, which is why 265 of 271 armaments fitted it. That reading is withdrawn -- the game cuts interpolated attributes off, it does not round them.",
     "left_out": [
       "The Duchess column: it is mixed block by block between levels 11 and 12 and is not usable as a source at all (QA-098).",
       "Staves and seals: the game shows the spell scaling for them, not an attack rating, so the factor does not describe them (QA-099).",
@@ -30,11 +30,15 @@
       "group": "no attribute scaling",
       "sheet_row": 275,
       "nightfarer": "Guardian",
-      "level": 11,
+      "level": 12,
       "weapon": 43020000,
       "name": "Light Crossbow",
       "attack_power": 89,
-      "note": "all 8 columns of the sheet read 89 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+      "note": "all 8 columns of the sheet read 89 -- with no scaling the reading cannot depend on the Nightfarer or the level",
+      "attributes_then": {
+        "Strength": 34,
+        "Dexterity": 24
+      }
     },
     {
       "group": "no attribute scaling",
@@ -100,11 +104,15 @@
       "group": "no attribute scaling",
       "sheet_row": 282,
       "nightfarer": "Guardian",
-      "level": 11,
+      "level": 12,
       "weapon": 44010000,
       "name": "Jar Cannon",
       "attack_power": 350,
-      "note": "all 8 columns of the sheet read 350 -- with no scaling the reading cannot depend on the Nightfarer or the level"
+      "note": "all 8 columns of the sheet read 350 -- with no scaling the reading cannot depend on the Nightfarer or the level",
+      "attributes_then": {
+        "Strength": 34,
+        "Dexterity": 24
+      }
     },
     {
       "group": "one weapon class each, two per Nightfarer",
@@ -119,10 +127,14 @@
       "group": "one weapon class each, two per Nightfarer",
       "sheet_row": 18,
       "nightfarer": "Guardian",
-      "level": 11,
+      "level": 12,
       "weapon": 2010000,
       "name": "Short Sword",
-      "attack_power": 88
+      "attack_power": 88,
+      "attributes_then": {
+        "Strength": 34,
+        "Dexterity": 24
+      }
     },
     {
       "group": "one weapon class each, two per Nightfarer",
@@ -182,10 +194,14 @@
       "group": "one weapon class each, two per Nightfarer",
       "sheet_row": 105,
       "nightfarer": "Guardian",
-      "level": 11,
+      "level": 12,
       "weapon": 9750000,
       "name": "Executor's Blade",
-      "attack_power": 69
+      "attack_power": 69,
+      "attributes_then": {
+        "Strength": 34,
+        "Dexterity": 24
+      }
     },
     {
       "group": "one weapon class each, two per Nightfarer",
