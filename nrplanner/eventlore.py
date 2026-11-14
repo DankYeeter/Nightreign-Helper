@@ -133,10 +133,22 @@ LORE: dict[int, dict] = {
             "runes and can knock you down whole levels. Follow them back to "
             "it."
         ),
-        "reward_more": "Your stolen runes back.",
+        # How often the 10,000 runes fall is in no param, no script and no
+        # constant of the executable (searched 14.11.2026: all 1,024 bytes
+        # of rows 8970010..12, every param for a reference to 8970012,
+        # common.emevd, the on-hit handler at 0x140505e90). The one figure
+        # anywhere is a player's count on the Fextralife page of the buff,
+        # 14 procs in 135 hits of one boss fight -- a sample, and said so.
+        "reward_more": (
+            "Your stolen runes back. The 10,000 runes are reported to fall "
+            "on about 10% of hits — one player's count of 14 in 135, not a "
+            "figure from the game's files."
+        ),
         "reward": (
             "Your stolen runes back, plus Integration of Intelligence. The "
-            "size of that proc is extracted above."
+            "size of that proc is extracted above; it is reported to fall on "
+            "about 10% of hits — one player's count of 14 in 135, not a "
+            "figure from the game's files."
         ),
         "penalty": "Levels lost to the swarms stay lost if you never reach it.",
         # community nightlords: Maris, Libra, Heolstor

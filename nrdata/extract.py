@@ -158,7 +158,8 @@ MAX_LEVEL = 15
 #  25  `heroes[].levels` between the levels the files hold is cut off
 #      instead of rounded: 242 of the 1,200 values come out one lower. A
 #      cache left on 24 shows those attributes one above the game's.
-EXTRACT_VERSION = 25
+#  26  the line of "Unifying Fate" names its unit ("30% of max FP").
+EXTRACT_VERSION = 26
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -1276,10 +1277,10 @@ def _flask_lines(state: Any, sp_rows: dict) -> list[str]:
              if row["modifiers"].get("changeMpEstusFlaskRate")]
     if not rates:
         return []
-    line = f"a flask also restores FP at rate {rates[0]:g}"
+    line = f"a flask also restores {rates[0]:g}% of max FP"
     if len(rates) > 1:
-        line += f", {rates[1]:g} for an ally it reaches"
-    return [line + " (a plain flask restores HP at rate 60)"]
+        line += f", {rates[1]:g}% for an ally it reaches"
+    return [line]
 
 
 def _event_buffs(members: dict, defs: dict,
