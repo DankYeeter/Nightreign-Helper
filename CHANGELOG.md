@@ -19,6 +19,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   an ally) used to show no figure.
 
 ### Changed
+- **A new look.** The window is now glass panels over a night-sky picture,
+  in gold and violet. The row of tabs became a list of views down the left
+  edge, and each attribute has a bar beside its figure. Nothing the program
+  computes has changed.
 - **29 more effects are "One copy only".** Their number sits on a row the
   game holds once, for example "Successful guarding fills more of the Art
   gauge" and "Physical attack power increases after using grease items".

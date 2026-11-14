@@ -23,7 +23,7 @@ def test_every_view_has_an_entry_in_the_rail(planner):
     buttons = planner.rail.group.buttons()
     assert len(buttons) == tabs.count() >= 3
     for index in range(tabs.count()):
-        assert planner.rail.group.button(index).text() == tabs.tabText(index)
+        assert planner.rail.full_name(index) == tabs.tabText(index)
 
 
 def test_an_entry_opens_its_view_and_shows_it_chosen(planner):

@@ -674,14 +674,14 @@ class Planner(QMainWindow):
         self.backdrop = backdrop.Backdrop()
         self.rail = backdrop.NavRail(__version__)
         frame_row = QHBoxLayout(self.backdrop)
-        frame_row.setContentsMargins(12, 12, 12, 12)
-        frame_row.setSpacing(12)
+        frame_row.setContentsMargins(10, 8, 10, 8)
+        frame_row.setSpacing(10)
         frame_row.addWidget(self.rail)
         frame_row.addWidget(tabs, 1)
         self.setCentralWidget(self.backdrop)
         self.rail.chosen.connect(tabs.setCurrentIndex)
         tabs.currentChanged.connect(self.rail.show_current)
-        self._tabs = tabs
+        self.tabs = tabs
 
         # A Start Menu entry is offered during first-run setup, which a player
         # upgrading from an earlier version never sees, and which anyone can
@@ -725,13 +725,16 @@ class Planner(QMainWindow):
             "Put the three Build planner panes back to their opening widths")
         reset_layout.clicked.connect(self._reset_layout)
         corner_row.addWidget(reset_layout)
+        self.rail.narrowed.connect(
+            lambda narrow: reset_layout.setText(
+                "Reset" if narrow else "Reset layout"))
         if shortcut.available():
             corner_row.addWidget(self.shortcut_button)
         self.rail.foot.addWidget(corner)
 
         planner = QWidget()
         root = QHBoxLayout(planner)
-        root.setContentsMargins(14, 14, 14, 14)
+        root.setContentsMargins(0, 0, 0, 0)
         # The splitter draws its own gaps, so the layout no longer adds any.
         root.setSpacing(0)
 
@@ -862,7 +865,7 @@ class Planner(QMainWindow):
         panel.setMinimumWidth(300 + 2 * theme.PANE_PAD)
         theme.as_glass(panel)
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(theme.PANE_PAD, 12, theme.PANE_PAD, 12)
+        layout.setContentsMargins(theme.PANE_PAD, 8, theme.PANE_PAD, 8)
 
         layout.addWidget(_heading("Nightfarer"))
         grid = QGridLayout()
@@ -1076,7 +1079,7 @@ class Planner(QMainWindow):
         column = QWidget()
         theme.as_glass(column)
         stack = QVBoxLayout(column)
-        stack.setContentsMargins(theme.PANE_PAD, 12, theme.PANE_PAD - 6, 12)
+        stack.setContentsMargins(theme.PANE_PAD, 8, theme.PANE_PAD - 6, 8)
         stack.setContentsMargins(0, 0, 0, 0)
         stack.setSpacing(0)
 
@@ -1358,7 +1361,7 @@ class Planner(QMainWindow):
         can: the tab in front is laid out by definition, and every page of a
         `QTabWidget` gets the same rectangle.
         """
-        tabs = self.centralWidget()
+        tabs = self.tabs
         beside_the_page = self.width() - tabs.currentWidget().width()
         margins = self.effects_tab.layout().contentsMargins()
         table = self.effects_tab.table

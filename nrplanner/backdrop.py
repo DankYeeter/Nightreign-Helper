@@ -178,26 +178,54 @@ class Backdrop(QWidget):
         painter.drawPixmap(0, 0, self._scene)
 
 
+#: The rail at its full width, and the least it shrinks to before the window
+#: stops getting narrower. At the narrow end an entry says its short name:
+#: the window has to fit a 1366 px laptop, and the three panes of the Build
+#: planner need what is left of that.
+RAIL_WIDTH = 168
+RAIL_NARROW = 100
+#: Below this the full names no longer fit their buttons.
+RAIL_SHORT_BELOW = 150
+
+#: What an entry is called while the rail is narrow.
+SHORT_NAMES = {
+    "Build planner": "Build",
+    "Effects && chances": "Effects",
+    "Weapons && spells": "Weapons",
+    "Nightlords": "Lords",
+    "Deep of Night": "Deep",
+    "Red variants": "Red",
+    "World Events": "Events",
+}
+
+
 class NavRail(QFrame):
     """The list of views down the left edge, in place of a row of tabs."""
 
     chosen = Signal(int)
+    #: The rail went narrow (True) or came back to its full width.
+    narrowed = Signal(bool)
 
     def __init__(self, version: str, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("navRail")
-        self.setFixedWidth(196)
+        self.setMinimumWidth(RAIL_NARROW)
+        self.setMaximumWidth(RAIL_WIDTH)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(10, 16, 10, 12)
+        self._layout.setContentsMargins(8, 14, 8, 10)
         self._layout.setSpacing(3)
+        self._names: dict[int, str] = {}
+        self._short = False
 
-        brand = QLabel("NIGHTREIGN")
-        brand.setObjectName("brand")
-        self._layout.addWidget(brand)
-        sub = QLabel(f"Helper {version}")
-        sub.setStyleSheet(f"color: {MUTED}; font-size: 11px;"
-                          " padding: 0 8px 12px 8px;")
-        self._layout.addWidget(sub)
+        self.brand = QLabel("NIGHTREIGN")
+        self.brand.setObjectName("brand")
+        self.brand.setMinimumWidth(0)
+        self._layout.addWidget(self.brand)
+        self.sub = QLabel(f"Helper {version}")
+        self.sub.setStyleSheet(f"color: {MUTED}; font-size: 11px;"
+                               " padding: 0 6px 10px 6px;")
+        self._layout.addWidget(self.sub)
 
         self.group = QButtonGroup(self)
         self.group.setExclusive(True)
@@ -210,16 +238,47 @@ class NavRail(QFrame):
         self.foot.setSpacing(6)
         self._layout.addLayout(self.foot)
 
+    def sizeHint(self) -> QSize:
+        return QSize(RAIL_WIDTH, super().sizeHint().height())
+
+    def minimumSizeHint(self) -> QSize:
+        return QSize(RAIL_NARROW, super().minimumSizeHint().height())
+
     def add_entry(self, index: int, text: str) -> QPushButton:
         button = QPushButton()
         button.setObjectName("navEntry")
-        button.setText(text)
         button.setCheckable(True)
         button.setCursor(Qt.PointingHandCursor)
-        button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        button.setMinimumWidth(0)
+        button.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
+        # The full name whichever one is drawn: for a reader of the narrow
+        # rail, and for a screen reader at either width.
+        button.setToolTip(text.replace("&&", "&"))
+        button.setAccessibleName(text.replace("&&", "&"))
+        self._names[index] = text
         self.group.addButton(button, index)
         self._entries.addWidget(button)
+        self._name(index)
         return button
+
+    def full_name(self, index: int) -> str:
+        return self._names[index]
+
+    def _name(self, index: int) -> None:
+        text = self._names[index]
+        self.group.button(index).setText(
+            SHORT_NAMES.get(text, text) if self._short else text)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        short = self.width() < RAIL_SHORT_BELOW
+        if short != self._short:
+            self._short = short
+            self.brand.setText("NR" if short else "NIGHTREIGN")
+            self.sub.setVisible(not short)
+            for index in self._names:
+                self._name(index)
+            self.narrowed.emit(short)
 
     def show_current(self, index: int) -> None:
         button = self.group.button(index)
@@ -234,12 +293,12 @@ RAIL_STYLE = f"""
     border-radius: 16px;
 }}
 #navRail QLabel#brand {{
-    color: {ACCENT_BRIGHT}; font-size: 16px; letter-spacing: 3px;
-    padding: 0 8px; font-family: {SERIF};
+    color: {ACCENT_BRIGHT}; font-size: 15px; letter-spacing: 2px;
+    padding: 0 6px; font-family: {SERIF};
 }}
 QPushButton#navEntry {{
     border: 1px solid transparent; border-radius: 10px;
-    padding: 9px 12px; text-align: left; color: #c9cadb; font-size: 13px;
+    padding: 8px 9px; text-align: left; color: #c9cadb; font-size: 13px;
     background: transparent;
 }}
 QPushButton#navEntry:hover {{ background: rgba(255, 255, 255, 16); }}

@@ -1584,7 +1584,12 @@ def test_the_row_does_not_scroll_away_with_the_slots(planner):
     Short on purpose: at the opening height the six slots fit and there is
     nothing to scroll, so a case at that size would agree whatever the row
     was in (measured -- the scrollbar's maximum is 0 at 1320 x 900).
+
+    Six slots and not three: since the rail took the tab bar's place the
+    page is that much taller, and three empty slots fit even the shortest
+    window.
     """
+    planner.deep_check.setChecked(True)
     planner.resize(1320, 560)
     planner.show()
     rendered.settle()

@@ -102,7 +102,7 @@ NAME_POINT_SIZE = 7
 
 
 #: What a glass pane keeps between its edge and what it holds, in logical px.
-PANE_PAD = 14
+PANE_PAD = 10
 
 
 def as_glass(widget) -> None:
@@ -136,7 +136,7 @@ QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QPushButton {{
     background: rgba(255, 255, 255, 20); color: {TEXT};
     border: 1px solid rgba(255, 255, 255, 40); border-radius: 8px;
-    padding: 4px 12px;
+    padding: 4px 8px;
 }}
 QPushButton:hover {{ background: rgba(255, 255, 255, 38); }}
 QPushButton:pressed {{ background: rgba(255, 255, 255, 12); }}
