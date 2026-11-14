@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QStyle, QVBoxLayout, QWidget,
 )
 
-from . import cardgrid, damage, weaponslots
+from . import cardgrid, damage, theme, weaponslots
 from .theme import ACCENT, BORDER, HOVER_FILL, MUTED, PANEL
 
 ICON_SIZE = 40
@@ -327,7 +327,7 @@ class PoolPopup(QFrame):
         self.chip = chip
         self.anchor = anchor
         self.on_choose = on_choose
-        self.setStyleSheet(f"QFrame {{ background: {PANEL};"
+        self.setStyleSheet(f"QFrame {{ background: {theme.SOLID};"
                            f" border: 1px solid {BORDER}; }}")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)

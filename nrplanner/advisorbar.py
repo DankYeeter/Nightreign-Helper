@@ -1620,6 +1620,7 @@ class AdvisorBar(QWidget):
         doing.addWidget(self.filters_button)
 
         self.optimize_button = QPushButton("Optimize")
+        self.optimize_button.setObjectName("primary")
         self.optimize_button.setToolTip(OPTIMIZE_TOOLTIP)
         self.optimize_button.clicked.connect(self._optimize_or_cancel)
         doing.addWidget(self.optimize_button)

@@ -149,7 +149,7 @@ def test_switching_to_the_tab_alone_repaints_it_for_the_current_build(
         f"this case cannot tell the stale build from the current one. Pick "
         f"an effect the armament's damage responds to.")
 
-    tabs = planner.centralWidget()
+    tabs = planner.tabs
     assert tabs.currentWidget() is not tab, (
         "the weapons tab is already the front tab before this test switches "
         "to it, so switching to it again would fire no currentChanged "

@@ -13,15 +13,17 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QPoint, Qt, Signal
-from PySide6.QtGui import QCursor, QFont
+from PySide6.QtCore import QPoint, QRectF, Qt, Signal
+from PySide6.QtGui import (QColor, QCursor, QFont, QLinearGradient,
+                           QPainter)
 from PySide6.QtWidgets import (
     QCheckBox, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
-    QScrollArea, QToolButton, QToolTip, QVBoxLayout, QWidget,
+    QScrollArea, QSizePolicy, QToolButton, QToolTip, QVBoxLayout, QWidget,
 )
 
 from . import (castingbar, damage, effecttext, iconpack, model, relicslots,
                weapons, weaponslots)
+from . import theme
 from .theme import ACCENT, BAD, GOOD, MUTED
 
 # Link target for the weapon attack-rating breakdown. Not a modifier field, so
@@ -149,6 +151,53 @@ def breakdown_text(label: str, entries: list, multiplicative: bool,
     return "<br>".join(rows)
 
 
+#: Where an attribute's row keeps its bar and its total in `attr_grid`.
+BAR_COLUMN = 1
+TOTAL_COLUMN = 4
+
+#: The attribute value at which a bar is full. The highest any Nightfarer
+#: reaches at level 15 is 68; relics can carry one past it, and the bar then
+#: simply stays full -- the figure beside it is the statement, the bar is
+#: only the picture of it.
+BAR_FULL = 70
+
+
+class AttributeBar(QWidget):
+    """One attribute as a bar: the base, and what the relics add or take."""
+
+    def __init__(self, base: int, total: int):
+        super().__init__()
+        self.base, self.total = base, total
+        self.setFixedHeight(14)
+        self.setMinimumWidth(48)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+    def paintEvent(self, _event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
+        height = 5
+        top = (self.height() - height) / 2
+        width = self.width()
+
+        def span(value: int) -> float:
+            return width * max(0, min(value, BAR_FULL)) / BAR_FULL
+
+        painter.setBrush(QColor(255, 255, 255, 26))
+        painter.drawRoundedRect(QRectF(0, top, width, height), 2.5, 2.5)
+        kept = span(min(self.base, self.total))
+        fill = QLinearGradient(0, 0, width, 0)
+        fill.setColorAt(0, QColor("#a98bff"))
+        fill.setColorAt(1, QColor("#6f9bff"))
+        painter.setBrush(fill)
+        painter.drawRoundedRect(QRectF(0, top, kept, height), 2.5, 2.5)
+        if self.total != self.base:
+            end = span(max(self.base, self.total))
+            painter.setBrush(QColor(GOOD if self.total > self.base else BAD))
+            painter.drawRoundedRect(
+                QRectF(kept, top, max(end - kept, 2), height), 2.5, 2.5)
+
+
 def _heading(text: str) -> QLabel:
     label = QLabel(text.upper())
     font = label.font()
@@ -156,7 +205,7 @@ def _heading(text: str) -> QLabel:
     font.setBold(True)
     font.setLetterSpacing(QFont.AbsoluteSpacing, 1.2)
     label.setFont(font)
-    label.setStyleSheet(f"color: {MUTED};")
+    label.setStyleSheet(f"color: {ACCENT};")
     return label
 
 
@@ -322,9 +371,11 @@ class StatSheet(QScrollArea):
         # still what it opens at -- the splitter's initial sizes say so -- but
         # a player who wants the sheet wider may now have it, and one who
         # drags it narrow gets the wrapping rather than a cut-off column.
-        self.setMinimumWidth(340)
+        self.setMinimumWidth(340 + 2 * theme.PANE_PAD)
         self.setWidgetResizable(True)
         self.setFrameShape(QFrame.NoFrame)
+        theme.as_glass(self)
+        self.setViewportMargins(theme.PANE_PAD, 8, 6, 8)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         panel = QWidget()
@@ -1027,10 +1078,11 @@ class StatSheet(QScrollArea):
             delta = total - base
 
             self.attr_grid.addWidget(QLabel(name), r, 0)
+            self.attr_grid.addWidget(AttributeBar(base, total), r, BAR_COLUMN)
             base_lbl = QLabel(str(base))
             base_lbl.setStyleSheet(f"color: {MUTED};")
             base_lbl.setAlignment(Qt.AlignRight)
-            self.attr_grid.addWidget(base_lbl, r, 1)
+            self.attr_grid.addWidget(base_lbl, r, 2)
 
             # ":+d" already carries the sign; prefixing another "+" printed
             # "+-3" for every curse. Clickable for the same reason as the
@@ -1042,12 +1094,12 @@ class StatSheet(QScrollArea):
             )
             diff.linkActivated.connect(self._show_breakdown)
             diff.setAlignment(Qt.AlignRight)
-            self.attr_grid.addWidget(diff, r, 2)
+            self.attr_grid.addWidget(diff, r, 3)
 
             total_lbl = QLabel(str(total))
             total_lbl.setStyleSheet("font-weight: bold; font-size: 13px;")
             total_lbl.setAlignment(Qt.AlignRight)
-            self.attr_grid.addWidget(total_lbl, r, 3)
+            self.attr_grid.addWidget(total_lbl, r, TOTAL_COLUMN)
 
         # Kept for the click-to-break-down popup, which fires long after this
         # method has returned.

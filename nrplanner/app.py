@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from . import __version__
+from . import backdrop, theme
 from . import (advisorblock, chalices, datasource, effectfilterdialog,
                iconpack,
                effectfilters, effecttext, errortext, favourites, firstrun,
@@ -87,15 +88,17 @@ VARIANT_STRIP = 46
 
 def _dark_palette() -> QPalette:
     p = QPalette()
-    p.setColor(QPalette.Window, QColor("#16171a"))
-    p.setColor(QPalette.WindowText, QColor("#e4e4e4"))
-    p.setColor(QPalette.Base, QColor(PANEL))
-    p.setColor(QPalette.AlternateBase, QColor("#26272c"))
-    p.setColor(QPalette.Text, QColor("#e4e4e4"))
-    p.setColor(QPalette.Button, QColor("#26272c"))
-    p.setColor(QPalette.ButtonText, QColor("#e4e4e4"))
+    p.setColor(QPalette.Window, QColor(theme.NIGHT))
+    p.setColor(QPalette.WindowText, QColor(theme.TEXT))
+    p.setColor(QPalette.Base, QColor(theme.SOLID))
+    p.setColor(QPalette.AlternateBase, QColor("#1a1e3a"))
+    p.setColor(QPalette.Text, QColor(theme.TEXT))
+    p.setColor(QPalette.Button, QColor("#1a1e3a"))
+    p.setColor(QPalette.ButtonText, QColor(theme.TEXT))
     p.setColor(QPalette.Highlight, QColor(ACCENT))
-    p.setColor(QPalette.HighlightedText, QColor("#16171a"))
+    p.setColor(QPalette.HighlightedText, QColor("#14150f"))
+    p.setColor(QPalette.ToolTipBase, QColor(theme.SOLID))
+    p.setColor(QPalette.ToolTipText, QColor(theme.TEXT))
     return p
 
 
@@ -118,6 +121,7 @@ def apply_appearance(app: QApplication) -> None:
     """
     app.setStyle("Fusion")
     app.setPalette(_dark_palette())
+    app.setStyleSheet(theme.STYLE + backdrop.RAIL_STYLE)
 
 
 class VesselStrip(QWidget):
@@ -660,8 +664,31 @@ class Planner(QMainWindow):
         # No resize here. The opening width is derived from the effect
         # table, which does not exist yet -- see showEvent.
 
+        # The views are still the pages of a `QTabWidget` -- everything that
+        # asks which view is in front keeps asking it -- but its bar is
+        # hidden: the rail down the left edge names the views instead, and
+        # the picture behind both belongs to the `Backdrop` they stand on.
         tabs = QTabWidget()
-        self.setCentralWidget(tabs)
+        tabs.tabBar().hide()
+        tabs.setDocumentMode(True)
+        self.backdrop = backdrop.Backdrop()
+        self.rail = backdrop.NavRail(__version__)
+        frame_row = QHBoxLayout(self.backdrop)
+        frame_row.setContentsMargins(10, 8, 10, 8)
+        frame_row.setSpacing(10)
+        frame_row.addWidget(self.rail)
+        # The pages stand on one pane of their own, so that every view is
+        # set off from the picture and not only the ones that bring panes.
+        self.page_pane = QFrame()
+        self.page_pane.setObjectName("pagePane")
+        pane_box = QVBoxLayout(self.page_pane)
+        pane_box.setContentsMargins(4, 4, 4, 4)
+        pane_box.addWidget(tabs)
+        frame_row.addWidget(self.page_pane, 1)
+        self.setCentralWidget(self.backdrop)
+        self.rail.chosen.connect(tabs.setCurrentIndex)
+        tabs.currentChanged.connect(self.rail.show_current)
+        self.tabs = tabs
 
         # A Start Menu entry is offered during first-run setup, which a player
         # upgrading from an earlier version never sees, and which anyone can
@@ -680,8 +707,8 @@ class Planner(QMainWindow):
         # whichever tab is open. Automatic follows Windows, which is what the
         # program has always done and stays the default.
         corner = QWidget()
-        corner_row = QHBoxLayout(corner)
-        corner_row.setContentsMargins(0, 0, 6, 0)
+        corner_row = QVBoxLayout(corner)
+        corner_row.setContentsMargins(0, 0, 0, 0)
         corner_row.setSpacing(6)
         scale_caption = QLabel("UI scale")
         scale_caption.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
@@ -705,13 +732,16 @@ class Planner(QMainWindow):
             "Put the three Build planner panes back to their opening widths")
         reset_layout.clicked.connect(self._reset_layout)
         corner_row.addWidget(reset_layout)
+        self.rail.narrowed.connect(
+            lambda narrow: reset_layout.setText(
+                "Reset" if narrow else "Reset layout"))
         if shortcut.available():
             corner_row.addWidget(self.shortcut_button)
-        tabs.setCornerWidget(corner, Qt.TopRightCorner)
+        self.rail.foot.addWidget(corner)
 
         planner = QWidget()
         root = QHBoxLayout(planner)
-        root.setContentsMargins(14, 14, 14, 14)
+        root.setContentsMargins(4, 4, 4, 4)
         # The splitter draws its own gaps, so the layout no longer adds any.
         root.setSpacing(0)
 
@@ -827,6 +857,10 @@ class Planner(QMainWindow):
             self.events_tab = WorldEventsTab(data, self.icons)
             tabs.addTab(self.events_tab, "World Events")
 
+        for index in range(tabs.count()):
+            self.rail.add_entry(index, tabs.tabText(index))
+        self.rail.show_current(tabs.currentIndex())
+
     # -- panels ----------------------------------------------------------
     def _build_left(self) -> QWidget:
         panel = QWidget()
@@ -835,9 +869,10 @@ class Planner(QMainWindow):
         # is what a vessel's icon and its six slots need before the name has
         # anywhere left to go -- below that the list stops saying which vessel
         # each row is, which is worse than a scrollbar.
-        panel.setMinimumWidth(300)
+        panel.setMinimumWidth(300 + 2 * theme.PANE_PAD)
+        theme.as_glass(panel)
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(theme.PANE_PAD, 8, theme.PANE_PAD, 8)
 
         layout.addWidget(_heading("Nightfarer"))
         grid = QGridLayout()
@@ -860,6 +895,7 @@ class Planner(QMainWindow):
         self.variant_panel.setStyleSheet(
             f"QFrame {{ background: {PANEL}; border: 1px solid {BORDER};"
             f" border-radius: 5px; }}"
+            " QLabel { background: transparent; }"
         )
         strip_outer = QVBoxLayout(self.variant_panel)
         strip_outer.setContentsMargins(6, 5, 6, 6)
@@ -1048,7 +1084,9 @@ class Planner(QMainWindow):
         # program having mislaid it, so everything above the row is pinned
         # with it.
         column = QWidget()
+        theme.as_glass(column)
         stack = QVBoxLayout(column)
+        stack.setContentsMargins(theme.PANE_PAD, 8, theme.PANE_PAD - 6, 8)
         stack.setContentsMargins(0, 0, 0, 0)
         stack.setSpacing(0)
 
@@ -1330,7 +1368,7 @@ class Planner(QMainWindow):
         can: the tab in front is laid out by definition, and every page of a
         `QTabWidget` gets the same rectangle.
         """
-        tabs = self.centralWidget()
+        tabs = self.tabs
         beside_the_page = self.width() - tabs.currentWidget().width()
         margins = self.effects_tab.layout().contentsMargins()
         table = self.effects_tab.table

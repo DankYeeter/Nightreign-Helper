@@ -224,7 +224,8 @@ class RelicSlot(QFrame):
         self.setFrameShape(QFrame.StyledPanel)
         self.setStyleSheet(
             f"QFrame {{ background: {PANEL}; border: 1px solid {BORDER};"
-            f" border-radius: 6px; }}"
+            f" border-radius: 10px; }}"
+            " QLabel { background: transparent; }"
         )
 
         layout = QVBoxLayout(self)
