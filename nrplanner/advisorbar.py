@@ -23,7 +23,7 @@ asks for moves the whole window's floor by one. Asking for none (AK-03, until
 T-334n) left the row 68 px wide at the window's 760 px floor, every control
 in it 0 to 1 px (QA-292). So the row breaks into two lines below the width
 one line needs (AK-395), and asks for exactly the wider of the two lines at
-its tightest -- one figure, about 1190 px of window and under 1366 (AK-400)
+its tightest -- one figure, about 1348 px of window and under 1366 (AK-400)
 -- horizontally `Ignored` otherwise, with the status label `Ignored` inside
 it as §3.1 requires.
 
@@ -1507,6 +1507,7 @@ class AdvisorBar(QWidget):
         # Inline rather than as a block line of its own, which is the whole
         # difference between this heading and every other one.
         heading = _heading("Advisor")
+        self._heading = heading
         question.addWidget(heading)
 
         self.goal_box = QComboBox()
@@ -1746,6 +1747,14 @@ class AdvisorBar(QWidget):
         return sum(widget.sizeHint().width() + SPACING for widget in (
             self.hit_with_label, self.hit_with_box,
             self.damage_type_label, self.damage_type_box))
+
+    def whole_question_width(self) -> int:
+        """The question line with every control at its `sizeHint`, the
+        damage question counted under every direction (T-334n): what the row
+        needs so that no box of line one gives way."""
+        return (self._heading.sizeHint().width() + SPACING
+                + self.goal_box.sizeHint().width()
+                + self.damage_question_extra_width())
 
     # -- what the window says to the bar ------------------------------------
 

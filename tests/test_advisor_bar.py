@@ -1672,7 +1672,7 @@ def test_the_row_breaks_one_px_under_its_one_line_need(
     line one as the direction shows it, every action button and
     `STATUS_FLOOR` counted on line two."""
     threshold = advisor_row_at_the_window["threshold"][goal_id]
-    hints = advisor_row_at_the_window["at"]["1959"]["hints"]
+    hints = advisor_row_at_the_window["at"]["opening"]["hints"]
     first_line = {"max_damage": FIRST_LINE,
                   "max_attributes": ("heading", "goal_box")}.get(
         goal_id, ("heading", "goal_box", "incoming_label", "incoming_box"))
@@ -1745,7 +1745,7 @@ def test_another_layout_pass_leaves_the_lines_as_they_are(
         assert at["after_another_pass"] == at["lines"], step
 
 
-@pytest.mark.parametrize("width", ["1536", "1959"])
+@pytest.mark.parametrize("width", ["1536", "opening"])
 def test_the_lines_keep_the_order_of_one_line(advisor_row_at_the_window,
                                               width):
     """AK-396: on two lines the question stands above the doing, 6 px
@@ -1810,7 +1810,7 @@ def test_the_row_is_as_tall_as_its_lines_and_the_column_follows(
         assert abs(row["height"] - heights[row["lines"]]) <= 1, name
         assert row["outside_the_row"] == [], name
         assert row["gap_below"] == row["column_spacing"], name
-    one, two = rows["1959"], rows["1728"]
+    one, two = rows["opening"], rows["1728"]
     assert (one["lines"], two["lines"]) == (1, 2)
     assert (two["column_minimum_height"] - one["column_minimum_height"]
             == two["height"] - one["height"])

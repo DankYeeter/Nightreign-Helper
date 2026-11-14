@@ -179,6 +179,15 @@ class Backdrop(QWidget):
 
     def resizeEvent(self, event) -> None:
         self._scene = None
+        # The rail is full or narrow, never in between: a rail the layout
+        # squeezed to 140 px already says its short names, and the 40 px it
+        # keeps are taken from the panes beside it. Full only while what
+        # stands beside it still gets its least width with the rail full.
+        rail = self.findChild(NavRail)
+        if rail is not None:
+            spare = event.size().width() - self.minimumSizeHint().width()
+            rail.setMaximumWidth(RAIL_WIDTH if spare >= RAIL_WIDTH - RAIL_NARROW
+                                 else RAIL_NARROW)
         super().resizeEvent(event)
 
     def paintEvent(self, _event) -> None:

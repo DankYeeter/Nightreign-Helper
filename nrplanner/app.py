@@ -14,8 +14,8 @@ from PySide6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QFrame, QInputDialog,
     QGridLayout, QHBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QMainWindow, QMessageBox, QPushButton, QScrollArea, QSizePolicy,
-    QSlider, QSplitter, QTabWidget, QToolButton, QToolTip, QVBoxLayout,
-    QWidget,
+    QSlider, QSplitter, QStackedWidget, QTabWidget, QToolButton, QToolTip,
+    QVBoxLayout, QWidget,
 )
 
 from . import __version__
@@ -554,6 +554,53 @@ class BuildRow(QWidget):
         super().resizeEvent(event)
 
 
+class _Pages(QTabWidget):
+    """The views, whose bar the rail replaces: no wider than its pages.
+
+    `QTabWidget` adds a frame of 4 px to its least width that a hidden bar
+    and a borderless pane never draw, so the window's minimum was 4 px wider
+    than the Build planner's and the row was not at its own there (AK-400).
+    """
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802 - Qt naming
+        return self.findChild(QStackedWidget).minimumSizeHint()
+
+
+class _Panes(QSplitter):
+    """The three panes of the Build planner; the edges give way first.
+
+    Extra width goes to the middle and is taken from it first, as a
+    `QSplitter` does by its stretch factors -- but only down to what the
+    advisor row needs to keep its question whole (T-334n). Below that the two
+    edges give way, each down to its own least width, before the row has to
+    shorten a box. The rail beside the pages took that room at 1536 px.
+    """
+
+    def __init__(self, middle_need) -> None:
+        super().__init__(Qt.Horizontal)
+        self._middle_need = middle_need
+
+    def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        super().resizeEvent(event)
+        sizes = self.sizes()
+        if len(sizes) != 3:
+            return
+        short = self._middle_need() - sizes[1]
+        spare = [max(sizes[i] - max(self.widget(i).minimumWidth(),
+                                    self.widget(i).minimumSizeHint().width()),
+                     0) for i in (0, 2)]
+        # Out of what the window has beyond its least width only: at the
+        # window's minimum the row is at its own (AK-400).
+        window = self.window()
+        give = min(short, sum(spare),
+                   window.width() - window.minimumSizeHint().width())
+        if give <= 0:
+            return
+        left = give * spare[0] // sum(spare)
+        self.setSizes([sizes[0] - left, sizes[1] + give,
+                       sizes[2] - (give - left)])
+
+
 class Planner(QMainWindow):
     def __init__(self, data: dict, *, read_save=None):
         """The window, and what it reads the save with.
@@ -668,7 +715,7 @@ class Planner(QMainWindow):
         # asks which view is in front keeps asking it -- but its bar is
         # hidden: the rail down the left edge names the views instead, and
         # the picture behind both belongs to the `Backdrop` they stand on.
-        tabs = QTabWidget()
+        tabs = _Pages()
         tabs.tabBar().hide()
         tabs.setDocumentMode(True)
         self.backdrop = backdrop.Backdrop()
@@ -752,7 +799,7 @@ class Planner(QMainWindow):
         # be done about either. Collapsing is off -- a pane dragged shut
         # leaves nothing on screen to say it is still there, and reads as the
         # program having lost it.
-        self.panes = QSplitter(Qt.Horizontal)
+        self.panes = _Panes(self._middle_need)
         self.panes.setChildrenCollapsible(False)
         self.panes.setHandleWidth(10)
         self.panes.addWidget(self._build_left())
@@ -860,6 +907,15 @@ class Planner(QMainWindow):
         for index in range(tabs.count()):
             self.rail.add_entry(index, tabs.tabText(index))
         self.rail.show_current(tabs.currentIndex())
+
+    def _middle_need(self) -> int:
+        """The middle pane's width at which the advisor row keeps its
+        question whole; 0 before the row exists."""
+        bar = getattr(self, "advisor_bar", None)
+        if bar is None:
+            return 0
+        middle = self.panes.widget(1)
+        return bar.whole_question_width() + middle.width() - bar.width()
 
     # -- panels ----------------------------------------------------------
     def _build_left(self) -> QWidget:

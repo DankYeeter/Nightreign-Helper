@@ -141,7 +141,9 @@ QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QPushButton {{
     background: rgba(255, 255, 255, 36); color: {TEXT};
     border: 1px solid rgba(255, 255, 255, 80); border-radius: 8px;
-    padding: 4px 8px;
+    /* Fusion's own 80 x 24 floor, which a box model drops: every width the
+       window derives from a button's hint stays what it was (AK-395, AK-05). */
+    padding: 3px 8px; min-width: 62px;
 }}
 QPushButton:hover {{
     background: rgba(255, 255, 255, 60); border-color: {ACCENT};
@@ -163,7 +165,7 @@ QPushButton#primary:disabled {{
 QComboBox, QLineEdit, QSpinBox {{
     background: rgba(0, 0, 0, 110); color: {TEXT};
     border: 1px solid rgba(255, 255, 255, 70); border-radius: 8px;
-    padding: 2px 4px;
+    padding: 2px 3px;
     selection-background-color: {ACCENT}; selection-color: #14150f;
 }}
 QComboBox:hover, QLineEdit:hover {{ border-color: rgba(255, 255, 255, 130); }}

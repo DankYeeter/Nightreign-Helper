@@ -71,8 +71,8 @@ def pictures(tab) -> dict:
 def without_the_advisor_row_minimum():
     """Windows built inside this ask nothing of the advisor row's width.
 
-    The row's own minimum (AK-400) is 1190 px of window under Windows but
-    1336 offscreen, the fallback font running about twice as wide -- above
+    The row's own minimum (AK-400) is 1348 px of window under Windows but
+    1492 offscreen (rail included), the fallback font running wider -- above
     the widths the other tabs are measured at. Suppressed while the window
     is built, because once a hidden window has laid itself out a later
     `setMinimumWidth(0)` does not reach its cached floor. The row itself is

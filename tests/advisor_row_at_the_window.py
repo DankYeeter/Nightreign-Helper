@@ -68,7 +68,13 @@ AK_350_ROOMS = (1920, 2560)
 
 #: The window widths of the T-334n check table (`UI_SPEC.md`, Nachtrag T-334n
 #: §5): two legacy desktops, QA-292's own 1522, and the three opening widths.
-LINE_WIDTHS = (1366, 1426, 1522, 1536, 1728, 1959)
+#: The widest of those was 1959, the opening width on a desktop that does not
+#: cap it; since the rail stands beside the pages that width is the program's
+#: own `_opening_width` on an uncapped desktop, measured as `"opening"`.
+LINE_WIDTHS = (1366, 1426, 1522, 1536, 1728, "opening")
+
+#: A desktop wide enough that neither the ratio nor the floor caps the window.
+UNCAPPED_ROOM = 100_000
 
 #: A 4.12 failure sentence long enough to need shortening at any width.
 A_LONG_FAILURE = ("the dataset carries no attribute curves for this "
@@ -459,7 +465,8 @@ def main(snapshot: pathlib.Path) -> dict:
                                   "sheet": _the_sheet(planner)}
     figures["at"] = {}
     for width in LINE_WIDTHS:
-        planner.resize(width, planner.height())
+        planner.resize(planner._opening_width(room=UNCAPPED_ROOM)
+                       if width == "opening" else width, planner.height())
         rendered.settle(20)
         figures["at"][str(width)] = {"width": planner.width(),
                                      **_laid_out(bar, controls)}
