@@ -201,7 +201,7 @@ class DeepTab(QWidget):
         box = QVBoxLayout(panel)
         box.setContentsMargins(0, 0, 0, 0)
         box.setSpacing(4)
-        box.addWidget(tabheader.heading(title))
+        box.addWidget(tabheader.section(title))
         return panel, box
 
     def _table(self, rows: list[str]) -> QTableWidget:
