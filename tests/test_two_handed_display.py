@@ -33,7 +33,7 @@ LEVEL = 15
 TIER = 3
 ONE_HANDED = "\u00a01H"
 TWO_HANDED = "\u00a02H"
-QUIET = "<span style='color:#8a8a8a; font-weight:normal'>"
+QUIET = "<span style='color:#9a9db3; font-weight:normal'>"
 BOLD = 700
 NORMAL = 400
 

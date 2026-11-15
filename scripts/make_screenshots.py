@@ -124,7 +124,7 @@ def main() -> None:
     window.level_slider.setValue(window.level_slider.maximum())
     settle(app, 400)
 
-    tabs = window.centralWidget()
+    tabs = window.tabs
     by_label = {tabs.tabText(i): i for i in range(tabs.count())}
     missing = [label for label, _f in SHOTS if label not in by_label]
     if missing:

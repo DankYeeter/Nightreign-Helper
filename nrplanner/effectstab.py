@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from . import effecttext, iconpack, model, stacking, tabheader
 from .effecttext import describe_full
 from .theme import DEBUFF
+from .backdrop import ChoiceBox
 
 #: What this tab is for, above the filter row and above the counts (AK-68,
 #: AK-76). Until T-057 the first line a reader met was a stock count.
@@ -826,7 +827,7 @@ class EffectsTab(QWidget):
         controls.addWidget(self.search, 1)
 
         controls.addWidget(FilterCaption(COLOUR_LABEL))
-        self.colour_box = QComboBox()
+        self.colour_box = ChoiceBox()
         self.colour_box.addItem("All colours", -1)
         for value, name in model.COLOUR_NAMES.items():
             if value == 4:
@@ -841,7 +842,7 @@ class EffectsTab(QWidget):
         controls.addWidget(self.colour_box)
 
         controls.addWidget(FilterCaption(MODE_LABEL))
-        self.mode_box = QComboBox()
+        self.mode_box = ChoiceBox()
         self.mode_box.addItem("Normal + Deep", "all")
         self.mode_box.addItem("Normal relics", "normal")
         self.mode_box.addItem("Deep of Night", "deep")
@@ -858,7 +859,7 @@ class EffectsTab(QWidget):
         # adds or multiplies are separate questions with separate answers, and
         # the old pair could only express the first of them.
         controls.addWidget(FilterCaption(STACKING_LABEL))
-        self.stacking_box = QComboBox()
+        self.stacking_box = ChoiceBox()
         self.stacking_box.addItem("Any stacking", "all")
         for label in self._stacking_classes(data):
             self.stacking_box.addItem(label, label)
@@ -869,7 +870,7 @@ class EffectsTab(QWidget):
         controls.addWidget(self.stacking_box)
 
         controls.addWidget(FilterCaption(KIND_LABEL))
-        self.kind_box = QComboBox()
+        self.kind_box = ChoiceBox()
         self.kind_box.addItem("Buffs and curses", "all")
         self.kind_box.addItem("Buffs only", "buffs")
         self.kind_box.addItem("Curses only", "curses")

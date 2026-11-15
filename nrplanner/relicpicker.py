@@ -794,6 +794,7 @@ class RelicCard(cardgrid.HoverCard):
         self.setStyleSheet(
             f"QFrame {{ background: {fill}; border: {self._border};"
             f" border-radius: 6px; }}"
+            " QLabel { background: transparent; }"
         )
 
     @staticmethod
@@ -894,6 +895,7 @@ class CustomRelicCard(cardgrid.HoverCard):
         self.setStyleSheet(
             f"QFrame {{ background: {fill}; border: 1px dashed {self._edge};"
             f" border-radius: 6px; }}"
+            " QLabel { background: transparent; }"
         )
 
     def mousePressEvent(self, event):  # noqa: N802 - Qt naming

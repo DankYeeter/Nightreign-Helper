@@ -22,11 +22,21 @@ from html import escape
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QGridLayout, QLabel, QWidget
 
-from .theme import ACCENT, MUTED
+from .theme import ACCENT, ACCENT_BRIGHT, MUTED, SERIF
 
 
 def heading(text: str) -> QLabel:
     """A tab or section title. Written in capitals by the caller."""
+    label = QLabel(text)
+    label.setStyleSheet(
+        f"color: {ACCENT_BRIGHT}; font-size: 20px; letter-spacing: 3px;"
+        f" font-family: {SERIF};"
+    )
+    return label
+
+
+def section(text: str) -> QLabel:
+    """The title of one block inside a tab, under the tab's own heading."""
     label = QLabel(text)
     label.setStyleSheet(
         f"color: {ACCENT}; font-size: 12px; font-weight: bold;"

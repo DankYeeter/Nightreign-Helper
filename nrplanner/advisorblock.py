@@ -454,6 +454,7 @@ class SuggestionBlock(QFrame):
         self.setStyleSheet(
             f"QFrame {{ background: {PANEL};"
             f" border: 1px dashed {ACCENT}; border-radius: 5px; }}"
+            " QLabel { background: transparent; }"
         )
         # The block asks for no width of its own, exactly as §3.1 has the
         # advisor's row ask for none: it sits in a card inside the middle

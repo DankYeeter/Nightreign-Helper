@@ -249,9 +249,12 @@ def test_a_window_that_was_given_a_size_opens_at_that_size(game_data, qapp):
     instead of failing. Measured: with that guard after `show()`, a mutation removing
     the `WA_Resized` check survived.
 
-    1400 px: under `OPENING_WIDTH_FLOOR`, so the opening size would differ,
-    and over the window's least width since the advisor row asks for one
-    (AK-400: 1190 under Windows, 1336 offscreen).
+    The width asked for lies halfway between the window's least width and
+    `OPENING_WIDTH_FLOOR`: under the floor, so the opening size would differ,
+    and over the least width, which the advisor row and since the redesign
+    the rail beside the pages set (AK-400; 1348 under Windows, 1492
+    offscreen, measured 14.11.2026). It was 1400 while the tab bar stood
+    where the rail is.
     """
     from tests.conftest import clear_settings
 
@@ -259,18 +262,20 @@ def test_a_window_that_was_given_a_size_opens_at_that_size(game_data, qapp):
     window = appmod.Planner(game_data)
     try:
         window.findChild(QTabWidget).setCurrentWidget(window.effects_tab)
-        window.resize(1400, 700)
-        if window.width() != 1400:
+        asked = (window.minimumSizeHint().width()
+                 + appmod.OPENING_WIDTH_FLOOR) // 2
+        window.resize(asked, 700)
+        if window.width() != asked:
             pytest.skip(
-                f"this window's layout will not go to 1400 logical px: it is "
+                f"this window's layout will not go to {asked} logical px: it is "
                 f"{window.width()} px before it has even been shown, so this "
                 f"case has no request to see honoured")
 
         window.show()
         rendered.settle()
 
-        assert window.width() == 1400, (
-            f"the window was asked for 1400 px and came to the screen at "
+        assert window.width() == asked, (
+            f"the window was asked for {asked} px and came to the screen at "
             f"{window.width()} px, so the opening size overrules its caller")
     finally:
         window.close()

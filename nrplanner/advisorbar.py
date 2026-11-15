@@ -23,7 +23,7 @@ asks for moves the whole window's floor by one. Asking for none (AK-03, until
 T-334n) left the row 68 px wide at the window's 760 px floor, every control
 in it 0 to 1 px (QA-292). So the row breaks into two lines below the width
 one line needs (AK-395), and asks for exactly the wider of the two lines at
-its tightest -- one figure, about 1190 px of window and under 1366 (AK-400)
+its tightest -- one figure, about 1348 px of window and under 1366 (AK-400)
 -- horizontally `Ignored` otherwise, with the status label `Ignored` inside
 it as §3.1 requires.
 
@@ -54,6 +54,7 @@ from PySide6.QtWidgets import (QBoxLayout, QComboBox, QFrame, QHBoxLayout,
 from . import (damage, effecttext, favourites, iconpack, model, weapons,
                weaponslots)
 from .advisorblock import FoldButton
+from .backdrop import ElidedBox
 from .advisor import goals as advisor_goals
 from .advisor import run as advisor_run
 from .advisor import types
@@ -1530,9 +1531,10 @@ class AdvisorBar(QWidget):
         # Inline rather than as a block line of its own, which is the whole
         # difference between this heading and every other one.
         heading = _heading("Advisor")
+        self._heading = heading
         question.addWidget(heading)
 
-        self.goal_box = QComboBox()
+        self.goal_box = ElidedBox()
         self.goal_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.goal_box.setMaximumWidth(GOAL_BOX_WIDTH)
         self.goal_box.setToolTip(GOAL_BOX_TOOLTIP)
@@ -1565,7 +1567,7 @@ class AdvisorBar(QWidget):
         # `goals.chosen_label` does not escape it either).
         self.hit_with_label = QLabel("Hit with")
         question.addWidget(self.hit_with_label)
-        self.hit_with_box = QComboBox()
+        self.hit_with_box = ElidedBox()
         self.hit_with_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.hit_with_box.setMaximumWidth(GOAL_BOX_WIDTH)
         self.hit_with_box.setToolTip(HIT_WITH_TOOLTIP)
@@ -1593,7 +1595,7 @@ class AdvisorBar(QWidget):
 
         self.damage_type_label = QLabel("Damage type")
         question.addWidget(self.damage_type_label)
-        self.damage_type_box = QComboBox()
+        self.damage_type_box = ElidedBox()
         self.damage_type_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.damage_type_box.setMaximumWidth(GOAL_BOX_WIDTH)
         self.damage_type_box.setAccessibleName("Damage type")
@@ -1619,7 +1621,7 @@ class AdvisorBar(QWidget):
         # row's widths, counted on those pairs, hold for it too.
         self.incoming_label = QLabel("Incoming")
         question.addWidget(self.incoming_label)
-        self.incoming_box = QComboBox()
+        self.incoming_box = ElidedBox()
         self.incoming_box.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.incoming_box.setMaximumWidth(GOAL_BOX_WIDTH)
         self.incoming_box.setAccessibleName("Incoming damage")
@@ -1643,6 +1645,7 @@ class AdvisorBar(QWidget):
         doing.addWidget(self.filters_button)
 
         self.optimize_button = QPushButton("Optimize")
+        self.optimize_button.setObjectName("primary")
         self.optimize_button.setToolTip(OPTIMIZE_TOOLTIP)
         self.optimize_button.clicked.connect(self._optimize_or_cancel)
         doing.addWidget(self.optimize_button)
@@ -1768,6 +1771,14 @@ class AdvisorBar(QWidget):
         return sum(widget.sizeHint().width() + SPACING for widget in (
             self.hit_with_label, self.hit_with_box,
             self.damage_type_label, self.damage_type_box))
+
+    def whole_question_width(self) -> int:
+        """The question line with every control at its `sizeHint`, the
+        damage question counted under every direction (T-334n): what the row
+        needs so that no box of line one gives way."""
+        return (self._heading.sizeHint().width() + SPACING
+                + self.goal_box.sizeHint().width()
+                + self.damage_question_extra_width())
 
     # -- what the window says to the bar ------------------------------------
 
