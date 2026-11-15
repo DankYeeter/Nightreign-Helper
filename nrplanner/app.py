@@ -482,6 +482,12 @@ def deep_switch_note(hidden: int) -> tuple[str, str]:
             else DEEP_SLOTS_EMPTIED_TOOLTIP)
 
 
+LOAD_EQUIPPED_TOOLTIP = (
+    "Load this Nightfarer's equipped vessel and relics from the save")
+LOAD_EQUIPPED_BLOCKED = (
+    "Nothing to load: this save's stored builds could not be read. ")
+
+
 def placement_reasons(unfit: int, clashed: int, missing: int) -> str:
     """The sentences `Load equipped` adds, one per reason it happened for.
 
@@ -1091,9 +1097,7 @@ class Planner(QMainWindow):
         self.rescan_button.clicked.connect(self.rescan_save)
         row.addWidget(self.rescan_button)
         self.import_button = QPushButton("Load equipped")
-        self.import_button.setToolTip(
-            "Load this Nightfarer's equipped vessel and relics from the save"
-        )
+        self.import_button.setToolTip(LOAD_EQUIPPED_TOOLTIP)
         self.import_button.clicked.connect(self.load_equipped)
         row.addWidget(self.import_button)
         # AK-123: a third button, and only while there is no save. A real
@@ -2961,6 +2965,15 @@ class Planner(QMainWindow):
             slot.show_the_save_is_being_read(False)
         self._hand_the_stock_to_the_slots()
         self._say_how_many_relics_are_owned()
+        # A save whose stored builds could not be read has nothing for
+        # `Load equipped` to load. Pressing it only rewrote the sentence the
+        # line already showed, which looked like a button that does nothing,
+        # so it is shut and says why where the pointer is.
+        error = self.owned.loadout_error if self.owned else ""
+        self.import_button.setEnabled(not error)
+        self.import_button.setToolTip(
+            LOAD_EQUIPPED_BLOCKED + html.escape(error) if error
+            else LOAD_EQUIPPED_TOOLTIP)
         # The row's answer went with the old stock (`the_advisor_data_is_
         # changing`); now that the new stock is in, the row rests on it --
         # 4.1 with a save, 4.8 without one (AK-268). Until T-230 nothing put

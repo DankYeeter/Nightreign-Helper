@@ -26,6 +26,7 @@ from nrdata import savefile
 # A Grail's own vessel id sits in this band, which is how the last group's
 # width is told from the personal-vessel table that follows it.
 GRAIL_VESSEL = 19000
+HANDLE = 0xC0800000
 LEAD_PADDING = 64
 TRAILING_PADDING = 32
 
@@ -49,7 +50,11 @@ def _slot_bytes(grails_per_hero: list[int]) -> bytes:
         out += struct.pack("<2I", savefile.HERO_MARKER_BASE + hero,
                            hero * 1000)     # this Nightfarer wears vessel N000
         for k in range(grails):
-            handles = [hero * 100 + k * 10 + s + 1 for s in range(6)]
+            # Shaped like the game's own handles (0xC08000NN): a small
+            # number here can pass for a group marker, which a real
+            # handle never does.
+            handles = [HANDLE + hero * 100 + k * 10 + s + 1
+                       for s in range(6)]
             out += _record(GRAIL_VESSEL + k, handles)
 
     for index in range(len(grails_per_hero)):
@@ -104,7 +109,7 @@ def test_every_stored_loadout_is_read_back(grails_per_hero):
     first = grails[0]
     assert first.hero_id == 1
     assert first.vessel_id == GRAIL_VESSEL
-    assert first.handles == [101, 102, 103, 104, 105, 106]
+    assert first.handles == [HANDLE + n for n in range(101, 107)]
     # Each Nightfarer wears vessel N000, which is a personal one, so no Grail
     # record may claim to be the selected vessel.
     assert not any(entry.selected for entry in grails)
@@ -124,3 +129,20 @@ def test_a_save_without_the_table_says_so_rather_than_guessing():
     assert "ff0" not in shown and "marker" not in shown
     assert raised.value.__notes__ == [
         "no ascending run of 4+ Nightfarer markers; markers present: ff01×1"]
+
+
+@pytest.mark.parametrize("hero", [1, 3, 10])
+def test_a_marker_whose_second_byte_is_not_ff_still_belongs_to_the_table(hero):
+    """A real save, 2026-11-15: Nightfarer 3's group opens with 0x00000503
+    between nine 0x0000ffNN ones, and the reader, comparing all four bytes,
+    reported no stored builds at all. Only the low byte names the Nightfarer."""
+    blob = bytearray(_slot_bytes([4] * 10))
+    at = LEAD_PADDING + (hero - 1) * savefile.LOADOUT_GROUP
+    assert blob[at:at + 4] == struct.pack("<I", savefile.HERO_MARKER_BASE + hero)
+    blob[at + 1] = 0x05
+
+    loadouts = savefile.read_loadouts(bytes(blob))
+
+    assert len(savefile.find_loadout_table(bytes(blob))) == 10
+    assert sorted({entry.hero_id for entry in loadouts}) == list(range(1, 11))
+    assert len(loadouts) == 10 * 4 + 10 * savefile.VESSELS_PER_HERO
