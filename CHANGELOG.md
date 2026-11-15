@@ -28,6 +28,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
   the figure, and the World Events tab says so.
 
 ### Changed
+- **The loading window of the first start is one sentence and a bar.** It
+  says "Reading your game files, this may take a few minutes." on a glass
+  panel in the new look, and the bar under it now fills as the reading gets
+  on instead of only moving back and forth. The technical lines under the
+  bar are gone.
 - **A new look.** The window is now glass panels over a night-sky picture,
   in gold and violet. The row of tabs became a list of views down the left
   edge, and each attribute has a bar beside its figure. Nothing the program
