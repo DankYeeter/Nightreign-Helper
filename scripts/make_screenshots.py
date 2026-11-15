@@ -16,9 +16,12 @@ this machine actually holds. That is intended -- the README says as much -- and
 the one thing that must not appear, the Steam account id, is only ever in a
 tooltip, never on the face of the window.
 
-**The background is always the painted "Night sky".** The other choices of the
-Background list are pictures out of the game's own files, and this repository
-is public: the pictures here show the program, not the game's artwork. The
+**The background is always "Roundtable Hold", the one the program starts
+with.** It is a picture out of the game's own files, read from the install on
+this machine, and this repository is public; that it is shown here all the
+same is the owner's decision of 2026-11-15, taken knowing that. The guide
+names the game and its owners above the pictures. Where the install holds no
+such picture the painted "Night sky" stands in, as it does in the program. The
 choice, and the marks set for the Filters picture, go to a settings key of
 this script's own (`NIGHTREIGN_SETTINGS_ORG`, unless the caller set one), so
 the player's own background, builds and marks are neither read nor changed.
@@ -226,9 +229,9 @@ def main() -> None:
 
     app = QApplication(sys.argv)
     window = Planner(load_data())
-    window.backdrop.choose(backdrop.PAINTED)
+    window.backdrop.choose(backdrop.DEFAULT)
     window.backdrop_box.setCurrentIndex(
-        window.backdrop_box.findData(backdrop.PAINTED))
+        max(0, window.backdrop_box.findData(window.backdrop.choice)))
     off_screen(window)
     window.resize(WIDTH, HEIGHT)
     window.show()

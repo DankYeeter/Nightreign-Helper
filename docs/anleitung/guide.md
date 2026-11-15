@@ -23,8 +23,8 @@
 ---
 
 
-*Every screenshot below is this tool's own interface, showing data read from
-a personal ELDEN RING NIGHTREIGN install. ELDEN RING NIGHTREIGN is the
+*Every screenshot below is this tool's own interface, showing data and the
+background picture read from a personal ELDEN RING NIGHTREIGN install. ELDEN RING NIGHTREIGN is the
 property of FromSoftware, Inc. and Bandai Namco Entertainment Inc.; see
 [Disclaimer](../../README.md#disclaimer).*
 
@@ -860,8 +860,8 @@ picture. A narrow window shortens the names in the list. Under the list sit
 **Background** chooses the picture behind the panels: Roundtable Hold by
 default, the Nightlords' expedition pictures and a few menu scenes, all read
 from your own game files, or **Night sky**, which the program paints itself.
-The screenshots in this guide show Night sky: the other pictures are the
-game's artwork, and they stay on your machine.
+The screenshots in this guide show Roundtable Hold. The download holds none
+of these pictures; the program reads them from your installation.
 
 **The three panels can be resized.** Drag the dividers between the Nightfarer
 sidebar, the relic slots and the stat sheet — useful in both directions, since
@@ -999,7 +999,7 @@ Close any running copy first, or Windows' file lock makes PyInstaller fail with
 Properties → Details reports the build without having to run it.
 
 To refresh the screenshots in this guide after a view changes (the script always
-uses the painted Night sky background and a settings key of its own, so your
+uses the Roundtable Hold background and a settings key of its own, so your
 own background, builds and marks are left alone):
 
 ```bat
