@@ -1144,6 +1144,12 @@ def test_a_failed_takeover_writes_its_own_sentence_and_not_the_waiting_one(
             assert line not in WAITING_SENTENCES, name
             assert line, f"{name}: an empty line says nothing at all"
             assert line == sentence, name
+            # A press with no builds to read only repeated the line and
+            # looked like a dead button: it is shut and says why.
+            assert window.import_button.isEnabled() == (not error), name
+            assert (error in window.import_button.toolTip()) and (
+                "Nothing to load" in window.import_button.toolTip()
+            ) == bool(error), name
         finally:
             close(window, read)
 

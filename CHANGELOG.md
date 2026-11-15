@@ -39,6 +39,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   The dataset is rebuilt once on the first start.
 
 ### Fixed
+- **"Load equipped" reads the stored builds again.** On some saves one
+  Nightfarer's entry is marked differently from the others, and the whole
+  table was reported as unreadable. When the builds of a save really cannot
+  be read, the button is now greyed out and its tooltip says why.
 - **Attributes between levels 2 and 12 and between 12 and 15 were up to 1 too
   high.** The game cuts the value off where the program rounded it: Wylder
   has Strength 20 on level 3, not 21. 242 of the 1,200 values change, and the
