@@ -14,6 +14,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
   replaced when the suggestion is clearly better. One that carries an effect
   you avoid gives way to a relic that is at least as good, and the suggestion
   names the avoided effect as the reason.
+- **"Taking attacks improves attack power" can be switched on.** It is listed
+  under Conditional & situational with a tick box like any other condition.
+  Ticked, its +15% to all damage counts in the totals and in the Advisor's
+  figures, once, however many relics carry it. The game restarts its 10 s on
+  every hit you take, so under fire it is on the whole time.
 - **New box "Advisor" above the level slider: early game or late game.**
   Bonuses in points lose value as you level: "Increased Maximum HP" is always +100 HP,
   which is 36 to 50% more HP on level 1 and 8 to 14% on level 15, while
