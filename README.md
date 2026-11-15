@@ -61,8 +61,8 @@ Bandai Namco Entertainment Inc. ELDEN RING NIGHTREIGN, its data, artwork,
 text and trademarks are the property of their respective owners. The
 released executable contains no game data; it reads your own installation.
 The pictures the program can show behind its window are read from that
-installation as well; the screenshots here use the background the program
-paints itself.
+installation as well; the screenshots here show one of them, Roundtable
+Hold, as read from a personal install.
 
 It reads and decrypts, locally, the game files and the save data of your
 installed copy of ELDEN RING NIGHTREIGN, using decryption keys that have
