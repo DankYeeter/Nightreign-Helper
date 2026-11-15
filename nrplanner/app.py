@@ -776,7 +776,7 @@ class Planner(QMainWindow):
         backdrop_caption = QLabel("Background")
         backdrop_caption.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
         corner_row.addWidget(backdrop_caption)
-        self.backdrop_box = QComboBox()
+        self.backdrop_box = backdrop.ElidedBox()
         self.backdrop_box.setSizeAdjustPolicy(
             QComboBox.AdjustToMinimumContentsLengthWithIcon)
         self.backdrop_box.setMinimumContentsLength(6)
@@ -1204,10 +1204,11 @@ class Planner(QMainWindow):
         column = QWidget()
         theme.as_glass(column)
         stack = QVBoxLayout(column)
-        # The pieces below keep 6 px to their right themselves, for the
-        # slots' scroll bar; with it the pane is padded alike on both sides.
+        # Alike on both sides. The slots keep 6 px more to their right, for
+        # their scroll bar; the advisor's row does not, or its width would no
+        # longer be the width its break is measured against (AK-395).
         stack.setContentsMargins(theme.PANE_PAD - 2, theme.PANE_PAD_V,
-                                 2, theme.PANE_PAD_V)
+                                 theme.PANE_PAD - 2, theme.PANE_PAD_V)
         stack.setSpacing(0)
 
         # `Ignored` horizontally, here and on the advisor row: inside a
@@ -1221,7 +1222,7 @@ class Planner(QMainWindow):
         top = QWidget()
         top.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         layout = QVBoxLayout(top)
-        layout.setContentsMargins(0, 0, 6, 0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         # The heading and, opposite it, the way out of a build. Equipped
         # relics now survive a restart, so there has to be something that

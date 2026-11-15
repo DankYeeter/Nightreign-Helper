@@ -113,3 +113,17 @@ def test_choosing_a_background_shows_it_and_keeps_it(planner, tmp_path,
     assert backdrop.stored() == backdrop.DEFAULT
     # Chosen but not in this pack: the painted scene stands in.
     assert backdrop.game_scene(QSize(320, 180), "augur") is None
+
+
+def test_a_choice_box_asks_for_its_longest_name_and_may_shrink(qapp):
+    """"Normal + Deep" was cut to "Normal + Deeg" at 1600 px: the box asked
+    for its minimum contents length only."""
+    from PySide6.QtWidgets import QComboBox
+
+    box = backdrop.ChoiceBox()
+    box.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+    box.setMinimumContentsLength(4)
+    box.addItems(["All", "Buffs and curses, a long name"])
+    widest = box.fontMetrics().horizontalAdvance(box.itemText(1))
+    assert box.sizeHint().width() > widest
+    assert box.minimumSizeHint().width() < widest

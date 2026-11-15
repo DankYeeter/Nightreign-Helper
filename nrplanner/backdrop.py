@@ -24,8 +24,8 @@ from PySide6.QtGui import (
     QPixmap, QRadialGradient,
 )
 from PySide6.QtWidgets import (
-    QButtonGroup, QFrame, QLabel, QPushButton, QSizePolicy, QVBoxLayout,
-    QWidget,
+    QButtonGroup, QComboBox, QFrame, QLabel, QPushButton, QSizePolicy,
+    QStyle, QStyleOptionComboBox, QStylePainter, QVBoxLayout, QWidget,
 )
 
 from . import favourites, paths
@@ -276,6 +276,42 @@ SHORT_NAMES = {
     "Red variants": "Red",
     "World Events": "Events",
 }
+
+
+class ElidedBox(QComboBox):
+    """A combo box that ends a name too long for it in "...", where Qt's own
+    cuts it off mid-letter: on the narrow rail "Roundtable Hold" read
+    "Roundtabl". The list it opens keeps the full names."""
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt naming
+        painter = QStylePainter(self)
+        option = QStyleOptionComboBox()
+        self.initStyleOption(option)
+        painter.drawComplexControl(QStyle.CC_ComboBox, option)
+        field = self.style().subControlRect(
+            QStyle.CC_ComboBox, option, QStyle.SC_ComboBoxEditField, self)
+        option.currentText = self.fontMetrics().elidedText(
+            option.currentText, Qt.ElideRight, field.width())
+        painter.drawControl(QStyle.CE_ComboBoxLabel, option)
+
+
+class ChoiceBox(ElidedBox):
+    """An `ElidedBox` that asks for room for its longest name, where a box
+    shrunk to its minimum contents length asked for that length only and was
+    cut at any width ("Normal + Deeg" at 1600 px). It may still shrink to
+    that length."""
+
+    def sizeHint(self) -> QSize:  # noqa: N802 - Qt naming
+        option = QStyleOptionComboBox()
+        self.initStyleOption(option)
+        metrics = self.fontMetrics()
+        widest = max((metrics.horizontalAdvance(self.itemText(i))
+                      for i in range(self.count())), default=0)
+        if any(not self.itemIcon(i).isNull() for i in range(self.count())):
+            widest += self.iconSize().width() + 4
+        need = self.style().sizeFromContents(
+            QStyle.CT_ComboBox, option, QSize(widest, metrics.height()), self)
+        return need.expandedTo(super().sizeHint())
 
 
 class NavRail(QFrame):
