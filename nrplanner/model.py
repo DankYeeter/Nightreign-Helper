@@ -276,36 +276,66 @@ def percent_value(field_name: str, value: float) -> float:
 SENTINEL_BASELINE = -1.0
 
 
-# Effects whose number sits on a row they only switch on (`triggered`) and
-# that the sheet offers as a condition all the same, by the user's decision
-# of 15.11.2026: "Taking attacks improves attack power" is +15% to all damage
-# for 10 s, re-armed within a second and restarted by every hit taken, so
-# under fire it is on the whole time -- and as a line of text it moved no
-# total and no advice. The three ids are the one effect on its three attach
-# rows. ponytail: a list, not a rule; the other triggered buffs join it one
-# decision at a time.
-TRIGGERED_CONDITIONS = frozenset({7032200, 10001, 100000})
+# Effects whose number sits on a row they only switch on (`triggered`) are
+# offered as a condition all the same where that row is a state the player is
+# in for a while -- by the user's decision of 15.11.2026, first for "Taking
+# attacks improves attack power" and then for its relatives. That one is +15%
+# to all damage for 10 s, re-armed within a second and restarted by every hit
+# taken, so under fire it is on the whole time; as a line of text it moved no
+# total and no advice.
+#
+# A state is told from a hand-out by what the row holds and for how long: a
+# rate on attack, on damage taken, on stance damage taken or on a maximum,
+# lasting longer than `TRIGGERED_PULSE`. "HP Restoration upon Dagger Attacks"
+# (15 HP, 1 s) is a hand-out and stays a line of text, like every other row
+# that restores, conceals or holds a figure without a unit.
+TRIGGERED_STATE_FIELDS = frozenset({
+    "physicsAttackRate", "magicAttackRate", "fireAttackRate",
+    "thunderAttackRate", "darkAttackRate",
+    "slashDamageCutRate", "blowDamageCutRate", "thrustDamageCutRate",
+    "neutralDamageCutRate", "magicDamageCutRate", "fireDamageCutRate",
+    "thunderDamageCutRate", "darkDamageCutRate", "toughnessDamageCutRate",
+    "maxHpRate", "maxMpRate", "maxStaminaRate",
+})
+#: Seconds. The hand-outs of the dataset last 1.0 or less.
+TRIGGERED_PULSE = 1.0
 #: `stacking.STACKING_CATEGORY`, which this module cannot import.
 _STACKING_CATEGORY = 10
 
 
 def _adopt_triggered(effect: dict) -> None:
-    """Make a `TRIGGERED_CONDITIONS` effect an ordinary timed condition.
+    """Make an effect whose triggered rows are states a timed condition.
 
-    Its one triggered row moves into `modifiers`, duration included, which is
+    The rows move into `modifiers`, the longest duration with them, which is
     the shape every other timed buff of the dataset already has: the duration
     makes it conditional (`timed_window`), the sheet lists it with a switch
     and counts it only while declared. A row the game holds once marks the
     effect `one_instance`, as the extractor would have. Done once; a second
     `configure` finds nothing left to move.
+
+    Every row has to be a state, and no two may set the same field: three
+    rows that are three steps of one ladder ("Successive Attacks Boost
+    Attack Power", +5%, +6.5%, +9%) are not three things to add up, and
+    which step holds is not something a switch can say.
     """
     rows = effect.get("triggered") or []
-    if effect.get("id") not in TRIGGERED_CONDITIONS or len(rows) != 1:
+    if not rows or effect.get("modifiers", {}).keys() & TRIGGERED_STATE_FIELDS:
         return
-    row = rows[0]
-    effect["modifiers"] = {**(effect.get("modifiers") or {}),
-                           **(row.get("modifiers") or {})}
-    if row.get("sp_category") != _STACKING_CATEGORY:
+    merged: dict = {}
+    longest = 0.0
+    for row in rows:
+        mods = dict(row.get("modifiers") or {})
+        seconds = mods.pop(DURATION_FIELD, 0.0)
+        state = mods.keys() & TRIGGERED_STATE_FIELDS
+        if (not state or state & merged.keys()
+                or not isinstance(seconds, (int, float))
+                or seconds <= TRIGGERED_PULSE):
+            return
+        merged.update(mods)
+        longest = max(longest, float(seconds))
+    effect["modifiers"] = {**(effect.get("modifiers") or {}), **merged,
+                           DURATION_FIELD: longest}
+    if any(row.get("sp_category") != _STACKING_CATEGORY for row in rows):
         effect["one_instance"] = True
     del effect["triggered"]
 

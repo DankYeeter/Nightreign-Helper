@@ -2078,10 +2078,12 @@ CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
 #: dataset, counted 2026-09-14), less the 19 of `ON_THE_ENEMY_EFFECT_IDS` that
 #: had a switch (2026-11-07), less the three flask effects whose only gate
 #: was the engine's shared switch 7010211 (EXTRACT_VERSION 23), plus the
-#: two attach rows of "Taking attacks improves attack power" that had no
-#: switch yet (`model.TRIGGERED_CONDITIONS`, 15.11.2026; the third, 10001,
-#: was gated already). The baseline's whole vocabulary (AD-036.6).
-SWITCHABLE_CONDITIONS = 400
+#: 13 effects whose triggered row is a state that lasts
+#: (`model._adopt_triggered`, user decision 15.11.2026: "Taking attacks
+#: improves attack power", "Taking Damage Boosts Damage Negation" and their
+#: relatives; the others among them were gated already). The baseline's
+#: whole vocabulary (AD-036.6).
+SWITCHABLE_CONDITIONS = 411
 
 #: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 315
 #: copies) change their `min_damage_taken` figure between the baseline and
@@ -2091,7 +2093,9 @@ SWITCHABLE_CONDITIONS = 400
 #: asks with an empty selected tile, which assumes no "3+ X Equipped"
 #: condition since then, and two copies moved by one alone -- "Max HP Up
 #: with 3+ Medium Shields" and "... 3+ Greatshields Equipped" (T-335a).
-COPIES_THE_BASELINE_MOVES = 22
+#: 29 since 15.11.2026: seven more copies carry a triggered state that
+#: moves the damage taken and is a condition now (`model._adopt_triggered`).
+COPIES_THE_BASELINE_MOVES = 29
 
 SURVIVAL = "min_damage_taken"
 
