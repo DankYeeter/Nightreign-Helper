@@ -357,33 +357,37 @@ def describe(effect: dict) -> str:
     # engine stores a restoration as a negative number, and every effect that
     # sets both gives them the same sign, so the direction is safe to state.
     #
-    # The UNIT is not. This was previously shown as "% of maximum HP", which
-    # was an invented reading: among the effects that also ship a game caption,
-    # the field holds 0.10 and 0.15 alongside 12.5 and 10.0 -- two orders of
-    # magnitude apart for the same kind of tick -- so no single percentage
-    # reading fits them all. The magnitude is therefore shown raw and labelled
-    # as unestablished rather than dressed up in a unit the files do not give.
+    # The unit is per cent of the maximum, each time the row ticks. The
+    # files do not say so and for a long time this line said exactly that;
+    # two things outside them do (read 14.11.2026). The field is documented
+    # that way for every game of this engine (Souls Modding Wiki,
+    # SpEffectParam: "percent of max HP", -100 heals all of it). And one
+    # relic effect is published with its figures: "Slowly restore HP for
+    # self and nearby allies when HP is low" as 0.5% + 1 HP a second for
+    # 50 s, where row 7012201 holds changeHpRate -0.5, changeHpPoint -1,
+    # an interval of 1 s and 50 s. The 0.10 beside 12.5 that once spoke
+    # against a percentage are a poison tick and a blood-loss burst.
     hp_rate = mods.pop("changeHpRate", None)
     if isinstance(hp_rate, (int, float)) and hp_rate:
         verb = "recovery" if hp_rate < 0 else "loss"
-        parts.append(f"HP {verb} rate {abs(hp_rate):g} "
-                     f"(the game does not state the unit)")
-    # The FP twin, same sign and same open unit. It used to fall through to
+        parts.append(f"HP {verb} {abs(hp_rate):g}% of max HP per tick")
+    # The FP twin: same field layout, same sign. It used to fall through to
     # the multiplier branch below, which read "Failing to Cast Spell Restores
     # FP" (-13.0) as "FP change -1400%".
     fp_rate = mods.pop("changeMpRate", None)
     if isinstance(fp_rate, (int, float)) and fp_rate:
         verb = "recovery" if fp_rate < 0 else "loss"
-        parts.append(f"FP {verb} rate {abs(fp_rate):g} "
-                     f"(the game does not state the unit)")
+        parts.append(f"FP {verb} {abs(fp_rate):g}% of max FP per tick")
     # What a flask restores once an effect has taken it over
-    # (`extract.FLASK_ROWS`), on the scale a plain flask is 60 on.
+    # (`extract.FLASK_ROWS`). Per cent as well: the game's code caps the
+    # summed rate at 100 (nightreign.exe 0x14050c094), and a plain flask is
+    # -60 on rows 501000..501012.
     for field_name, what in (("changeHpEstusFlaskRate", "HP"),
                              ("changeMpEstusFlaskRate", "FP")):
         flask = mods.pop(field_name, None)
         if isinstance(flask, (int, float)) and flask:
-            parts.append(f"Flask restores {what} at rate {abs(flask):g} "
-                         f"(a plain flask: HP at 60)")
+            parts.append(f"Flask restores {abs(flask):g}% of max {what} "
+                         f"(a plain flask: 60% of max HP)")
     # Stored as a cost, like HP per tick: -2 hands two points back.
     stamina = mods.pop("changeStaminaPoint", None)
     if isinstance(stamina, (int, float)) and stamina:

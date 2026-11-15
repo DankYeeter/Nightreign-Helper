@@ -84,6 +84,13 @@ def _figure(data: dict, entry: dict):
     """
     hero = cases.hero_by_name(data, entry["nightfarer"])
     weapon = cases.weapon_by_id(data, entry["weapon"])
+    # A column measured on an older patch names the attributes it was
+    # measured with (`attributes_then`, see `levels` in the file's header).
+    then = entry.get("attributes_then")
+    if then:
+        level = str(entry["level"])
+        hero = {**hero, "levels": {**hero["levels"],
+                                   level: {**hero["levels"][level], **then}}}
     build = model.compute(hero, entry["level"], [], data.get("curves", {}))
     own_tier = weapon.get("rarity", 0) + 1
     return weapon, own_tier, damage.candidate(weapon, own_tier, build, data)

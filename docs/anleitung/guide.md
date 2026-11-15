@@ -124,6 +124,12 @@ elemental one adds a quarter of itself; nothing is added up. Under **Minimise
 damage taken** and **Balanced** the box **Incoming** lets you pick the element
 a boss deals (Magic, Fire, Lightning, Holy), which then counts in full beside
 physical.
+The box **Advisor** above the level slider says which part of a run
+the advisor optimises for. Bonuses in
+points, such as Increased Maximum HP (+100 HP) or Strength +3, are worth less
+with every level, bonuses in percent stay the same. **Early game** is levels
+1 to 10, worked out on level 5; **Late game** is levels 10 to 15, worked out
+on level 13; **Set level** uses the level slider.
 **Maximise damage**, **Balanced**
 and **Maximise offensive attributes** rank by whichever hand the **1H/2H**
 switch (see *Reading the right-hand panel* below) is set to, and count

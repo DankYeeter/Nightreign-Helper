@@ -123,6 +123,26 @@ ELEMENT_WEIGHT = 0.25
 _ELEMENT_WORDS = {"Magic": "magic", "Fire": "fire", "Thunder": "lightning",
                   "Dark": "holy"}
 
+#: The level a phase of a run is judged on (user decision 2026-11-14: "early
+#: game / late game", up to level 10 and from level 10). A bonus in points --
+#: "Increased Maximum HP" is +100 HP, "Strength +3" three points -- is worth
+#: a smaller share with every level, a bonus in percent the same on all of
+#: them; measured over all ten Nightfarers, physical damage negation -10%
+#: overtakes +100 HP between level 9 (Guardian) and 15 (Scholar). One level
+#: stands for each phase: 5 and 13, the middle of 1-10 and of 10-15. `""` is
+#: no phase: the level the player set on the slider.
+PHASE_LEVELS = MappingProxyType({"early": 5, "late": 13})
+
+
+def phase_level(phase: str, set_level: int) -> int:
+    """The level a question is asked on: the phase's, or the one set."""
+    if not phase:
+        return set_level
+    if phase not in PHASE_LEVELS:
+        raise KeyError(f"no phase {phase!r}; it is one of "
+                       f"{list(PHASE_LEVELS)} or empty")
+    return PHASE_LEVELS[phase]
+
 
 def incoming_weighting(element: str = "") -> types.Weighting:
     """Physical in full, the elements at `ELEMENT_WEIGHT`, and the one

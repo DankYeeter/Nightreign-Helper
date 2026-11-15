@@ -173,6 +173,25 @@ DAMAGE_TYPE_KEY = "damage_type"
 #: no boss in mind (user decision 2026-11-08, 15:20).
 INCOMING_KEY = "incoming_damage"
 
+#: Which part of a run the question is about, kept the same way; `""` is the
+#: level on the slider (user decision 2026-11-14).
+PHASE_KEY = "advisor_phase"
+
+#: What the `Advisor level` box beside the level figure does
+#: (`Planner.phase_box`). It stands there and not on the advisor's row: the
+#: row's widths are counted to the pixel, and measured under Windows on
+#: 2026-11-14 a fifth box made it 181 px wider in every direction, enough to
+#: break the opening width into two lines.
+PHASE_TOOLTIP = (
+    "Which part of a run to optimise for. Bonuses in points, such as "
+    "Increased Maximum HP (+100 HP) or Strength +3, are worth less with "
+    "every level; bonuses in percent stay the same. Early game is levels "
+    "1 to 10 and Late game levels 10 to 15, with nothing in between; each "
+    "is worked out on one level in its middle, "
+    f"{advisor_goals.PHASE_LEVELS['early']} and "
+    f"{advisor_goals.PHASE_LEVELS['late']}. Set level uses the level "
+    "slider. The stat sheet always shows the slider's level.")
+
 #: What the `Incoming` box does. Static, like `DAMAGE_TYPE_TOOLTIP`.
 INCOMING_TOOLTIP = ("Which damage you expect to take. Physical negation "
                     "always counts in full and elemental negation at a "
@@ -1028,7 +1047,11 @@ def asking_from(planner, goal_id: str) -> Asking | None:
     if owned is None:
         return None
     hero = planner.current_hero()
-    level = planner.level_slider.value()
+    # User decision 2026-11-14: a phase chosen under the slider stands in for the
+    # slider, so the whole question -- base state, key, every figure -- is
+    # asked on that one level.
+    level = advisor_goals.phase_level(planner.phase(),
+                                      planner.level_slider.value())
 
     cards = planner.active_slots()
     slots = tuple(types.Slot(index=index, colour=slot.colour, deep=slot.deep)
