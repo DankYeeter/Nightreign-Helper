@@ -49,7 +49,7 @@ not a mod, a trainer, or a save editor.
 
 ## The guide
 
-Everything else — the seven tabs, the window, search syntax, where your
+Everything else — the eight views, the window, search syntax, where your
 data lives, running from source, how values are derived, and known limits —
 is in the **[guide](docs/anleitung/guide.md)**.
 
@@ -60,6 +60,9 @@ with, endorsed by, sponsored by, or approved by** FromSoftware, Inc. or
 Bandai Namco Entertainment Inc. ELDEN RING NIGHTREIGN, its data, artwork,
 text and trademarks are the property of their respective owners. The
 released executable contains no game data; it reads your own installation.
+The pictures the program can show behind its window are read from that
+installation as well; the screenshots here use the background the program
+paints itself.
 
 It reads and decrypts, locally, the game files and the save data of your
 installed copy of ELDEN RING NIGHTREIGN, using decryption keys that have

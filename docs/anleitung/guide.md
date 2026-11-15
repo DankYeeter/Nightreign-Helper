@@ -4,14 +4,15 @@
 
 ## Contents
 
-- **The tabs**
+- **The views**
   - [1. Build planner](#1-build-planner)
   - [2. Effects & chances](#2-effects--chances)
-  - [3. Weapons & spells](#3-weapons--spells)
-  - [4. Nightlords](#4-nightlords)
-  - [5. Deep of Night](#5-deep-of-night)
-  - [6. Red variants](#6-red-variants)
-  - [7. World Events](#7-world-events)
+  - [3. Recommended effects](#3-recommended-effects)
+  - [4. Weapons & spells](#4-weapons--spells)
+  - [5. Nightlords](#5-nightlords)
+  - [6. Deep of Night](#6-deep-of-night)
+  - [7. Red variants](#7-red-variants)
+  - [8. World Events](#8-world-events)
 - [The window](#the-window)
 - [Searching](#searching)
 - [Where your data lives](#where-your-data-lives)
@@ -246,10 +247,17 @@ sit behind **Notes on these figures**; they open by themselves when the run
 could not answer part of the question or stopped its search early. Which
 buttons are open is not remembered: the dialog starts folded every time.
 
+**Optimize keeps the relics you already wear.** A relic sitting in a slot is only
+replaced when the suggestion is clearly better. One that carries an effect you
+avoid gives way to a relic that is at least as good, and the suggestion names
+the avoided effect as the reason.
+
 **Hold**, on a slot card, keeps Optimize away from that one slot — you can
 still change it by hand, and a slot held on purpose while empty says so
 rather than looking untouched by accident. Holds are not part of the saved
 build; they are forgotten the next time you open the program.
+
+![The Filters window](../screenshots/filters.png)
 
 **Filters**, next to the Advisor row, opens a window listing every effect
 and curse a relic of yours carries — one row per effect, not grouped by
@@ -261,7 +269,9 @@ put it); checking one clears the other on the same row. Every Nightfarer
 keeps its own marks: what you check for the Guardian does not touch the
 Duchess. Effects that belong
 to one family sit under a heading: **Avoid** on the heading avoids every
-member below it, and **Allow** on one member lets just that one back in. An
+member below it, and **Allow** on one member lets just that one back in.
+**Favourite** on the heading asks for any one member: every suggestion then
+carries at least one effect of that family, whichever tier. An
 effect that stacks, such as "Attack power increased for each Night Invader
 defeated", also has a **Stacks** field: type how many stacks Optimize and the
 figures in the relic picker should count, a whole number from 0 to that effect's
@@ -446,7 +456,8 @@ The first time you open a Nightfarer, all of their chalices are read out of
 the save and the equipped one is shown. After that the app reopens on whatever
 chalice you last had open, across sessions, along with the Deep of Night
 setting. **Load equipped** reads the save again and goes back to the equipped
-chalice; **Rescan save** re-reads the save from disk after you have earned or
+chalice (when the builds of a save cannot be read, the button is greyed out
+and its tooltip says why); **Rescan save** re-reads the save from disk after you have earned or
 melted relics.
 
 Chalices you change here are remembered per chalice, so switching between them
@@ -588,6 +599,17 @@ An effect that only lasts a number of seconds once triggered belongs there too.
 The Character Skill auras, "Power of the Blood Lord", "Power of Dark Moon" and
 the rest are timed windows, not passives, and are treated as such.
 
+So is a buff that an effect only triggers. "Taking attacks improves attack
+power" (+15% to all damage for 10 s), "Taking Damage Boosts Damage Negation"
+(-21% for 10 s), "Sleep in Vicinity Improves Attack Power" and their relatives
+have a tick box under **Conditional & situational** like any other condition.
+Ticked, the figure counts in the totals and in the Advisor's figures, once,
+however many relics carry it. Effects that hand something out once (HP on a
+hit) and "Successive Attacks Boost Attack Power", whose three steps no tick can
+tell apart, stay as text.
+
+<img src="../screenshots/conditions.png" width="370" alt="Conditional &amp; situational, with one condition ticked">
+
 **Every figure is clickable** for a per-buff breakdown showing which relic and
 which effect contributed what.
 
@@ -620,7 +642,36 @@ the game files; they are labelled as such rather than padded out.
 
 ---
 
-## 3. Weapons & spells
+## 3. Recommended effects
+
+![Recommended effects](../screenshots/recommended_effects.png)
+
+One question: do you already own the best effects for this Nightfarer, and if
+not, where do they roll? Every effect a relic can roll is ranked by what one
+copy adds for the **Nightfarer** and **Goal** chosen at the top, against that
+Nightfarer with no relic at all. The goals are the Advisor's. A conditional
+effect counts as if its condition held; one that needs an armament type or an
+ailment counts only where the Nightfarer's starting armament brings it.
+Opening the view takes over the Nightfarer and the level of the Build planner;
+the line under the cards names the level the figures were rated at.
+
+Beside each effect stand its **Gain**, how many of your relics carry it
+(**Owned** for normal relics, **Owned Deep** for Deep of Night relics), where
+it can roll (**Rolls on normal**, **Rolls on Deep**: the relic colours and the
+chance per relic effect slot that can roll it) and a **Status**: *owned*,
+*missing*, or *other strength* when your relics carry the effect at another
+strength than this one; hover the cell for which. The three cards above the
+table sum it up: how many of the effects shown are on your relics, how many of
+those on normal and on Deep of Night relics, and how many are still missing.
+
+**Show** cuts the list to the top 30, 50 or 100, or shows all of it. **Best
+version only** shows the strongest of the tiers and variants of one effect,
+and **Missing only** hides what you own. Without a save nothing is counted as
+owned, and the view says so.
+
+---
+
+## 4. Weapons & spells
 
 ![Weapons and spells](../screenshots/weapons.png)
 
@@ -663,7 +714,7 @@ everything else and are marked in red, in the picker and on the tile.
 
 ---
 
-## 4. Nightlords
+## 5. Nightlords
 
 ![Nightlords](../screenshots/nightlords.png)
 
@@ -720,7 +771,7 @@ LOOT section, because neither names a specific fight.
 
 ---
 
-## 5. Deep of Night
+## 6. Deep of Night
 
 ![Deep of Night](../screenshots/deep_of_night.png)
 
@@ -748,7 +799,7 @@ The tables are read, not operated, so nothing on this tab responds to a click.
 
 ---
 
-## 6. Red variants
+## 7. Red variants
 
 ![Red variants](../screenshots/depth_weighting.png)
 
@@ -770,7 +821,7 @@ not say by how much, so the tab gives no strength figure.
 
 ---
 
-## 7. World Events
+## 8. World Events
 
 ![World events](../screenshots/world_events.png)
 
@@ -802,13 +853,23 @@ announcement banner are marked *no banner*.
 
 ## The window
 
+**The views are listed down the left edge**, on glass panels over a night-sky
+picture. A narrow window shortens the names in the list. Under the list sit
+**UI scale**, **Background** and **Reset layout**.
+
+**Background** chooses the picture behind the panels: Roundtable Hold by
+default, the Nightlords' expedition pictures and a few menu scenes, all read
+from your own game files, or **Night sky**, which the program paints itself.
+The screenshots in this guide show Night sky: the other pictures are the
+game's artwork, and they stay on your machine.
+
 **The three panels can be resized.** Drag the dividers between the Nightfarer
 sidebar, the relic slots and the stat sheet — useful in both directions, since
 a long relic name needs a wider sidebar and a wide monitor can give the slots
 more room than the old fixed widths allowed. Where you leave them is remembered
 between sessions, and none of the three can be dragged shut.
 
-**UI scale**, top right. It multiplies whatever Windows' own display scaling
+**UI scale**, under the list of views. It multiplies whatever Windows' own display scaling
 already asks for, so **Automatic** is your Windows setting unchanged — which is
 why there is no "100%" entry saying the same thing twice. Qt reads the scale
 once, as the program starts, and gives no way to change it after; so choosing a
@@ -872,6 +933,12 @@ yourself through the panel or **Find my save…** — the game folder and save
 file it should use next time, are small enough to live in the registry, under
 `HKCU\Software\DankYeeter`. The Start Menu entry — if you accept it — is one
 shortcut in your own profile.
+
+While the first start reads the game files, a small window says so over a bar
+that fills as the reading gets on:
+
+![The loading window of the first start](../screenshots/first_start.png)
+
 **Nothing is written anywhere else**, and nothing is sent anywhere: it makes no network
 connection. Uninstalling means deleting that folder,
 that registry key, the shortcut and the EXE — nothing survives outside those
@@ -931,7 +998,9 @@ Close any running copy first, or Windows' file lock makes PyInstaller fail with
 `PermissionError`. The EXE takes its version from `nrplanner/__init__.py`, so
 Properties → Details reports the build without having to run it.
 
-To refresh the screenshots in this guide after a tab changes:
+To refresh the screenshots in this guide after a view changes (the script always
+uses the painted Night sky background and a settings key of its own, so your
+own background, builds and marks are left alone):
 
 ```bat
 .venv\Scripts\python.exe scripts\make_screenshots.py
@@ -977,8 +1046,8 @@ the flat totals rather than being applied unconditionally; and where a chain fro
 the menu to the underlying data cannot be closed, the tab says so on itself.
 
 The figures that genuinely are not in the files are the Deep of Night rating
-table (see [Deep of Night](#5-deep-of-night)), and part of the World Events prose (see [World
-Events](#7-world-events)). None of them is marked *confirmed in game* or
+table (see [Deep of Night](#6-deep-of-night)), and part of the World Events prose (see [World
+Events](#8-world-events)). None of them is marked *confirmed in game* or
 *community-reported* on screen — that distinction lives only in this
 document.
 

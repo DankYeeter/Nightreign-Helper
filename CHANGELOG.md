@@ -7,6 +7,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ## [Unreleased]
 
 ### Added
+- **New view "Recommended effects".** Every effect a relic can roll, ranked by
+  what one copy adds for a Nightfarer and goal, beside how many of your normal
+  and Deep of Night relics carry it and where it can roll. It answers whether
+  you already own the best effects and which are still missing.
 - **Favourite on a whole family of effects.** In the Filters window a family
   header now has a Favourite box next to Avoid: every suggestion then carries
   at least one effect of that family, whichever tier.
