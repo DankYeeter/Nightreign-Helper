@@ -771,6 +771,26 @@ class Planner(QMainWindow):
         )
         self.scale_box.activated.connect(self._choose_scale)
         corner_row.addWidget(self.scale_box)
+        # Which picture stands behind the window. Only the ones this icon
+        # pack holds are offered; the painted night sky always is.
+        backdrop_caption = QLabel("Background")
+        backdrop_caption.setStyleSheet(f"color: {MUTED}; font-size: 11px;")
+        corner_row.addWidget(backdrop_caption)
+        self.backdrop_box = QComboBox()
+        self.backdrop_box.setSizeAdjustPolicy(
+            QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.backdrop_box.setMinimumContentsLength(6)
+        for key, label in backdrop.available():
+            self.backdrop_box.addItem(label, key)
+        shown = self.backdrop_box.findData(self.backdrop.choice)
+        if shown < 0:
+            shown = self.backdrop_box.findData(backdrop.PAINTED)
+        self.backdrop_box.setCurrentIndex(shown)
+        self.backdrop_box.setToolTip(
+            "The picture behind the window, read from your own game files")
+        self.backdrop_box.activated.connect(
+            lambda _i: self.backdrop.choose(self.backdrop_box.currentData()))
+        corner_row.addWidget(self.backdrop_box)
         # A way back for the panes. Anyone can drag a splitter somewhere
         # unfortunate, and 1.7.0 could store such a state on its own; without
         # an inverse the player's only route was hand-editing the registry.

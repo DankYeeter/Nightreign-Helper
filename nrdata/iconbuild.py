@@ -31,7 +31,8 @@ from . import (bnd4, dvdbnd, icons, param, paramdef, regulation, tpf)
 #   5  the slot light, normal and Deep, and its cell (T-338 row F); Death
 #      Blight; the talismans, goods and powers a boss drops; every status
 #      symbol, which is what an effect and a world-event buff show in game
-ICON_VERSION = 5
+#   6  the pictures behind the window (`BACKDROPS`)
+ICON_VERSION = 6
 
 PORTRAIT_SIZE = 128
 ITEM_SIZE = 64
@@ -107,6 +108,44 @@ UI_SPRITES = {
     **{f"MENU_MenuIcon_{sprite}.png": f"ui_slot_light_{sprite}.png"
        for sprite in (*range(40240, 40245), *range(40254, 40259))},
 }
+
+# The pictures the window can stand in front of, key -> where the game keeps
+# it. A name ending in .png is a sprite of the menu atlas, the ten
+# `NightBossMenuParam.expeditionBackgroundId` pictures among them; a bare name
+# is a texture of its own in the solo binder, beside the character art.
+BACKDROPS = {
+    "roundtable": "MENU_Tuto_00100",
+    "tricephalos": "MENU_MenuIcon_40460.png",
+    "gaping_jaw": "MENU_MenuIcon_40461.png",
+    "sentient_pest": "MENU_MenuIcon_40462.png",
+    "augur": "MENU_MenuIcon_40463.png",
+    "equilibrious_beast": "MENU_MenuIcon_40464.png",
+    "darkdrift_knight": "MENU_MenuIcon_40465.png",
+    "fissure": "MENU_MenuIcon_40466.png",
+    "night_aspect": "MENU_MenuIcon_40467.png",
+    "balancers": "MENU_MenuIcon_40468.png",
+    "dreglord": "MENU_MenuIcon_40469.png",
+    "deep_of_night": "MENU_MenuIcon_40427.png",
+    "menu_mist": "MENU_Cmn_bg_01.png",
+    "menu_book": "MENU_Cmn_bg_04.png",
+    "robed_figure": "MENU_In_Mark_02.png",
+    "parchment": "MENU_ScenarioIllust_40303",
+}
+# They are drawn blurred, so they are stored small.
+BACKDROP_WIDTH = 960
+
+
+def backdrop_image(image):
+    """`image` on black, without its alpha, at the stored width."""
+    from PIL import Image
+    flat = Image.new("RGB", image.size, (0, 0, 0))
+    rgba = image.convert("RGBA")
+    flat.paste(rgba, mask=rgba.getchannel("A"))
+    if flat.width > BACKDROP_WIDTH:
+        height = round(flat.height * BACKDROP_WIDTH / flat.width)
+        flat = flat.resize((BACKDROP_WIDTH, height), Image.LANCZOS)
+    return flat
+
 
 MANIFEST_NAME = "manifest.json"
 
@@ -262,6 +301,17 @@ def build(
             manifest.setdefault("status", {})[match[1]] = name
     report(f"status symbols: {len(manifest.get('status', {}))}")
 
+    # -- pictures behind the window ---------------------------------------
+    for key, sprite in BACKDROPS.items():
+        if not sprite.endswith(".png"):
+            continue
+        image = source.crop(sprite)
+        if image is None:
+            continue
+        name = f"backdrop_{key}.png"
+        backdrop_image(image).save(OUT / name)
+        manifest.setdefault("backdrops", {})[key] = name
+
     source.release()
 
     # -- read-back verification -------------------------------------------
@@ -292,9 +342,24 @@ def build(
     archives = dvdbnd.open_all(game)
     arc = next(a for a in archives.values() if SOLO_HEADER in a)
 
+    solo = bnd4.read_split_header(arc.read(SOLO_HEADER))
+    for key, texture in BACKDROPS.items():
+        if texture.endswith(".png"):
+            continue
+        entry = next((e for e in solo
+                      if e.basename.split(".")[0] == texture), None)
+        if entry is None:
+            continue
+        blob = arc.read_range(SOLO_DATA, entry.offset, entry.size)
+        name = f"backdrop_{key}.png"
+        backdrop_image(icons.texture_image(tpf.read(blob)[0].dds)).save(
+            OUT / name)
+        manifest.setdefault("backdrops", {})[key] = name
+    report(f"backdrops: {len(manifest.get('backdrops', {}))} of "
+           f"{len(BACKDROPS)}")
+
     sources = [(
-        [e for e in bnd4.read_split_header(arc.read(SOLO_HEADER))
-         if e.basename.startswith("MENU_Character_")],
+        [e for e in solo if e.basename.startswith("MENU_Character_")],
         lambda e: arc.read_range(SOLO_DATA, e.offset, e.size),
     )]
 

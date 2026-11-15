@@ -28,15 +28,65 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from . import paths
+from . import favourites, paths
 from .theme import ACCENT, ACCENT_BRIGHT, MUTED, SERIF
 
-#: The file the icon pack may hold; see the module docstring.
-BACKDROP_FILE = "backdrop.png"
+#: The pictures the icon pack may hold, as `backdrop_<key>.png`, and what
+#: each is called in the list at the foot of the rail. The keys are
+#: `nrdata.iconbuild.BACKDROPS`; a pack built before they existed holds none.
+BACKDROPS: list[tuple[str, str]] = [
+    ("roundtable", "Roundtable Hold"),
+    ("tricephalos", "Tricephalos"),
+    ("gaping_jaw", "Gaping Jaw"),
+    ("sentient_pest", "Sentient Pest"),
+    ("augur", "Augur"),
+    ("equilibrious_beast", "Equilibrious Beast"),
+    ("darkdrift_knight", "Darkdrift Knight"),
+    ("fissure", "Fissure in the Fog"),
+    ("night_aspect", "Night Aspect"),
+    ("balancers", "Balancers"),
+    ("dreglord", "Dreglord"),
+    ("deep_of_night", "Deep of Night"),
+    ("menu_mist", "Menu mist"),
+    ("menu_book", "Menu book"),
+    ("robed_figure", "Robed figure"),
+    ("parchment", "Parchment sketch"),
+]
+#: The scene this file paints itself: always there, and the fallback.
+PAINTED = "painted"
+PAINTED_LABEL = "Night sky"
+DEFAULT = "roundtable"
+KEY = "ui/backdrop"
+_KEYS = {key for key, _label in BACKDROPS} | {PAINTED}
+
+
+def backdrop_file(key: str) -> str:
+    return f"backdrop_{key}.png"
+
+
+def available() -> list[tuple[str, str]]:
+    """The pictures this pack really holds, in list order, then the painted one."""
+    folder = paths.icons_dir()
+    found = [(key, label) for key, label in BACKDROPS
+             if (folder / backdrop_file(key)).is_file()]
+    return found + [(PAINTED, PAINTED_LABEL)]
+
+
+def stored() -> str:
+    """The stored choice, always a known key."""
+    value = str(favourites.settings().value(KEY, DEFAULT, type=str) or "")
+    return value if value in _KEYS else DEFAULT
+
+
+def set_stored(value: str) -> None:
+    favourites.settings().setValue(KEY, value if value in _KEYS else DEFAULT)
 
 #: The painted scene is drawn this many times smaller than the window and
 #: scaled up smoothly: that is the blur, and it costs nothing per frame.
 SOFTEN = 14
+#: A game picture is brought down to this width before it is fitted to the
+#: window, which blurs it by about as much.
+SOFT_WIDTH = 520
 
 SKY_TOP = QColor("#05070f")
 SKY_MID = QColor("#0d1230")
@@ -146,9 +196,11 @@ def veiled(scene: QPixmap) -> QPixmap:
     return scene
 
 
-def game_scene(size: QSize) -> QPixmap | None:
-    """The picture out of the player's own icon pack, fitted and dimmed."""
-    path = paths.icons_dir() / BACKDROP_FILE
+def game_scene(size: QSize, key: str = DEFAULT) -> QPixmap | None:
+    """Picture `key` out of the player's own icon pack, softened and fitted."""
+    if key not in _KEYS or key == PAINTED:
+        return None
+    path = paths.icons_dir() / backdrop_file(key)
     if not path.is_file():
         return None
     source = QImage(str(path))
@@ -156,16 +208,15 @@ def game_scene(size: QSize) -> QPixmap | None:
         return None
     w, h = max(size.width(), 16), max(size.height(), 16)
     # Softened the same way the painted scene is, then covered and centred.
-    soft = source.scaled(max(source.width() // 3, 8),
-                         max(source.height() // 3, 8),
+    shrink = max(source.width() / SOFT_WIDTH, 1.0)
+    soft = source.scaled(max(int(source.width() / shrink), 8),
+                         max(int(source.height() / shrink), 8),
                          Qt.IgnoreAspectRatio, Qt.SmoothTransformation)
     cover = soft.scaled(w, h, Qt.KeepAspectRatioByExpanding,
                         Qt.SmoothTransformation)
     scene = QPixmap(w, h)
     p = QPainter(scene)
     p.drawImage((w - cover.width()) // 2, (h - cover.height()) // 2, cover)
-    # Text has to stay readable over any picture: a dark veil, heavier at
-    # the top where the headings are.
     p.end()
     return scene
 
@@ -176,6 +227,14 @@ class Backdrop(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._scene: QPixmap | None = None
+        self.choice = stored()
+
+    def choose(self, key: str) -> None:
+        """Show picture `key` from now on, and at the next start."""
+        set_stored(key)
+        self.choice = stored()
+        self._scene = None
+        self.update()
 
     def resizeEvent(self, event) -> None:
         self._scene = None
@@ -192,7 +251,7 @@ class Backdrop(QWidget):
 
     def paintEvent(self, _event) -> None:
         if self._scene is None or self._scene.size() != self.size():
-            self._scene = veiled(game_scene(self.size())
+            self._scene = veiled(game_scene(self.size(), self.choice)
                                  or painted_scene(self.size()))
         painter = QPainter(self)
         painter.drawPixmap(0, 0, self._scene)

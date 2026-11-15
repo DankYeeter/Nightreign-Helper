@@ -66,7 +66,7 @@ def test_a_picture_in_the_icon_pack_is_the_one_shown(qapp, tmp_path,
 
     picture = QImage(64, 36, QImage.Format_RGB32)
     picture.fill(QColor("#ff0000"))
-    picture.save(str(tmp_path / backdrop.BACKDROP_FILE))
+    picture.save(str(tmp_path / backdrop.backdrop_file(backdrop.DEFAULT)))
     scene = backdrop.game_scene(QSize(320, 180))
     assert (scene.width(), scene.height()) == (320, 180)
     shown = backdrop.veiled(scene).toImage().pixelColor(160, 170)
@@ -79,5 +79,37 @@ def test_a_picture_in_the_icon_pack_is_the_one_shown(qapp, tmp_path,
 def test_a_broken_picture_falls_back_to_the_painted_scene(qapp, tmp_path,
                                                           monkeypatch):
     monkeypatch.setattr(paths, "icons_dir", lambda: tmp_path)
-    (tmp_path / backdrop.BACKDROP_FILE).write_bytes(b"not a picture")
+    (tmp_path / backdrop.backdrop_file(backdrop.DEFAULT)).write_bytes(b"not a picture")
     assert backdrop.game_scene(QSize(320, 180)) is None
+
+
+def test_the_background_list_offers_what_the_pack_holds(qapp, tmp_path,
+                                                        monkeypatch):
+    monkeypatch.setattr(paths, "icons_dir", lambda: tmp_path)
+    assert backdrop.available() == [(backdrop.PAINTED, backdrop.PAINTED_LABEL)]
+
+    picture = QImage(64, 36, QImage.Format_RGB32)
+    picture.fill(QColor("#00ff00"))
+    picture.save(str(tmp_path / backdrop.backdrop_file("augur")))
+    assert [key for key, _label in backdrop.available()] == [
+        "augur", backdrop.PAINTED]
+
+
+def test_every_listed_background_is_one_the_icon_build_writes():
+    from nrdata import iconbuild
+    assert [key for key, _label in backdrop.BACKDROPS] == list(
+        iconbuild.BACKDROPS)
+
+
+def test_choosing_a_background_shows_it_and_keeps_it(planner, tmp_path,
+                                                     monkeypatch):
+    monkeypatch.setattr(paths, "icons_dir", lambda: tmp_path)
+    assert planner.rail.isAncestorOf(planner.backdrop_box)
+    planner.backdrop.choose("augur")
+    assert planner.backdrop.choice == "augur"
+    assert backdrop.stored() == "augur"
+    # A key nobody knows is not kept.
+    planner.backdrop.choose("no such picture")
+    assert backdrop.stored() == backdrop.DEFAULT
+    # Chosen but not in this pack: the painted scene stands in.
+    assert backdrop.game_scene(QSize(320, 180), "augur") is None

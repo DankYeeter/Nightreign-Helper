@@ -32,6 +32,7 @@ History before 1.10.0 was not reconstructed; this file starts here.
   in gold and violet. The row of tabs became a list of views down the left
   edge, and each attribute has a bar beside its figure. Nothing the program
   computes has changed.
+- **Background.** A list at the foot of the navigation chooses the picture behind the window: Roundtable Hold by default, the Nightlords' expedition pictures and a few menu scenes, all read from your own game files, or a painted night sky. The symbols are rebuilt once on the first start for this.
 - **29 more effects are "One copy only".** Their number sits on a row the
   game holds once, for example "Successful guarding fills more of the Art
   gauge" and "Physical attack power increases after using grease items".
