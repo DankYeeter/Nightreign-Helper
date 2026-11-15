@@ -61,7 +61,7 @@ from PySide6.QtCore import QEventLoop, Qt, QTimer
 from PySide6.QtWidgets import QAbstractItemView, QApplication
 
 from nrplanner import backdrop, effectfilterdialog, firstrun
-from nrplanner.app import Planner
+from nrplanner.app import Planner, apply_appearance
 from nrplanner.datasource import load_data
 from nrplanner.statsheet import SituationalRow
 
@@ -228,6 +228,10 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
 
     app = QApplication(sys.argv)
+    # Style, palette and the one style sheet, as `main` sets them. Without
+    # this the panels are photographed as grey blocks instead of glass: the
+    # translucent panels are the application's style sheet, not the window's.
+    apply_appearance(app)
     window = Planner(load_data())
     window.backdrop.choose(backdrop.DEFAULT)
     window.backdrop_box.setCurrentIndex(
