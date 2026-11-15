@@ -904,11 +904,13 @@ def test_the_question_is_an_ordinary_window_and_the_build_is_not(qapp):
 def test_the_confirmation_stands_in_the_build_state(qapp):
     """C1/C2: said once, in GOOD, with no click between it and the build."""
     window = firstrun._Window()
+    window.show_the_build(first_time=True)
+    without = window.height()
     window.show_the_build(first_time=True, said="Found your game in C:\\here")
-    said = [child.text() for child in window.findChildren(type(window.status))]
+    said = [child.text() for child in window.findChildren(QLabel)]
 
     assert "Found your game in C:\\here" in said
-    assert window.height() > 190
+    assert window.height() > without
     window.close()
     window.deleteLater()
 

@@ -620,7 +620,8 @@ def test_a_write_that_breaks_off_leaves_the_old_snapshot(monkeypatch,
 
     out = tmp_path / "nightreign_data.json"
     out.write_text('{"old": true}', encoding="utf-8")
-    monkeypatch.setattr(extract, "build", lambda game, defs: {"new": True})
+    monkeypatch.setattr(extract, "build",
+                        lambda game, defs, progress: {"new": True})
 
     def half_then_full_disk(self, text, encoding=None):
         with open(self, "w", encoding=encoding) as f:
@@ -641,7 +642,8 @@ def test_a_write_that_completes_replaces_the_snapshot(monkeypatch, tmp_path):
 
     out = tmp_path / "nightreign_data.json"
     out.write_text('{"old": true}', encoding="utf-8")
-    monkeypatch.setattr(extract, "build", lambda game, defs: {"new": True})
+    monkeypatch.setattr(extract, "build",
+                        lambda game, defs, progress: {"new": True})
 
     extract.write_snapshot(tmp_path, tmp_path, out)
 

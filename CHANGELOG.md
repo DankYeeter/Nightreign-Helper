@@ -7,6 +7,18 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ## [Unreleased]
 
 ### Added
+- **Favourite on a whole family of effects.** In the Filters window a family
+  header now has a Favourite box next to Avoid: every suggestion then carries
+  at least one effect of that family, whichever tier.
+- **Optimize keeps the relics you already wear.** A relic in a slot is only
+  replaced when the suggestion is clearly better. One that carries an effect
+  you avoid gives way to a relic that is at least as good, and the suggestion
+  names the avoided effect as the reason.
+- **"Taking attacks improves attack power" can be switched on.** It is listed
+  under Conditional & situational with a tick box like any other condition.
+  Ticked, its +15% to all damage counts in the totals and in the Advisor's
+  figures, once, however many relics carry it. The game restarts its 10 s on
+  every hit you take, so under fire it is on the whole time.
 - **New box "Advisor" above the level slider: early game or late game.**
   Bonuses in points lose value as you level: "Increased Maximum HP" is always +100 HP,
   which is 36 to 50% more HP on level 1 and 8 to 14% on level 15, while
@@ -28,6 +40,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
   the figure, and the World Events tab says so.
 
 ### Changed
+- **The loading window of the first start is one sentence and a bar.** It
+  says "Reading your game files, this may take a few minutes." on a glass
+  panel in the new look, and the bar under it now fills as the reading gets
+  on instead of only moving back and forth. The technical lines under the
+  bar are gone.
 - **A new look.** The window is now glass panels over a night-sky picture,
   in gold and violet. The row of tabs became a list of views down the left
   edge, and each attribute has a bar beside its figure. Nothing the program

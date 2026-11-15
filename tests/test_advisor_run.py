@@ -1621,3 +1621,111 @@ def test_carriers_avoided_and_rejected_name_both_ways_back():
         "rejected for this build or also carries an effect you avoided: "
         "“Zebra”. Use Suggest again, or remove the avoid under Filters, to use "
         "them.")
+
+
+def _asked_wearing(game_data, wylder, rolls, worn_at):
+    """One red slot, four copies; the answer bare and with one copy worn."""
+    from nrplanner.advisor import candidates
+
+    owned = advisor.make_inventory(game_data, wylder, count=4, rolls=rolls)
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+
+    def a_run(question):
+        frozen = run.frozen_inventory(owned, question)
+        return run.run(advisor.request_for(question, ctx, frozen), frozen,
+                       ctx, goals.GOALS)
+
+    bare = a_run(problem)
+    suggested = bare.suggestions[0].choices[0].handle
+    worn = worn_at(owned.relics, suggested)
+    wearing = a_run(dataclasses.replace(problem, equipped=(
+        candidates._offer(problem.slots[0], worn),)))
+    return bare, wearing, worn
+
+
+def test_an_equipped_relic_stays_when_the_suggestion_is_no_better(game_data,
+                                                                  wylder):
+    """User decision 2026-11-15: four copies of one roll are worth the same,
+    so the one in the slot is the answer, whichever the search names."""
+    one_roll = [advisor.raising_effects(game_data, wylder, 1)[0]] * 5
+    bare, wearing, worn = _asked_wearing(
+        game_data, wylder, one_roll,
+        lambda relics, suggested: next(relic for relic in relics
+                                       if relic.handle != suggested))
+
+    best = wearing.suggestions[0]
+    assert best.choices[0].handle == worn.handle
+    assert best.score.value == bare.suggestions[0].score.value
+    assert best.reasons[0].relic_name == worn.name
+
+
+def test_an_equipped_relic_gives_way_to_a_clearly_better_one(game_data,
+                                                             wylder):
+    rolls = advisor.raising_effects(game_data, wylder, 5)
+    bare, wearing, worn = _asked_wearing(
+        game_data, wylder, rolls,
+        lambda relics, suggested: next(relic for relic in relics
+                                       if relic.handle != suggested))
+
+    assert (wearing.suggestions[0].choices[0].handle
+            == bare.suggestions[0].choices[0].handle != worn.handle)
+
+
+def test_an_equipped_relic_with_an_avoided_effect_gives_way_to_an_equal_one(
+        game_data, wylder):
+    """User decision 2026-11-15: at least as good and rid of an avoided
+    effect is reason enough to swap."""
+    from nrplanner import inventory
+    from nrplanner.advisor import candidates
+
+    roll = advisor.raising_effects(game_data, wylder, 1)[0]
+    curse = advisor.a_curse_of_this_dataset(game_data)
+    owned = advisor.make_inventory(game_data, wylder, count=2,
+                                   rolls=[roll, roll, roll])
+    clean, cursed = owned.relics
+    cursed = dataclasses.replace(cursed, curse_ids=(curse,))
+    owned = inventory.Inventory(source="test", relics=[clean, cursed])
+    problem = dataclasses.replace(
+        advisor.problem([advisor.RED]), excluded=frozenset({curse}))
+    problem = dataclasses.replace(problem, equipped=(
+        candidates._offer(problem.slots[0], cursed),))
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+    frozen = run.frozen_inventory(owned, problem)
+    answer = run.run(advisor.request_for(problem, ctx, frozen), frozen, ctx,
+                     goals.GOALS)
+
+    assert answer.suggestions[0].choices[0].handle == clean.handle
+
+
+def test_a_favourited_family_is_met_by_any_one_of_its_members(game_data,
+                                                              wylder):
+    """User decision 2026-11-15: of a favourited family one member in the
+    build is enough, whichever -- here the one the search would not pick."""
+    rolls = advisor.raising_effects(game_data, wylder, 5)
+    owned = advisor.make_inventory(game_data, wylder, count=3, rolls=rolls[:4])
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder,
+                          reference=advisor.scaling_armament(game_data,
+                                                             wylder))
+
+    def a_run(question):
+        frozen = run.frozen_inventory(owned, question)
+        return run.run(advisor.request_for(question, ctx, frozen), frozen,
+                       ctx, goals.GOALS)
+
+    best = a_run(problem).suggestions[0].choices[0].handle
+    other = next(relic for relic in owned.relics if relic.handle != best)
+    not_owned = rolls[4][0]
+    assert not any(not_owned in relic.effect_ids for relic in owned.relics)
+
+    answer = a_run(dataclasses.replace(
+        problem, required=frozenset({not_owned}),
+        any_of=((not_owned, other.effect_ids[0]),)))
+
+    assert answer.suggestions[0].choices[0].handle == other.handle
+    assert answer.required_left_out == ()

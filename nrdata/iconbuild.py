@@ -149,6 +149,10 @@ def backdrop_image(image):
 
 MANIFEST_NAME = "manifest.json"
 
+#: How much of `build` is behind it when each stage ends (`progress`).
+P_PORTRAITS, P_ITEMS, P_SPRITES, P_VERIFIED, P_BACKDROPS = (
+    0.32, 0.42, 0.46, 0.62, 0.92)
+
 
 def manifest_files(manifest: dict) -> Iterator[str]:
     """Every file name a manifest promises, across all of its groups.
@@ -203,11 +207,14 @@ def build(
     defs_dir: pathlib.Path,
     out_dir: pathlib.Path,
     report: Callable[[str], None] = lambda _: None,
+    progress: Callable[[float], None] = lambda _share: None,
 ) -> dict:
     """Extract every icon the app needs into out_dir; return the manifest.
 
     `report` is called with a human-readable line as each stage finishes, so
-    a caller with a progress dialog can show it.
+    a caller with a progress dialog can show it. `progress` is told how much
+    of the work is behind it, from 0 to 1, at the same moments; the shares
+    are the stages' part of one measured run (40 s, 15.11.2026).
     """
     OUT = out_dir
     defs = paramdef.load_all(defs_dir)
@@ -233,6 +240,7 @@ def build(
         name = f"hero_{row.id}.png"
         image.save(OUT / name)
         manifest["portraits"][str(row.id)] = name
+    progress(P_PORTRAITS)
     report(f"portraits: {len(manifest['portraits'])}")
 
     # --- relic and chalice icons -----------------------------------------
@@ -245,6 +253,7 @@ def build(
         name = f"item_{icon_id}.png"
         image.save(OUT / name)
         manifest["items"][str(icon_id)] = name
+    progress(P_ITEMS)
     report(f"item icons: {len(manifest['items'])} of {len(wanted)} requested")
 
     # --- boss artwork -----------------------------------------------------
@@ -288,6 +297,7 @@ def build(
                                 image.height - margin))
         image.save(OUT / name)
         manifest.setdefault("ui", {})[sprite] = name
+    progress(P_SPRITES)
     report(f"ui sprites: {len(manifest.get('ui', {}))} of {len(UI_SPRITES)}")
 
     # -- status symbols ---------------------------------------------------
@@ -336,6 +346,8 @@ def build(
     else:
         report("verification: every written icon reads back")
 
+    progress(P_VERIFIED)
+
     # --- full-body character variants ------------------------------------
     from PIL import Image
 
@@ -355,6 +367,7 @@ def build(
         backdrop_image(icons.texture_image(tpf.read(blob)[0].dds)).save(
             OUT / name)
         manifest.setdefault("backdrops", {})[key] = name
+    progress(P_BACKDROPS)
     report(f"backdrops: {len(manifest.get('backdrops', {}))} of "
            f"{len(BACKDROPS)}")
 
@@ -400,6 +413,7 @@ def build(
 
     manifest["icon_version"] = ICON_VERSION
     write_manifest(manifest, OUT)
-    size = sum(f.stat().st_size for f in OUT.iterdir())
+    progress(1.0)
+    size =sum(f.stat().st_size for f in OUT.iterdir())
     report(f"\nicon pack: {size / 1024 / 1024:.1f} MB in {OUT}")
     return manifest

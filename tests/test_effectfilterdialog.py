@@ -100,10 +100,10 @@ def test_the_window_is_modal_titled_and_sorted_by_name_without_case(window):
     assert top[4].data(dlg.COL_COPIES, Qt.DisplayRole) == 3
 
 
-def test_a_family_of_two_or_more_rows_has_a_heading_with_avoid_only(window):
-    """AK-316.1: the heading carries the family key as its name, the sum
-    of copies, one Avoid box and nothing else; members carry Allow, a
-    headless single does not."""
+def test_a_family_of_two_or_more_rows_has_a_heading_with_two_boxes(window):
+    """AK-316.1, and the user decision of 2026-11-15: the heading carries
+    the family key as its name, the sum of copies, a Favourite and an Avoid
+    box and no Allow; members carry Allow, a headless single does not."""
     head = _head(window)
     assert head.text(dlg.COL_NAME) == FAMILY
     assert head.text(dlg.COL_TYPE) == ""
@@ -111,8 +111,9 @@ def test_a_family_of_two_or_more_rows_has_a_heading_with_avoid_only(window):
     assert head.childCount() == 2 and head.isExpanded()
     assert window.tree.itemWidget(head, dlg.COL_AVOID) is window.family_box(FAMILY)
     assert window.family_box(FAMILY).toolTip() == dlg.FAMILY_AVOID_TOOLTIP
-    for column in (dlg.COL_FAVOURITE, dlg.COL_ALLOW):
-        assert window.tree.itemWidget(head, column) is None
+    assert (window.tree.itemWidget(head, dlg.COL_FAVOURITE)
+            is window.family_favourite_box(FAMILY))
+    assert window.tree.itemWidget(head, dlg.COL_ALLOW) is None
     assert window.allow_box(13) is not None
     assert window.allow_box(10) is None
     assert all(item.childCount() == 0 for item in _top_level(window)
@@ -327,8 +328,8 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
     """AK-445: the window carries the exact wording, and the label cannot
     take keyboard focus (it must not join the tab order)."""
     assert dlg.MARKS_EXPLANATION == (
-        "Favourite: every suggestion for this Nightfarer must carry this "
-        "effect, if it can. Avoid: no "
+        "Favourite: every suggestion must carry this effect, if it can — "
+        "on a family header, any one member. Avoid: no "
         "suggestion uses a relic that carries it — on a family header, every "
         "member below, unless one is set to Allow. Allow lets that one member "
         "back in without allowing the rest of the family. These marks are saved "
@@ -550,3 +551,26 @@ def test_tab_reaches_the_stacks_field_after_the_boxes_of_its_row(stack_window):
     QApplication.processEvents()
     QTest.keyClick(allow, Qt.Key_Tab)
     assert QApplication.focusWidget() is window.stack_fields[STACKING_MEMBER]
+
+
+def test_favourite_on_a_family_header_asks_for_any_one_member(window, filters):
+    """User decision 2026-11-15: the header's Favourite box, stored like the
+    Avoid one, and a family is one or the other."""
+    try:
+        favour = window.family_favourite_box(FAMILY)
+        assert favour.toolTip() == dlg.FAMILY_FAVOURITE_TOOLTIP
+        favour.click()
+        assert filters.favourite_families == {FAMILY}
+        assert filters.favoured == {13, 14}
+        assert filters.favourite_groups(
+            lambda effect_id: EFFECTS[str(effect_id)]["name"]) in (
+                ((13, 14),), ((14, 13),))
+        restarted = effectfilters.EffectFilters(families=FAMILIES)
+        assert restarted.favourite_families == {FAMILY}
+
+        window.family_box(FAMILY).click()
+        assert filters.avoided_families == {FAMILY}
+        assert filters.favourite_families == set()
+        assert not favour.isChecked()
+    finally:
+        filters.favour_family(FAMILY, False)

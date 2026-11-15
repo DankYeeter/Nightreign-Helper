@@ -80,8 +80,8 @@ COPIES_DEFINITION = ("Copies counts relics you own that carry this effect or "
                      "Effects & chances tab).")
 
 #: AK-445: what the three marks do here, and how they differ from the star.
-MARKS_EXPLANATION = ("Favourite: every suggestion for this Nightfarer must "
-                     "carry this effect, if it can. "
+MARKS_EXPLANATION = ("Favourite: every suggestion must carry this effect, "
+                     "if it can — on a family header, any one member. "
                      "Avoid: no suggestion uses a relic that carries it — on "
                      "a family header, every member below, unless one is set "
                      "to Allow. Allow lets that one member back in without "
@@ -101,6 +101,10 @@ SEARCH_PLACEHOLDER = ("Filter by effect or curse — supports AND, OR, NOT and "
 FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry this "
                      "effect, if it can.")
 AVOID_TOOLTIP = "No suggestion uses a relic that carries this effect."
+#: User decision 2026-11-15.
+FAMILY_FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry "
+                            "at least one effect of this family, if it can; "
+                            "which one does not matter.")
 #: AK-317.2-4.
 FAMILY_AVOID_TOOLTIP = ("No suggestion uses a relic that carries an effect "
                         "of this family, unless a member below is set to "
@@ -165,8 +169,8 @@ def counter_line(shown: int, total: int, filters) -> str:
     """AK-307, AK-316.5: `{shown} of {total} effects`, and the three counts
     when set -- ids avoided on their own and families avoided are two
     numbers, never one."""
-    clauses = ([f"{len(filters.required)} favourited"]
-               if filters.required else []) + (
+    favourited = len(filters.required) + len(filters.favourite_families)
+    clauses = ([f"{favourited} favourited"] if favourited else []) + (
                [f"{len(filters.excluded)} avoided"]
                if filters.excluded else []) + (
                [families_avoided(len(filters.avoided_families))]
@@ -220,7 +224,7 @@ class EffectFilterWindow(QDialog):
         self._symbol_of = symbol_of or (lambda _effect_id: None)
         #: effect id -> (row, Favourite box, Avoid box, Allow box or None, item)
         self._marks: dict[int, tuple] = {}
-        #: family key -> (Avoid box, heading item)
+        #: family key -> (Avoid box, heading item, Favourite box)
         self._family_marks: dict[str, tuple] = {}
         #: effect id -> its Stacks field, stack effects only
         self.stack_fields: dict[int, QLineEdit] = {}
@@ -291,8 +295,12 @@ class EffectFilterWindow(QDialog):
             avoid = self._box(FAMILY_AVOID_TOOLTIP, BAD)
             avoid.clicked.connect(
                 lambda on, k=key: self._filters.mark_family(k, on))
+            favour = self._box(FAMILY_FAVOURITE_TOOLTIP, ACCENT)
+            favour.clicked.connect(
+                lambda on, k=key: self._filters.favour_family(k, on))
+            self.tree.setItemWidget(head, COL_FAVOURITE, favour)
             self.tree.setItemWidget(head, COL_AVOID, avoid)
-            self._family_marks[key] = (avoid, head)
+            self._family_marks[key] = (avoid, head, favour)
             for row in members:
                 self._add_id_row(row, head, with_allow=True)
             head.setExpanded(True)
@@ -398,6 +406,10 @@ class EffectFilterWindow(QDialog):
         """The Avoid box on the heading of one family."""
         return self._family_marks[key][0]
 
+    def family_favourite_box(self, key: str) -> QCheckBox:
+        """The Favourite box on the heading of one family."""
+        return self._family_marks[key][2]
+
     def _draw_the_marks(self) -> None:
         filters = self._filters
         for effect_id, (row, favourite, avoid, allow, item) in self._marks.items():
@@ -410,9 +422,11 @@ class EffectFilterWindow(QDialog):
                 # showing regardless of the family's Avoid state.
                 allow.setChecked(effect_id in filters.allowed)
                 item.on[COL_ALLOW] = allow.isChecked()
-        for key, (avoid, head) in self._family_marks.items():
+        for key, (avoid, head, favour) in self._family_marks.items():
             avoid.setChecked(key in filters.avoided_families)
             head.on[COL_AVOID] = avoid.isChecked()
+            favour.setChecked(key in filters.favourite_families)
+            head.on[COL_FAVOURITE] = favour.isChecked()
         for effect_id, field in self.stack_fields.items():
             count = filters.stacks.get(effect_id, NO_STACKS)
             shown = "" if count == NO_STACKS else str(count)
