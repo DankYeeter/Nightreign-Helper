@@ -371,8 +371,9 @@ def marking_clauses(filters) -> list[str]:
         return []
     return ([_marked(len(filters.excluded), "avoided")]
             if filters.excluded else []) + (
-            [_marked(len(filters.required), "favourited")]
-            if filters.required else []) + (
+            [_marked(len(filters.required)
+                     + len(filters.favourite_families), "favourited")]
+            if filters.required or filters.favourite_families else []) + (
             [families_avoided(len(filters.avoided_families))]
             if filters.avoided_families else [])
 
@@ -564,6 +565,7 @@ def comparison_signature(asking: Asking) -> tuple:
     return asking.deep, dataclasses.replace(
         request, two_handed=False, generation=0, inventory_fingerprint="",
         problem=dataclasses.replace(request.problem, slots=(), held=(),
+                                    equipped=(),
                                     rejected=frozenset()))
 
 
@@ -1065,12 +1067,33 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         effect_id for effect_id in favourited
         if not effecttext.works_for(
             planner.data["effects"].get(str(effect_id), {}), hero["name"]))
+    all_effects = planner.data["effects"]
+    any_of = planner.effect_filters.favourite_groups(
+        lambda effect_id: effecttext.name(all_effects[str(effect_id)])
+        if str(effect_id) in all_effects and effecttext.works_for(
+            all_effects[str(effect_id)], hero["name"]) else None)
     problem = types.SlotProblem(slots=slots, held=held,
                                 excluded=planner.effect_filters.resolved_excluded,
-                                required=favourited - of_others,
+                                required=(favourited - of_others)
+                                | {group[0] for group in any_of},
+                                any_of=any_of,
                                 favourites_of_others=of_others,
                                 rejected=planner.rejected_rolls(),
-                                pinned=favourites.marked_for(hero["id"]))
+                                pinned=favourites.marked_for(hero["id"]),
+                                equipped=tuple(
+                                    types.Candidate(
+                                        slot_index=index, handle=item.handle,
+                                        relic_id=item.relic_id, name=item.name,
+                                        colour=item.colour,
+                                        is_deep=item.is_deep,
+                                        effect_ids=tuple(item.effect_ids),
+                                        curse_ids=tuple(item.curse_ids))
+                                    for index, item in (
+                                        (index, card.current_relic())
+                                        for index, card in enumerate(cards)
+                                        if index not in holding)
+                                    if getattr(item, "handle", None)
+                                    is not None))
 
     # The baseline counts every switchable condition as met (AD-036.6): the
     # player's own declarations are merged over it, so a condition they
@@ -1890,10 +1913,18 @@ class AdvisorBar(QWidget):
         asking = self._asking(self.goal_id())
         question = (None if asking is None
                     else comparing.questions.get(asking.vessel_id))
+        # ponytail: another vessel was compared without the relics worn
+        # there (`vessel_questions`), so its row's answer may swap one of
+        # them sideways until `Optimize` is pressed on it; compare each
+        # vessel with its stored build if that is ever minded.
+        bare = None if asking is None else dataclasses.replace(
+            asking.request, problem=dataclasses.replace(
+                asking.request.problem, equipped=()))
         known = (None if question is None
-                 or advisor_run.cache_key(question)
-                 != advisor_run.cache_key(asking.request)
-                 else self._controller.known_answer(asking.request,
+                 or advisor_run.cache_key(question) not in (
+                     advisor_run.cache_key(asking.request),
+                     advisor_run.cache_key(bare))
+                 else self._controller.known_answer(question,
                                                     asking.inventory))
         if known is None:
             return False

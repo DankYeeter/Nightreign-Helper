@@ -2077,9 +2077,11 @@ CONDITIONAL_CURSES = (6850700, 6850800, 6850900, 6851200, 6851300, 6851400,
 #: `model.NO_SWITCH`: 413 that are not curses plus the seven above (same
 #: dataset, counted 2026-09-14), less the 19 of `ON_THE_ENEMY_EFFECT_IDS` that
 #: had a switch (2026-11-07), less the three flask effects whose only gate
-#: was the engine's shared switch 7010211 (EXTRACT_VERSION 23). The
-#: baseline's whole vocabulary (AD-036.6).
-SWITCHABLE_CONDITIONS = 398
+#: was the engine's shared switch 7010211 (EXTRACT_VERSION 23), plus the
+#: two attach rows of "Taking attacks improves attack power" that had no
+#: switch yet (`model.TRIGGERED_CONDITIONS`, 15.11.2026; the third, 10001,
+#: was gated already). The baseline's whole vocabulary (AD-036.6).
+SWITCHABLE_CONDITIONS = 400
 
 #: How many copies of the frozen save (`conftest.FROZEN_INVENTORY`, 315
 #: copies) change their `min_damage_taken` figure between the baseline and

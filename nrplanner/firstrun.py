@@ -3,9 +3,8 @@
 The program ships no game content, so on a machine that has never run it
 there is nothing to show until the installed game has been read. That takes
 minutes rather than seconds, in two steps: extracting the params, then
-decoding the icon atlases. How long each of the two takes has never been
-measured, which is why nothing here counts them out as progress (`UI_SPEC`
-T-178 §7). Doing it silently would look like a hang, and doing it on every
+decoding the icon atlases. Both say how far they are each time one of their
+stages ends, and the bar shows that share (`_Builder.share`). Doing it silently would look like a hang, and doing it on every
 launch would be intolerable, so it happens once, visibly, into the per-user
 cache, and is reused until the game is patched.
 
@@ -25,15 +24,15 @@ import os
 import pathlib
 
 from PySide6.QtCore import QEventLoop, QObject, Qt, QThread, QUrl, Signal
-from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QFileDialog, QFrame,
                                QHBoxLayout, QLabel, QProgressBar, QPushButton,
                                QVBoxLayout, QWidget)
 
 from nrdata import gamefiles
 
-from . import errortext, gamepath, paths, shortcut
+from . import backdrop, errortext, gamepath, paths, shortcut, theme
 from .datasource import bundled_path, defs_dir
-from .theme import BAD, GOOD, MUTED
+from .theme import ACCENT, BAD, GOOD, MUTED
 
 
 def _regulation_stamp(game: pathlib.Path) -> tuple[str, int] | None:
@@ -172,6 +171,26 @@ LEAST_PANEL_HEIGHT = 230
 #: a wrapped line has to be worked out against the width they leave.
 SIDE_MARGIN = 28
 TOP_MARGIN = 24
+#: Between the edge of the build state's window and its glass pane.
+PANE_GAP = 14
+#: The one sentence of the build state.
+BUILD_LINE = "Reading your game files, this may take a few minutes."
+#: What a full bar counts to.
+SHARES = 1000
+#: What each step of the build took in one measured run (15.11.2026): the
+#: weights the bar gives the two.
+STEP_SECONDS = {"snapshot": 48, "icons": 40}
+#: The bar of the build state: the slider's groove and fill (`theme.STYLE`).
+BAR_STYLE = f"""
+QProgressBar {{
+    border: 0; border-radius: 4px; background: rgba(255, 255, 255, 36);
+}}
+QProgressBar::chunk {{
+    border-radius: 4px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #a98bff, stop:1 {ACCENT});
+}}
+"""
 
 #: What a button hands back. Plain strings rather than an enum: they are
 #: compared and never counted, and a failed comparison reads as itself.
@@ -627,7 +646,8 @@ class CannotBuild(Exception):
 class _Builder(QObject):
     """Runs the extraction off the GUI thread."""
 
-    progress = Signal(str)
+    #: How much of the work is behind it, out of `SHARES`.
+    share = Signal(int)
     finished = Signal(str)  # empty on success, else the error text
 
     def __init__(self, game: pathlib.Path, steps: list[str]) -> None:
@@ -646,22 +666,30 @@ class _Builder(QObject):
 
             paths.cache_dir().mkdir(parents=True, exist_ok=True)
 
+            # Each step fills its part of the bar, and a step that is not
+            # due leaves the whole bar to the other.
+            due = [step for step in STEP_SECONDS if step in self.steps]
+            whole = sum(STEP_SECONDS[step] for step in due)
+            before = 0.0
+
+            def part(step: str):
+                start, width = before / whole, STEP_SECONDS[step] / whole
+                return lambda share: self.share.emit(
+                    round(SHARES * (start + width * share)))
+
             if "snapshot" in self.steps:
                 from nrdata import extract
 
-                self.progress.emit("Reading the game's data tables ...")
-                extract.write_snapshot(self.game, defs, paths.snapshot_path())
+                extract.write_snapshot(self.game, defs, paths.snapshot_path(),
+                                       part("snapshot"))
+                before += STEP_SECONDS["snapshot"]
+                self.share.emit(round(SHARES * before / whole))
 
             if "icons" in self.steps:
                 from nrdata import iconbuild
 
-                self.progress.emit("Decoding artwork ...")
-                iconbuild.build(
-                    self.game,
-                    defs,
-                    paths.icons_dir(),
-                    report=lambda line: self.progress.emit(line.strip()),
-                )
+                iconbuild.build(self.game, defs, paths.icons_dir(),
+                                progress=part("icons"))
         except Exception as exc:  # noqa: BLE001 - reported in the dialog
             errortext.print_traceback(exc)
             # `errortext` and not the exception itself: the build reads the
@@ -706,7 +734,6 @@ class _Window(QWidget):
         self._page: QWidget | None = None
         self._body: QVBoxLayout | None = None
 
-        self.status = QLabel("")
         self.shortcut_check = None
         #: The buttons of the question on screen, by the answer each gives.
         self.buttons: dict[str, QPushButton] = {}
@@ -836,10 +863,10 @@ class _Window(QWidget):
             self.press(self._escape)
         super().closeEvent(event)
 
-    def _new_page(self) -> None:
+    def _new_page(self, kind: type[QWidget] = QWidget) -> None:
         """Put an empty page in the frame, and the one before it out."""
         before = self._page
-        self._page = QWidget(self)
+        self._page = kind(self)
         self._body = QVBoxLayout(self._page)
         self._body.setContentsMargins(SIDE_MARGIN, TOP_MARGIN,
                                       SIDE_MARGIN, TOP_MARGIN)
@@ -860,47 +887,26 @@ class _Window(QWidget):
         of "question, confirmation, build": there is no click between it and
         the build (AK-118).
         """
-        self._new_page()
+        self._new_page(backdrop.Backdrop)
         self.buttons = {}
         self._asking = False
 
-        # The rebuild is no longer only for a patched game -- upgrading the
-        # tool itself can need one too -- so the wording says what is being
-        # done rather than guessing at the reason for it.
-        headline = (
-            "Setting up Nightreign Helper"
-            if first_time
-            else "Refreshing your game data"
-        )
-        # No figure, on either of them (AK-253). Four measurements of this
-        # build came back at 107 s, 163-283 s and twice at about five minutes,
-        # on the same machine and the same game -- so naming a number is the
-        # mistake here, not the number that was named. `minutes rather than
-        # seconds` stays true across all four and would stay true at ten, and
-        # `sometimes several` errs in the direction that costs nothing: a
-        # player who waits less than he was told does not start doubting.
-        # No cause is offered either, because the spread has none that anybody
-        # has measured (`UI_SPEC` T-178 §6 to §8).
-        detail = (
-            "Reading your installation. This happens once, and takes minutes "
-            "rather than seconds — sometimes several. The line below changes "
-            "as it goes."
-            if first_time
-            else "Re-reading your installation so the numbers are up to date. "
-                 "This takes minutes rather than seconds — sometimes several. "
-                 "The line below changes as it goes."
-        )
+        # One glass pane over the window's picture, as everywhere else in
+        # the program: the page keeps the pane off the window's edge, the
+        # pane keeps what it holds off its own.
+        self._body.setContentsMargins(PANE_GAP, PANE_GAP, PANE_GAP, PANE_GAP)
+        pane = QFrame()
+        theme.as_glass(pane)
+        self._body.addWidget(pane)
+        layout = QVBoxLayout(pane)
+        layout.setContentsMargins(SIDE_MARGIN, TOP_MARGIN,
+                                  SIDE_MARGIN, TOP_MARGIN)
+        layout.setSpacing(12)
 
-        layout = self._body
-
-        title = QLabel(headline)
-        font = title.font()
-        font.setPointSize(font.pointSize() + 3)
-        font.setBold(True)
-        title.setFont(font)
-        layout.addWidget(title)
-
-        note = QLabel(detail)
+        # One sentence and the bar under it, the same on a first start and
+        # on a rebuild: both read the same files. `a few minutes` and no
+        # figure (AK-253): this build was measured between two and five.
+        note = QLabel(BUILD_LINE)
         note.setWordWrap(True)
         layout.addWidget(note)
 
@@ -911,14 +917,14 @@ class _Window(QWidget):
             confirmation.setStyleSheet(f"color: {GOOD}")
             layout.addWidget(confirmation)
 
-        bar = QProgressBar()
-        bar.setRange(0, 0)  # no total is knowable, so keep it indeterminate
-        bar.setTextVisible(False)
-        layout.addWidget(bar)
-
-        self.status = QLabel("")
-        self.status.setWordWrap(True)
-        layout.addWidget(self.status)
+        # Moves on its own until the build says how far it is; from then on
+        # it shows that share (`_Builder.share`).
+        self.bar = QProgressBar()
+        self.bar.setRange(0, 0)
+        self.bar.setTextVisible(False)
+        self.bar.setFixedHeight(8)
+        self.bar.setStyleSheet(BAR_STYLE)
+        layout.addWidget(self.bar)
 
         # This one-off setup is the closest thing the program has to being
         # installed, so it is the natural place to offer what an installer
@@ -942,25 +948,17 @@ class _Window(QWidget):
             )
             layout.addWidget(self.shortcut_check)
 
-        # Back to the splash it has always been, and never shorter than it has
-        # always been -- plus whatever the confirmation line needs, which is
-        # measured rather than guessed at: a long path wraps.
-        extra = 0
-        if confirmation is not None:
-            extra = (confirmation.heightForWidth(PANEL_WIDTH - 2 * SIDE_MARGIN)
-                     + layout.spacing())
-        # The height follows the text, not the other way round (AK-255). The
-        # two figures below were enough for a one-line sentence and are not
-        # enough for the honest one, and a fixed height would cut it off at
-        # the bottom -- which is the fault `_height_of_the_content` was
-        # written for on the question states. They stay as the floor, so no
-        # build state is ever shorter than it is today.
-        layout.activate()
-        floor = (190 if first_time else 150) + extra
+        # The height follows what the pane holds (AK-255), at the width the
+        # question states have, so answering does not make the screen jump.
+        self._body.activate()
         self.setWindowFlags(Qt.WindowType.SplashScreen)
-        self.setFixedSize(PANEL_WIDTH,
-                          max(floor, layout.heightForWidth(PANEL_WIDTH)))
+        self.setFixedSize(PANEL_WIDTH, self._body.heightForWidth(PANEL_WIDTH))
         self.show()
+
+    def show_the_share(self, done: int) -> None:
+        """Fill the bar to `done` of `SHARES`."""
+        self.bar.setRange(0, SHARES)
+        self.bar.setValue(done)
 
     def wants_shortcut(self) -> bool:
         return bool(self.shortcut_check and self.shortcut_check.isChecked())
@@ -1029,7 +1027,7 @@ def _build_what_is_missing(game: pathlib.Path | None, window: _Window | None,
 
     outcome: dict[str, str] = {}
     thread.started.connect(builder.run)
-    builder.progress.connect(window.status.setText)
+    builder.share.connect(window.show_the_share)
     builder.finished.connect(lambda err: outcome.setdefault("error", err))
     builder.finished.connect(thread.quit)
 

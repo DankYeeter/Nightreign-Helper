@@ -190,6 +190,16 @@ class SlotProblem:
     AD-059), sorted: each goes into the suggestion when it fits, and the run
     says why when it does not. Not `favourites`' text form: this package is
     Qt-free, and the window reads the store.
+
+    `equipped` are the copies sitting in the free slots as the player has
+    them (user decision 2026-11-15): a suggestion keeps each of them unless
+    its own choice for that slot is clearly better (`run.CLEARLY_BETTER`).
+    A string of `Candidate`, which is defined further down.
+
+    `any_of` are the families the player favourited (user decision
+    2026-11-15): each a group of effect ids of which one in the build is
+    enough. The first id of a group stands for it in `required`; `carries`
+    and `favourited` are how every reader asks.
     """
 
     slots: tuple[Slot, ...] = ()
@@ -199,6 +209,8 @@ class SlotProblem:
     favourites_of_others: frozenset[int] = frozenset()
     rejected: frozenset[Roll] = frozenset()
     pinned: tuple[Roll, ...] = ()
+    equipped: tuple["Candidate", ...] = ()
+    any_of: tuple[tuple[int, ...], ...] = ()
 
     def __post_init__(self) -> None:
         both = self.excluded & self.required
@@ -1037,6 +1049,25 @@ def held_handles(problem: SlotProblem) -> frozenset[int]:
     """
     return frozenset(relic.handle for relic in held_relics(problem)
                      if relic.handle is not None)
+
+
+def alternatives(problem: SlotProblem, effect_id: int) -> tuple[int, ...]:
+    """The ids that meet this requirement: its family's, or itself."""
+    return next((group for group in problem.any_of
+                 if group and group[0] == effect_id), (effect_id,))
+
+
+def carries(problem: SlotProblem, copy, effect_id: int) -> bool:
+    """Does this copy meet the requirement `effect_id` stands for? Effect
+    or curse: both are effect ids, both meet a requirement."""
+    return not set(alternatives(problem, effect_id)).isdisjoint(
+        (*copy.effect_ids, *copy.curse_ids))
+
+
+def favourited(problem: SlotProblem, effect_id: int) -> bool:
+    """Marked `Favourite`, on its own or through its family."""
+    return effect_id in problem.required or any(
+        effect_id in group for group in problem.any_of)
 
 
 def roll_of(copy) -> Roll:

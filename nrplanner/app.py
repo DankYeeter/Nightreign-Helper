@@ -3738,17 +3738,24 @@ class Planner(QMainWindow):
                  if not cards[group.slot_index].already_equipped(
                      by_slot.get(group.slot_index))),
                 None)
+        avoided = self.effect_filters.resolved_excluded
         for group in suggestion.reasons:
+            in_the_slot = cards[group.slot_index].current_relic()
             cards[group.slot_index].show_the_suggestion(
                 result.goal_label, group,
                 by_slot.get(group.slot_index), may_explain=may_explain,
+                equipped_out_line=advisorblock.equipped_out_line(
+                    advisorblock.effect_name(self.effects, effect_id)
+                    for effect_id in (*getattr(in_the_slot, "effect_ids", ()),
+                                      *getattr(in_the_slot, "curse_ids", ()))
+                    if effect_id in avoided),
                 held_favourite_line=(result.favourites_met_line
                                      if group.slot_index == held_favourite_slot
                                      else ""),
                 pinned=group.slot_index in result.pins_placed,
                 names={line.effect_id: advisorblock.effect_name(
                     self.effects, line.effect_id) for line in group.lines},
-                favourited=self.effect_filters.required)
+                favourited=self.effect_filters.favoured)
         for empty in result.empty_slots:
             cards[empty.slot_index].show_no_suggestion(empty.line)
 

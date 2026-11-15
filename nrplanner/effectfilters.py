@@ -51,10 +51,14 @@ EXCLUDED = "excluded"
 REQUIRED = "required"
 ALLOWED = "allowed"
 AVOIDED_FAMILIES = "avoided_families"
+#: User decision 2026-11-15: `Favourite` on a family header, one member of
+#: it in the build is enough.
+FAVOURITE_FAMILIES = "favourite_families"
 STACKS = "stacks"
 KEYS = {EXCLUDED: "advisor/excluded", REQUIRED: "advisor/required",
         ALLOWED: "advisor/allowed",
         AVOIDED_FAMILIES: "advisor/avoided_families",
+        FAVOURITE_FAMILIES: "advisor/favourite_families",
         STACKS: "advisor/stacks"}
 
 #: Family names are stored one per line: a comma is part of some of them
@@ -149,8 +153,9 @@ def stored_stacks(hero_id: int | None = None) -> dict[int, int]:
 
 def store(excluded: Iterable[int], required: Iterable[int],
           allowed: Iterable[int], avoided_families: Iterable[str],
+          favourite_families: Iterable[str] = (),
           hero_id: int | None = None) -> None:
-    """All four keys, through one store object and one `sync()`."""
+    """All five keys, through one store object and one `sync()`."""
     settings = favourites.settings()
     for kind, ids in ((EXCLUDED, excluded), (REQUIRED, required),
                       (ALLOWED, allowed)):
@@ -158,6 +163,8 @@ def store(excluded: Iterable[int], required: Iterable[int],
                           ",".join(str(i) for i in sorted(ids)))
     settings.setValue(key_for(AVOIDED_FAMILIES, hero_id),
                       FAMILY_SEPARATOR.join(sorted(avoided_families)))
+    settings.setValue(key_for(FAVOURITE_FAMILIES, hero_id),
+                      FAMILY_SEPARATOR.join(sorted(favourite_families)))
     settings.sync()
 
 
@@ -188,10 +195,14 @@ class EffectFilters(QObject):
         self.allowed = as_stored[1] - self.required
         self.excluded = as_stored[0] - self.required - self.allowed
         self.avoided_families = stored_text(AVOIDED_FAMILIES, hero_id)
+        # A family is one or the other; a store that says both reads as
+        # favourited, as an id does.
+        self.favourite_families = stored_text(FAVOURITE_FAMILIES, hero_id)
+        self.avoided_families -= self.favourite_families
         self.stacks = stored_stacks(hero_id)
         if (self.excluded, self.allowed) != as_stored:
             store(self.excluded, self.required, self.allowed,
-                  self.avoided_families, hero_id)
+                  self.avoided_families, self.favourite_families, hero_id)
         self._resolve()
 
     def set_hero(self, hero_id: int | None) -> None:
@@ -199,10 +210,11 @@ class EffectFilters(QObject):
         if hero_id == self.hero_id:
             return
         before = (self.excluded, self.required, self.allowed,
-                  self.avoided_families, self.stacks)
+                  self.avoided_families, self.favourite_families, self.stacks)
         self._load(hero_id)
         if before != (self.excluded, self.required, self.allowed,
-                      self.avoided_families, self.stacks):
+                      self.avoided_families, self.favourite_families,
+                      self.stacks):
             self.changed.emit()
 
     def mark(self, effect_id: int, kind: str | None) -> None:
@@ -218,7 +230,17 @@ class EffectFilters(QObject):
         """Avoid, or stop avoiding, every effect of one family."""
         families = (self.avoided_families | {key} if avoided
                     else self.avoided_families - {key})
-        self._apply(self.excluded, self.required, self.allowed, families)
+        self._apply(self.excluded, self.required, self.allowed, families,
+                    self.favourite_families - ({key} if avoided else set()))
+
+    def favour_family(self, key: str, favoured: bool) -> None:
+        """Ask for one effect of this family in every suggestion, or stop
+        asking. A favourited family is not an avoided one."""
+        families = (self.favourite_families | {key} if favoured
+                    else self.favourite_families - {key})
+        self._apply(self.excluded, self.required, self.allowed,
+                    self.avoided_families - ({key} if favoured else set()),
+                    families)
 
     def set_stacks(self, effect_id: int, count: int | None) -> None:
         """How many stacks the advisor's questions count for this effect;
@@ -242,13 +264,17 @@ class EffectFilters(QObject):
         return {effect_id: count for effect_id, count in self.stacks.items()
                 if model.accumulates(effects.get(str(effect_id)) or {})}
 
-    def _apply(self, excluded, required, allowed, avoided_families) -> None:
-        after = (excluded, required, allowed, avoided_families)
+    def _apply(self, excluded, required, allowed, avoided_families,
+               favourite_families=None) -> None:
+        if favourite_families is None:
+            favourite_families = self.favourite_families
+        after = (excluded, required, allowed, frozenset(avoided_families),
+                 frozenset(favourite_families))
         if after == (self.excluded, self.required, self.allowed,
-                     self.avoided_families):
+                     self.avoided_families, self.favourite_families):
             return
         (self.excluded, self.required, self.allowed,
-         self.avoided_families) = after
+         self.avoided_families, self.favourite_families) = after
         store(*after, hero_id=self.hero_id)
         self._resolve()
         self.changed.emit()
@@ -259,3 +285,28 @@ class EffectFilters(QObject):
         #: AD-039.3: what `SlotProblem.excluded` is handed.
         self.resolved_excluded: frozenset[int] = frozenset(
             (self.excluded | by_family) - self.allowed - self.required)
+        #: Every id drawn as favourited: marked itself, or of a favourited
+        #: family and not avoided on its own.
+        self.favoured: frozenset[int] = self.required | frozenset(
+            effect_id for effect_id, key in self.families.items()
+            if key in self.favourite_families
+            and effect_id not in self.resolved_excluded)
+
+    def favourite_groups(self, works) -> tuple[tuple[int, ...], ...]:
+        """Per favourited family the ids of which one is enough, the one
+        that stands for it first: the shortest name, so the family's plain
+        form where it has one. `works(effect_id)` gives that name, or `None`
+        for an id that does nothing for this Nightfarer; an id avoided on its
+        own is no member. A family left without members asks for nothing."""
+        groups = []
+        for key in sorted(self.favourite_families):
+            named = {effect_id: works(effect_id)
+                     for effect_id, family in self.families.items()
+                     if family == key
+                     and effect_id not in self.resolved_excluded}
+            members = sorted((eid for eid, name in named.items()
+                              if name is not None),
+                             key=lambda eid: (len(named[eid]), eid))
+            if members:
+                groups.append(tuple(members))
+        return tuple(groups)
