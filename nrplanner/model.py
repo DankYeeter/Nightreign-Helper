@@ -276,6 +276,40 @@ def percent_value(field_name: str, value: float) -> float:
 SENTINEL_BASELINE = -1.0
 
 
+# Effects whose number sits on a row they only switch on (`triggered`) and
+# that the sheet offers as a condition all the same, by the user's decision
+# of 15.11.2026: "Taking attacks improves attack power" is +15% to all damage
+# for 10 s, re-armed within a second and restarted by every hit taken, so
+# under fire it is on the whole time -- and as a line of text it moved no
+# total and no advice. The three ids are the one effect on its three attach
+# rows. ponytail: a list, not a rule; the other triggered buffs join it one
+# decision at a time.
+TRIGGERED_CONDITIONS = frozenset({7032200, 10001, 100000})
+#: `stacking.STACKING_CATEGORY`, which this module cannot import.
+_STACKING_CATEGORY = 10
+
+
+def _adopt_triggered(effect: dict) -> None:
+    """Make a `TRIGGERED_CONDITIONS` effect an ordinary timed condition.
+
+    Its one triggered row moves into `modifiers`, duration included, which is
+    the shape every other timed buff of the dataset already has: the duration
+    makes it conditional (`timed_window`), the sheet lists it with a switch
+    and counts it only while declared. A row the game holds once marks the
+    effect `one_instance`, as the extractor would have. Done once; a second
+    `configure` finds nothing left to move.
+    """
+    rows = effect.get("triggered") or []
+    if effect.get("id") not in TRIGGERED_CONDITIONS or len(rows) != 1:
+        return
+    row = rows[0]
+    effect["modifiers"] = {**(effect.get("modifiers") or {}),
+                           **(row.get("modifiers") or {})}
+    if row.get("sp_category") != _STACKING_CATEGORY:
+        effect["one_instance"] = True
+    del effect["triggered"]
+
+
 # Whether configure() has run at all. Not a nicety: without it the module
 # falls back to deciding what multiplies from the field's name, which is a
 # different calculation and not a slightly worse one. "Improved Item
@@ -301,6 +335,7 @@ def configure(data: dict) -> None:
     RATE_LABELS.update({f: RATE_LABELS.get(f, f) for f in PERCENT_FIELDS})
     CONDITIONAL_EFFECT_IDS.clear()
     for effect in (data.get("effects") or {}).values():
+        _adopt_triggered(effect)
         if effect["id"] in NO_SWITCH or not is_conditional(effect, None):
             continue
         CONDITIONAL_EFFECT_IDS.add(effect["id"])
@@ -1244,9 +1279,22 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
             for k, v in (declared or {}).items() if int(v) > 0}
     if live:
         expanded: list[dict] = []
+        declared_once: set[int] = set()
         for eff in effects:
             times = live.get(eff["id"], 0)
             if times and is_conditional(eff, wep_type):
+                # The declared count is how often the condition holds, once
+                # for the build: a second relic carrying an effect the game
+                # holds one instance of does not double it. "Taking attacks
+                # improves attack power" switched on is +15% on one relic
+                # and on three.
+                if eff.get("one_instance") and eff["id"] in declared_once:
+                    build.warnings.append(Warning(
+                        "duplicate",
+                        f"{eff['name']} — the game keeps one instance of "
+                        f"this effect"))
+                    continue
+                declared_once.add(eff["id"])
                 expanded.extend([{**eff, FORCED: True}] * times)
             else:
                 expanded.append(eff)

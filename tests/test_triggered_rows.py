@@ -225,3 +225,41 @@ def test_boss_a_script_brings_in_is_named_only_when_it_is_the_only_one():
     assert bossdata._spawned_boss(one, {5240, 7720}, by_chr, named) is None
     two = one + struct.pack("<i", 904580600)
     assert bossdata._spawned_boss(two, {5240}, by_chr, named) is None
+
+
+def test_taking_attacks_buff_counts_only_while_declared(game_data):
+    """User decision 15.11.2026: +15% to all damage as a condition the sheet
+    can switch on, not as a line of text that moves nothing."""
+    from nrplanner import model
+    effect = game_data["effects"]["7032200"]
+    assert "triggered" not in effect
+    assert model.is_conditional(effect)
+    assert effect["id"] in model.CONDITIONAL_EFFECT_IDS
+    assert stacking.classify(effect) == "One copy only (multiplies)"
+    assert effecttext.describe(effect).startswith("All damage +15%")
+
+    hero = game_data["heroes"][0]
+    curves = game_data["curves"]
+    off = model.compute(hero, 15, [effect], curves)
+    on = model.compute(hero, 15, [effect], curves, declared={7032200: 1})
+    assert "physicsAttackRate" not in off.rates
+    assert abs(on.rates["physicsAttackRate"] - 1.15) < 1e-6
+    # A second relic adds nothing: the game holds one instance of the buff.
+    two = model.compute(hero, 15, [effect, effect], curves,
+                        declared={7032200: 1})
+    assert abs(two.rates["physicsAttackRate"] - 1.15) < 1e-6
+
+
+def test_adopting_a_triggered_row_is_done_once():
+    from nrplanner import model
+    effect = {"id": 7032200, "modifiers": {"cycleOccurrenceSpEffectId": 1},
+              "triggered": [{"sp_id": 7032202, "sp_category": 20, "modifiers": {
+                  "physicsAttackRate": 1.15, "effectEndurance": 10.0}}]}
+    model._adopt_triggered(effect)
+    first = dict(effect["modifiers"])
+    model._adopt_triggered(effect)
+    assert effect["modifiers"] == first and effect["one_instance"] is True
+    other = {"id": 8620100, "modifiers": {}, "triggered": [
+        {"sp_id": 1, "sp_category": 20, "modifiers": {"x": 1}}]}
+    model._adopt_triggered(other)
+    assert "triggered" in other, "an effect outside the list is left alone"
