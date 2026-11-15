@@ -489,7 +489,7 @@ def test_the_first_run_keeps_a_refusal_of_the_extraction_path(monkeypatch,
     """
     from nrdata import dds, extract
 
-    def a_texture_that_is_not_one(game, defs, target):
+    def a_texture_that_is_not_one(game, defs, target, progress):
         dds.decode(b"RIFF")
 
     said: list[str] = []

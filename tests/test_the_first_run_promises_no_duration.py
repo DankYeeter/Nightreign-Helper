@@ -8,19 +8,19 @@ spread has no cause anybody has measured -- so the mistake is naming a figure
 at all, not naming the wrong one, and no invented reason ("on a slow drive")
 may take its place.
 
-**What replaces it, and what deliberately does not.** The bar stays
-indeterminate. The steps are two, and a bar out of two steps stands on 0 for
-the larger part of the wait and then jumps; the split between them is a guess
-in a docstring; and the fine messages underneath are not a fixed number (one
-only with DLC, one per Nightfarer without a portrait). An estimate that is
-wrong is worse than none. What the player gets instead is the order of
-magnitude in words and the line that keeps changing -- the part the
-`power-user` singled out as *"better than a silent progress bar"*.
+**What replaces it.** One sentence, the same on a first start and on a
+rebuild, with the order of magnitude in words and no figure. Under it a bar
+that moves on its own until the build reports, and from then on shows how
+much of the work is behind it: the build names that share each time one of
+its stages ends, weighted by what the stage took in a measured run. It
+counts work done and promises no time left. The build's own messages
+("item icons: 713 of 786 requested") are no longer shown: the owner read
+them and they told him nothing (15.11.2026).
 
-**The wording is transcribed out of `UI_SPEC` T-178 §8**, not imported from
-`nrplanner.firstrun`: a case that compared the window against the module it
-came from would be green whatever either of them said. W-C is transcribed a
-second time in `test_first_run_panel.py`, with the rest of that panel.
+**The wording is transcribed here**, not imported from `nrplanner.firstrun`:
+a case that compared the window against the module it came from would be
+green whatever either of them said. W-C is transcribed a second time in
+`test_first_run_panel.py`, with the rest of that panel.
 """
 
 from __future__ import annotations
@@ -36,15 +36,10 @@ from nrplanner import firstrun
 from tests import rendered
 from tests.test_game_dir_recognition import make_game
 
-# --- the wording, transcribed out of UI_SPEC T-178 §8 ---------------------
+# --- the wording ----------------------------------------------------------
 
-W_A = ("Reading your installation. This happens once, and takes minutes "
-       "rather than seconds — sometimes several. The line below changes as "
-       "it goes.")
-
-W_B = ("Re-reading your installation so the numbers are up to date. This "
-       "takes minutes rather than seconds — sometimes several. The line "
-       "below changes as it goes.")
+#: The one sentence of the build state, first start and rebuild alike.
+LINE = "Reading your game files, this may take a few minutes."
 
 W_C = ("Its folder is not named after ELDEN RING NIGHTREIGN, so this may be "
        "a different game. Reading it takes minutes, and every number would "
@@ -135,18 +130,18 @@ def shut(window) -> None:
 
 # -- AK-253: no duration, in either state or in the question ---------------
 
-@pytest.mark.parametrize("first_time, expected", [(True, W_A), (False, W_B)])
+@pytest.mark.parametrize("first_time", [True, False])
 def test_the_build_state_says_how_long_without_naming_a_length(
-        qapp, first_time, expected):
-    """AK-253's first half: W-A and W-B, word for word.
+        qapp, first_time):
+    """AK-253's first half: one sentence and the offer, nothing else.
 
-    `minutes rather than seconds` is true of all four measurements and would
-    still be true at ten minutes; `sometimes several` errs in the direction
-    that costs nothing.
+    `a few minutes` is true of all four measurements; a figure is not.
     """
     window = a_window_in_the_build_state(first_time)
     try:
-        assert expected in everything_written_in(window)
+        written = everything_written_in(window)
+        assert [word for word in written if "Start Menu" not in word
+                and "shortcut" not in word] == [LINE]
         # And it says nothing about why, because nobody knows why: the spread
         # was measured on one machine with one game.
         for word in everything_written_in(window):
@@ -166,7 +161,7 @@ def test_no_text_this_module_shows_names_a_duration(qapp, tmp_path):
     T-179, or it is measuring nothing but itself.
     """
     assert [names_a_duration(said) for said in WAS_SAID_BEFORE] == [True, True]
-    assert not names_a_duration(W_A)
+    assert not names_a_duration(LINE)
 
     shown = []
     for panel in every_panel(tmp_path):
@@ -181,14 +176,14 @@ def test_no_text_this_module_shows_names_a_duration(qapp, tmp_path):
 
     # The collection really reaches the screen texts it claims to: the three
     # sentences this task rewrote are all in it.
-    assert W_A in shown and W_B in shown and W_C in shown
+    assert LINE in shown and W_C in shown
     assert not [word for word in shown if names_a_duration(word)]
 
 
-# -- AK-254: no invented progress, and the line that stays ------------------
+# -- AK-254: the bar shows work done, and nothing else ----------------------
 
-def test_the_bar_promises_no_progress_it_cannot_compute(qapp):
-    """AK-254's first half: indeterminate, silent, and no figure beside it."""
+def test_the_bar_moves_on_its_own_until_the_build_reports(qapp):
+    """Indeterminate at first, silent throughout, and no figure beside it."""
     window = a_window_in_the_build_state(first_time=True)
     try:
         bars = window.findChildren(QProgressBar)
@@ -197,76 +192,45 @@ def test_the_bar_promises_no_progress_it_cannot_compute(qapp):
         assert not bars[0].isTextVisible()
         for word in everything_written_in(window):
             assert not INVENTED_PROGRESS.search(word), word
+
+        window.show_the_share(420)
+        assert (bars[0].maximum(), bars[0].value()) == (firstrun.SHARES, 420)
     finally:
         shut(window)
 
 
-#: The build's own messages, in the order a run gives them: the two of
-#: `_Builder`, then `iconbuild`'s, one of them the DLC line that only some
-#: machines ever see.
-TODAYS_MESSAGES = (
-    "Reading the game's data tables ...",
-    "Decoding artwork ...",
-    "hero 3: portrait 900 missing",
-    "portraits: 10",
-    "item icons: 713 of 786 requested",
-    "boss icons: 18 of 18 requested",
-    "ui sprites: 6 of 6",
-    "DLC illustrations found: 4",
-    "verification: every written icon reads back",
-    "character variants: 41 across 10 Nightfarers",
-    "icon pack: 21.4 MB in icons",
-)
+class _BuilderThatOnlyReports(QObject):
+    """Stands where `_Builder` stands: same signals, same thread, same `run`."""
 
-
-class _BuilderThatOnlyTalks(QObject):
-    """Stands where `_Builder` stands, and says what a build says.
-
-    Same two signals, same thread, same `run` -- so the messages travel the
-    real way from the worker to the line under the bar, across the thread
-    boundary and through whatever the window does with them.
-    """
-
-    progress = Signal(str)
+    share = Signal(int)
     finished = Signal(str)
 
     def __init__(self, game, steps) -> None:
         super().__init__()
-        self.game = game
-        self.steps = steps
 
     def run(self) -> None:
-        for message in TODAYS_MESSAGES:
-            self.progress.emit(message)
+        for done in (130, 520, 1000):
+            self.share.emit(done)
         self.finished.emit("")
 
 
-class _WindowThatRemembersItsLine(firstrun._Window):
-    """The real window, with the line under the bar writing down what it is told."""
+class _WindowThatRemembersItsShares(firstrun._Window):
+    """The real window, writing down what its bar is told.
 
-    def show_the_build(self, first_time: bool, said: str = "") -> None:
-        super().show_the_build(first_time, said)
-        self.said_in_the_line: list[str] = []
-        write = self.status.setText
-
-        def remember(text: str) -> None:
-            self.said_in_the_line.append(text)
-            write(text)
-
-        self.status.setText = remember
-
-
-def test_every_message_reaches_the_line_word_for_word_and_in_order(
-        qapp, monkeypatch, tmp_path):
-    """AK-254's second half. The part the `power-user` asked to keep.
-
-    Counted against a literal: as many messages in the line as the build gave
-    out, in the order it gave them, unshortened. A bar with a range would be
-    read off the same list -- which is what the killing mutation does, and why
-    the count and the order are both asserted here.
+    A method of the window and not a function put in its place: a signal
+    connected to a plain function runs it in the thread that emits, and
+    that is the builder's.
     """
+
+    def show_the_share(self, done: int) -> None:
+        self.__dict__.setdefault("seen", []).append(done)
+        super().show_the_share(done)
+
+
+def test_what_the_build_reports_reaches_the_bar(qapp, monkeypatch, tmp_path):
+    """Across the thread boundary, in order, and into the one bar."""
     game = make_game(tmp_path / "game")
-    monkeypatch.setattr(firstrun, "_Builder", _BuilderThatOnlyTalks)
+    monkeypatch.setattr(firstrun, "_Builder", _BuilderThatOnlyReports)
     monkeypatch.setattr(firstrun, "what_is_needed",
                         lambda _game: ["snapshot", "icons"])
     monkeypatch.setattr(firstrun, "bundled_path",
@@ -274,25 +238,52 @@ def test_every_message_reaches_the_line_word_for_word_and_in_order(
     # The offer of a Start Menu entry is ticked by default, and a case is not
     # allowed to put one anywhere: this is the one place the build writes
     # outside its own cache.
-    written = []
-    monkeypatch.setattr(firstrun.shortcut, "create", lambda: written.append(1))
+    monkeypatch.setattr(firstrun.shortcut, "create", lambda: None)
 
-    window = _WindowThatRemembersItsLine()
-    error = firstrun._build_what_is_missing(game, window)
+    window = _WindowThatRemembersItsShares()
 
-    assert error is None
-    assert window.said_in_the_line == list(TODAYS_MESSAGES)
-    assert len(window.said_in_the_line) == 11
+    assert firstrun._build_what_is_missing(game, window) is None
+    assert window.seen == [130, 520, 1000]
+    assert window.bar.value() == window.bar.maximum() == firstrun.SHARES
     window.deleteLater()
     rendered.settle(2)
 
 
+@pytest.mark.parametrize("steps", [["snapshot", "icons"], ["snapshot"],
+                                   ["icons"]])
+def test_the_real_builder_ends_on_a_full_bar_and_never_goes_back(
+        qapp, monkeypatch, tmp_path, steps):
+    """Whichever steps are due, the shares rise and the last one is all of it."""
+    from nrdata import extract, iconbuild
+
+    def a_snapshot(_game, _defs, _out, progress):
+        for share in (extract.P_ARCHIVES, extract.P_EFFECTS,
+                      extract.P_TABLES, extract.P_BOSSES):
+            progress(share)
+
+    def an_icon_pack(_game, _defs, _out, progress):
+        for share in (iconbuild.P_PORTRAITS, iconbuild.P_ITEMS,
+                      iconbuild.P_SPRITES, iconbuild.P_VERIFIED,
+                      iconbuild.P_BACKDROPS, 1.0):
+            progress(share)
+
+    monkeypatch.setattr(extract, "write_snapshot", a_snapshot)
+    monkeypatch.setattr(iconbuild, "build", an_icon_pack)
+    monkeypatch.setattr(firstrun, "defs_dir", lambda: tmp_path)
+    monkeypatch.setattr(firstrun.paths, "cache_dir", lambda: tmp_path / "c")
+
+    builder = firstrun._Builder(tmp_path / "game", steps)
+    seen, ended = [], []
+    builder.share.connect(seen.append)
+    builder.finished.connect(ended.append)
+    builder.run()
+
+    assert ended == [""]
+    assert seen == sorted(seen) and len(set(seen)) > 4
+    assert 0 < seen[0] and seen[-1] == firstrun.SHARES
+
+
 # -- AK-255: nothing is cut off ---------------------------------------------
-
-#: What the build state was fixed at before T-179, and what it may never fall
-#: below now: the splash it has always been, at the height it has always had.
-FLOORS = {True: 190, False: 150}
-
 
 @pytest.mark.parametrize("first_time", [True, False])
 def test_the_build_state_is_as_tall_as_what_it_says(qapp, first_time):
@@ -307,11 +298,10 @@ def test_the_build_state_is_as_tall_as_what_it_says(qapp, first_time):
     """
     window = a_window_in_the_build_state(first_time)
     try:
-        assert window.height() >= FLOORS[first_time]
         assert window.width() == firstrun.PANEL_WIDTH
 
         note = [label for label in window.findChildren(QLabel)
-                if label.text() in (W_A, W_B)]
+                if label.text() == LINE]
         assert len(note) == 1, "the explaining line is on screen exactly once"
         assert note[0].height() >= note[0].heightForWidth(note[0].width())
         # And it ends above the bottom edge of the window it sits in.

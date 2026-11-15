@@ -15,7 +15,7 @@ import os
 import pathlib
 import re
 import struct
-from typing import Any
+from typing import Any, Callable
 
 from . import bnd4, bossdata, dvdbnd, fmg, oodle, param, paramdef, regulation
 from .binary import NotWhatItClaims
@@ -160,6 +160,9 @@ MAX_LEVEL = 15
 #      cache left on 24 shows those attributes one above the game's.
 #  26  the line of "Unifying Fate" names its unit ("30% of max FP").
 EXTRACT_VERSION = 26
+
+#: How much of `build` is behind it when each stage ends (`progress`).
+P_ARCHIVES, P_EFFECTS, P_TABLES, P_BOSSES = 0.25, 0.35, 0.38, 0.72
 
 RELIC_COLOURS = {0: "Red", 1: "Blue", 2: "Yellow", 3: "Green", 4: "White"}
 
@@ -2095,7 +2098,15 @@ def catalyst_scaling_rates(table: param.ParamTable) -> dict[int, float]:
     return rates
 
 
-def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
+def build(game_dir: pathlib.Path, defs_dir: pathlib.Path,
+          progress: Callable[[float], None] = lambda _share: None,
+          ) -> dict[str, Any]:
+    """Read the game into the snapshot's dict.
+
+    `progress` is told how much of the work is behind it, from 0 to 1, each
+    time a stage ends. The shares are those stages' part of one measured
+    run (48 s, 15.11.2026), so a bar fed from it moves in steps.
+    """
     game_dir = pathlib.Path(game_dir)
     reg_path = game_dir / "regulation.bin"
 
@@ -2156,6 +2167,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     # maps out of the same set the message files come from.
     oodle.load(game_dir)
     archives = dvdbnd.open_all(game_dir)
+    progress(P_ARCHIVES)
 
     text = _load_text(archives)
     antique_name = text.get("AntiqueName", {})
@@ -2251,6 +2263,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     ]
     sp_baseline = _modal_baseline(speffect.rows, numeric_fields)
     sp_by_id = {r.id: r for r in speffect.rows}
+    progress(P_EFFECTS)
 
     # The proc chance of an "on occasion" effect, in percent. The paramdef has
     # no name for it, so the modal-baseline sweep above skips it along with
@@ -3855,7 +3868,9 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
 
     # ---- Bosses and Deep of Night ----------------------------------------
     menu_text = text.get("CL_MenuText", {})
+    progress(P_TABLES)
     bosses = _bosses(members, defs, menu_text, game_dir)
+    progress(P_BOSSES)
     # A failure here costs the sub-bosses and nothing else, the same trade
     # `_bosses` makes for the weakness block: both read the map files, and
     # neither is worth the whole snapshot.
@@ -3925,8 +3940,11 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path) -> dict[str, Any]:
     }
 
 
-def write_snapshot(game_dir: pathlib.Path, defs_dir: pathlib.Path, out: pathlib.Path) -> dict:
-    data = build(game_dir, defs_dir)
+def write_snapshot(game_dir: pathlib.Path, defs_dir: pathlib.Path,
+                   out: pathlib.Path,
+                   progress: Callable[[float], None] = lambda _share: None,
+                   ) -> dict:
+    data = build(game_dir, defs_dir, progress)
     out.parent.mkdir(parents=True, exist_ok=True)
     # Written beside `out` and swapped in whole, so an interrupted write
     # leaves the previous snapshot rather than half a file.
