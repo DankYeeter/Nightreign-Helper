@@ -103,6 +103,8 @@ NAME_POINT_SIZE = 7
 
 #: What a glass pane keeps between its edge and what it holds, in logical px.
 PANE_PAD = 10
+#: Above and below what a pane holds.
+PANE_PAD_V = 14
 
 
 def as_glass(widget) -> None:

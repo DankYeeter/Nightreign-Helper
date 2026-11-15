@@ -375,7 +375,8 @@ class StatSheet(QScrollArea):
         self.setWidgetResizable(True)
         self.setFrameShape(QFrame.NoFrame)
         theme.as_glass(self)
-        self.setViewportMargins(theme.PANE_PAD, 8, 6, 8)
+        self.setViewportMargins(theme.PANE_PAD, theme.PANE_PAD_V, 6,
+                                theme.PANE_PAD_V)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
         panel = QWidget()

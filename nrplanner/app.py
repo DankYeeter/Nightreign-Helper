@@ -926,6 +926,13 @@ class Planner(QMainWindow):
 
         for index in range(tabs.count()):
             self.rail.add_entry(index, tabs.tabText(index))
+            # Every page but the planner lies straight on the page pane, and
+            # what it shows keeps the same distance from the pane's edge the
+            # planner's own panes keep. The planner has its panes for that.
+            if tabs.widget(index) is not planner:
+                tabs.widget(index).setContentsMargins(
+                    theme.PANE_PAD, theme.PANE_PAD_V - 8,
+                    theme.PANE_PAD, theme.PANE_PAD_V - 4)
         self.rail.show_current(tabs.currentIndex())
 
     def _middle_need(self) -> int:
@@ -948,7 +955,8 @@ class Planner(QMainWindow):
         panel.setMinimumWidth(300 + 2 * theme.PANE_PAD)
         theme.as_glass(panel)
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(theme.PANE_PAD, 8, theme.PANE_PAD, 8)
+        layout.setContentsMargins(theme.PANE_PAD, theme.PANE_PAD_V,
+                                  theme.PANE_PAD, theme.PANE_PAD_V)
 
         layout.addWidget(_heading("Nightfarer"))
         grid = QGridLayout()
@@ -1196,8 +1204,10 @@ class Planner(QMainWindow):
         column = QWidget()
         theme.as_glass(column)
         stack = QVBoxLayout(column)
-        stack.setContentsMargins(theme.PANE_PAD, 8, theme.PANE_PAD - 6, 8)
-        stack.setContentsMargins(0, 0, 0, 0)
+        # The pieces below keep 6 px to their right themselves, for the
+        # slots' scroll bar; with it the pane is padded alike on both sides.
+        stack.setContentsMargins(theme.PANE_PAD - 2, theme.PANE_PAD_V,
+                                 2, theme.PANE_PAD_V)
         stack.setSpacing(0)
 
         # `Ignored` horizontally, here and on the advisor row: inside a
