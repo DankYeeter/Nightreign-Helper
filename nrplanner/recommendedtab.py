@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import collections
 import dataclasses
+import re
 from collections.abc import Callable, Mapping
 
 from PySide6.QtCore import Qt
@@ -51,12 +52,14 @@ HEADER_TIPS = {
                "per relic effect slot that can.",
     COL_ROLLS_DEEP: "Colours of Deep of Night relics that can roll it, and "
                     "the chance per relic effect slot that can.",
-    COL_STATUS: "'other version': you own a weaker tier or another variant "
-                "of this effect, not this one.",
+    COL_STATUS: "'other strength': your relics carry this effect at "
+                "another strength, not this one. Hover the cell for which.",
 }
 
-OWNED, OTHER_VERSION, MISSING = "owned", "other version", "missing"
+OWNED, OTHER_VERSION, MISSING = "owned", "other strength", "missing"
 NO_SAVE = "No save was read, so nothing is counted as owned."
+#: A tier at the end of a name, as `effecttext` strips it for families.
+_TIER = re.compile(r"\s\+\d+$")
 SHOW = (("Top 30", 30), ("Top 50", 50), ("Top 100", 100), ("All", 0))
 
 
@@ -77,8 +80,9 @@ class Row:
     family: str
     owned: int = 0
     owned_deep: int = 0
-    #: Relics carrying another effect of the same family.
-    other_versions: int = 0
+    #: The same effect at another strength on your relics, one line per
+    #: strength: "5x All damage taken -16% (below 40% HP)".
+    other_versions: tuple[str, ...] = ()
 
     @property
     def status(self) -> str:
@@ -173,17 +177,20 @@ def rank(data: Mapping, hero: Mapping, level: int, goal_id: str,
 
     carried: collections.Counter = collections.Counter()
     carried_deep: collections.Counter = collections.Counter()
-    by_family: collections.Counter = collections.Counter()
+    # Same name once a trailing tier ("+2") is gone: another strength of
+    # this effect, and nothing else -- not another armament type.
+    by_strength: dict[str, collections.Counter] = collections.defaultdict(
+        collections.Counter)
     if owned is not None:
         of_id = {row["id"]: key for key, rows in groups.items()
                  for row in rows}
-        family_of = {str(effect["id"]): effecttext.family_key(effect, families)
-                     for effect in data["effects"].values()}
         for relic in owned.relics:
             keys = {of_id[i] for i in relic.effect_ids if i in of_id}
             (carried_deep if relic.is_deep else carried).update(keys)
-            by_family.update({family_of[str(i)] for i in relic.effect_ids
-                              if str(i) in family_of})
+            for effect_id in set(relic.effect_ids):
+                effect = data["effects"].get(str(effect_id))
+                if effect is not None:
+                    by_strength[_untiered(effect)][effect_id] += 1
 
     ranked = [Row(
         effect=rows[0], gain=key[1],
@@ -191,10 +198,26 @@ def rank(data: Mapping, hero: Mapping, level: int, goal_id: str,
         deep=_source(rows, "deep_colours", "deep_chance"),
         family=effecttext.family_key(rows[0], families),
         owned=carried[key], owned_deep=carried_deep[key],
-        other_versions=by_family[effecttext.family_key(rows[0], families)])
+        other_versions=_other_strengths(
+            data, by_strength[_untiered(rows[0])], rows))
         for key, rows in groups.items()]
     ranked.sort(key=lambda row: (-row.gain, effecttext.name(row.effect)))
     return ranked
+
+
+def _untiered(effect: Mapping) -> str:
+    return _TIER.sub("", effecttext.name(effect))
+
+
+def _other_strengths(data: Mapping, carried: collections.Counter,
+                     rows: list[Mapping]) -> tuple[str, ...]:
+    """What your relics carry of this effect at another strength."""
+    own = {row["id"] for row in rows}
+    lines: collections.Counter = collections.Counter()
+    for effect_id, count in carried.items():
+        if effect_id not in own:
+            lines[effecttext.describe(data["effects"][str(effect_id)])] += count
+    return tuple(f"{count}x {text}" for text, count in lines.items())
 
 
 def best_versions(rows: list[Row]) -> list[Row]:
@@ -412,8 +435,9 @@ class RecommendedTab(QWidget):
                 {OWNED: GOOD, MISSING: BAD}.get(row.status, MUTED)))
             if counted and row.status == OTHER_VERSION:
                 status.setToolTip(
-                    f"{row.other_versions} of your relics carry another "
-                    f"version of {row.family}.")
+                    "Your relics carry this effect at another strength:\n"
+                    + "\n".join(row.other_versions)
+                    + f"\nThis one: {effecttext.describe(row.effect)}")
             cells.append(status)
             for column, cell in enumerate(cells):
                 if column not in (COL_NAME, COL_STATUS):

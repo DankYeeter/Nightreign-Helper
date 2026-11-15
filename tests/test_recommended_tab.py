@@ -28,10 +28,14 @@ def test_ranking_is_best_first_and_counts_normal_and_deep_apart(
                  if row.effect["id"] == top.effect["id"])
     assert (first.owned, first.owned_deep, first.status) == (
         1, 2, recommendedtab.OWNED)
-    # Another effect of the same family is neither owned nor plainly missing.
-    siblings = [row for row in again
-                if row.family == top.family and row is not first]
-    assert all(row.status == recommendedtab.OTHER_VERSION for row in siblings)
+    # Another strength of the same name is neither owned nor plainly
+    # missing; another armament type of the same family is missing.
+    for row in again:
+        if row is first:
+            continue
+        same = (recommendedtab._untiered(row.effect)
+                == recommendedtab._untiered(top.effect))
+        assert (row.status == recommendedtab.OTHER_VERSION) == same, row
 
 
 def test_an_armament_condition_counts_only_for_the_starting_armament(
