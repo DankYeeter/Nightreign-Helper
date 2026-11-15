@@ -36,6 +36,7 @@ from .advisorbar import (COMPARE_POINT_PX, VESSEL_LINE_ROLE, AdvisorBar,
                          vessel_compared_lines, vessel_line)
 from .effectstab import EffectsTab
 from .iconpack import IconPack
+from .recommendedtab import RecommendedTab
 from .arsenaltab import ArsenalTab
 from .bosstab import BossTab
 from .datasource import load_data
@@ -872,6 +873,17 @@ class Planner(QMainWindow):
         tabs.addTab(planner, "Build planner")
         self.effects_tab = EffectsTab(data, self.icons)
         tabs.addTab(self.effects_tab, "Effects && chances")
+        self.recommended_tab = RecommendedTab(
+            data, self.icons, self.effects_tab._gem_strip)
+        tabs.addTab(self.recommended_tab, "Recommended effects")
+        # Its Nightfarer and level are the planner's, read when it comes to
+        # the front.
+        tabs.currentChanged.connect(
+            lambda index: self.recommended_tab.follow(
+                self.current_hero()["id"],
+                advisorbar.advisor_goals.phase_level(
+                    self.phase(), self.level_slider.value()))
+            if tabs.widget(index) is self.recommended_tab else None)
 
         self.owned = None
         # Set when the player put something in a slot themselves while the
@@ -2964,6 +2976,7 @@ class Planner(QMainWindow):
         for slot in self.base_slots + self.deep_slots:
             slot.show_the_save_is_being_read(False)
         self._hand_the_stock_to_the_slots()
+        self.recommended_tab.set_inventory(self.owned)
         self._say_how_many_relics_are_owned()
         # A save whose stored builds could not be read has nothing for
         # `Load equipped` to load. Pressing it only rewrote the sentence the
