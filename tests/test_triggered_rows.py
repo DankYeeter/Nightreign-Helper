@@ -259,7 +259,50 @@ def test_adopting_a_triggered_row_is_done_once():
     first = dict(effect["modifiers"])
     model._adopt_triggered(effect)
     assert effect["modifiers"] == first and effect["one_instance"] is True
-    other = {"id": 8620100, "modifiers": {}, "triggered": [
-        {"sp_id": 1, "sp_category": 20, "modifiers": {"x": 1}}]}
-    model._adopt_triggered(other)
-    assert "triggered" in other, "an effect outside the list is left alone"
+
+
+def test_only_a_state_that_lasts_becomes_a_condition():
+    from nrplanner import model
+
+    def adopted(*rows):
+        effect = {"id": 1, "modifiers": {"cycleOccurrenceSpEffectId": 2},
+                  "triggered": [{"sp_id": 2 + i, "sp_category": 20,
+                                 "modifiers": row}
+                                for i, row in enumerate(rows)]}
+        model._adopt_triggered(effect)
+        return effect
+
+    # A hand-out: 15 HP once, for a second.
+    assert "triggered" in adopted({"changeHpPoint": -15,
+                                   "effectEndurance": 1.0})
+    # Three steps of one ladder are not three buffs.
+    assert "triggered" in adopted(
+        {"physicsAttackRate": 1.05, "effectEndurance": 1.5},
+        {"physicsAttackRate": 1.09, "effectEndurance": 1.5})
+    # Two different states of one effect: both count, for the longer window.
+    both = adopted({"physicsAttackRate": 1.35, "effectEndurance": 6.0},
+                   {"slashDamageCutRate": 1.4, "effectEndurance": 5.0})
+    assert "triggered" not in both
+    assert both["modifiers"]["physicsAttackRate"] == 1.35
+    assert both["modifiers"]["slashDamageCutRate"] == 1.4
+    assert both["modifiers"]["effectEndurance"] == 6.0
+
+
+def test_the_relatives_are_conditions_with_their_figures(game_data):
+    """User decision 15.11.2026, second part."""
+    from nrplanner import model
+    want = {
+        "8620100": ("slashDamageCutRate", 0.79, 10.0),   # Taking Damage ...
+        "6600000": ("physicsAttackRate", 1.12, 20.0),    # Sleep in Vicinity
+        "8610700": ("slashDamageCutRate", 0.62, 30.0),   # Successive Attacks
+        "7240000": ("toughnessDamageCutRate", 0.8, 20.0),
+    }
+    for key, (field_name, value, seconds) in want.items():
+        effect = game_data["effects"][key]
+        assert "triggered" not in effect, effect["name"]
+        assert abs(effect["modifiers"][field_name] - value) < 1e-6
+        assert effect["modifiers"]["effectEndurance"] == seconds
+        assert model.is_conditional(effect), effect["name"]
+    # The hand-outs and the ladder stay text.
+    for key in ("7340000", "7037600"):
+        assert game_data["effects"][key].get("triggered"), key
