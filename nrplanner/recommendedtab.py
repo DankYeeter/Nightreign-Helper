@@ -144,46 +144,55 @@ def rank(data: Mapping, hero: Mapping, level: int, goal_id: str,
                                   goal=goal)
         return goal.score(build, asked).value
 
-    groups: dict[tuple, list[Mapping]] = collections.defaultdict(list)
-    for effect in data["effects"].values():
-        groups[identity(effect)].append(effect)
+    base = figure(())
+    # Points are read as points; every other figure as a share of the bare one.
+    relative = goal_id != goals.MAX_ATTRIBUTES.id and base > 0
     families = data.get("weapon_families", {})
+    hero_name = str(hero.get("name", ""))
+    identities: dict[tuple, list[Mapping]] = collections.defaultdict(list)
+    for effect in data["effects"].values():
+        identities[identity(effect)].append(effect)
+    # One row per name and gain: the game keeps some effects as several
+    # records that do the same ("Taking attacks improves attack power" is
+    # three), and a reader counts them as one.
+    groups: dict[tuple, list[Mapping]] = collections.defaultdict(list)
+    for rows in identities.values():
+        first = rows[0]
+        if first.get("is_curse") or first.get("is_debuff"):
+            continue
+        if not any(row.get("colours") or row.get("deep_colours")
+                   for row in rows):
+            continue
+        if not effecttext.works_for(first, hero_name):
+            continue
+        gain = figure((first["id"],)) - base
+        if relative:
+            gain /= base
+        if gain > 1e-9:
+            groups[effecttext.name(first), round(gain, 9)].extend(rows)
+
     carried: collections.Counter = collections.Counter()
     carried_deep: collections.Counter = collections.Counter()
     by_family: collections.Counter = collections.Counter()
     if owned is not None:
         of_id = {row["id"]: key for key, rows in groups.items()
                  for row in rows}
+        family_of = {str(effect["id"]): effecttext.family_key(effect, families)
+                     for effect in data["effects"].values()}
         for relic in owned.relics:
             keys = {of_id[i] for i in relic.effect_ids if i in of_id}
             (carried_deep if relic.is_deep else carried).update(keys)
-            by_family.update({effecttext.family_key(groups[key][0], families)
-                              for key in keys})
+            by_family.update({family_of[str(i)] for i in relic.effect_ids
+                              if str(i) in family_of})
 
-    base = figure(())
-    # Points are read as points; every other figure as a share of the bare one.
-    relative = goal_id != goals.MAX_ATTRIBUTES.id and base > 0
-    ranked = []
-    for key, rows in groups.items():
-        first = rows[0]
-        if first.get("is_curse") or first.get("is_debuff"):
-            continue
-        normal = _source(rows, "colours", "chance")
-        deep = _source(rows, "deep_colours", "deep_chance")
-        if not (normal.colours or deep.colours):
-            continue
-        if not effecttext.works_for(first, str(hero.get("name", ""))):
-            continue
-        gain = figure((first["id"],)) - base
-        if relative:
-            gain /= base
-        if gain <= 1e-9:
-            continue
-        family = effecttext.family_key(first, families)
-        ranked.append(Row(
-            effect=first, gain=gain, normal=normal, deep=deep, family=family,
-            owned=carried[key], owned_deep=carried_deep[key],
-            other_versions=by_family[family]))
+    ranked = [Row(
+        effect=rows[0], gain=key[1],
+        normal=_source(rows, "colours", "chance"),
+        deep=_source(rows, "deep_colours", "deep_chance"),
+        family=effecttext.family_key(rows[0], families),
+        owned=carried[key], owned_deep=carried_deep[key],
+        other_versions=by_family[effecttext.family_key(rows[0], families)])
+        for key, rows in groups.items()]
     ranked.sort(key=lambda row: (-row.gain, effecttext.name(row.effect)))
     return ranked
 
