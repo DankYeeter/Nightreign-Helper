@@ -1548,3 +1548,21 @@ def test_why_lists_no_stored_stacks_the_question_does_not_use(qapp, filters):
         for effect_id in (3, 99999999, 4):
             filters.set_stacks(effect_id, None)
     dialog.deleteLater()
+
+
+def test_the_equipped_relic_left_out_names_what_was_avoided(block):
+    """User question 2026-11-15: a suggestion no better than the relic in the
+    slot says why that relic was not kept -- the player avoided an effect."""
+    sentence = advisorblock.equipped_out_line(
+        ["Taking Damage Causes Madness Buildup"])
+    assert sentence == ("Your equipped relic is left out: you avoided "
+                        "Taking Damage Causes Madness Buildup.")
+    assert advisorblock.equipped_out_line([]) == ""
+
+    block.show_the_suggestion("Balanced", a_mixed_group(),
+                              equipped_out_line=sentence)
+    assert block.equipped_out.isVisibleTo(block)
+    assert block.equipped_out.text() == sentence
+
+    block.show_the_suggestion("Balanced", a_mixed_group())
+    assert not block.equipped_out.isVisibleTo(block)

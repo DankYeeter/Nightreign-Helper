@@ -7,6 +7,13 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ## [Unreleased]
 
 ### Added
+- **Favourite on a whole family of effects.** In the Filters window a family
+  header now has a Favourite box next to Avoid: every suggestion then carries
+  at least one effect of that family, whichever tier.
+- **Optimize keeps the relics you already wear.** A relic in a slot is only
+  replaced when the suggestion is clearly better. One that carries an effect
+  you avoid gives way to a relic that is at least as good, and the suggestion
+  names the avoided effect as the reason.
 - **New box "Advisor" above the level slider: early game or late game.**
   Bonuses in points lose value as you level: "Increased Maximum HP" is always +100 HP,
   which is 36 to 50% more HP on level 1 and 8 to 14% on level 15, while

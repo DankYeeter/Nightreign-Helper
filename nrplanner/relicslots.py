@@ -464,6 +464,7 @@ class RelicSlot(QFrame):
     def show_the_suggestion(self, goal_label: str, group,
                             choice, *, may_explain: bool = True,
                             held_favourite_line: str = "",
+                            equipped_out_line: str = "",
                             pinned: bool = False, names=None,
                             favourited: frozenset[int] = frozenset()) -> None:
         """Draw what the advisor would put here, while the answer lives.
@@ -479,7 +480,8 @@ class RelicSlot(QFrame):
             goal_label, group, already_equipped=self.already_equipped(choice),
             may_be_used=not self.is_held(), may_explain=may_explain,
             curse_tooltip=self._suggested_curse_tooltip(choice),
-            held_favourite_line=held_favourite_line, pinned=pinned,
+            held_favourite_line=held_favourite_line,
+            equipped_out_line=equipped_out_line, pinned=pinned,
             names=names, favourited=favourited,
             symbol_of=self._effect_symbol,
             relic_icon=getattr(self._suggested_copy(choice), "icon", None))

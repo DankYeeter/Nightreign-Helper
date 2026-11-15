@@ -590,7 +590,7 @@ def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
     if effect_id in problem.excluded:
         text = _avoided_sentence(name)
         silence = types.SILENT_EXCLUDED
-    elif effect_id in problem.required:
+    elif types.favourited(problem, effect_id):
         text = f"{name}: you favourited it, so it always counts."
         silence = types.SILENT_REQUIRED
     else:
@@ -659,7 +659,7 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     if effect_id in problem.favourites_of_others:
         return said(_works_for_another(name, effect),
                     types.SILENT_ANOTHER_NIGHTFARER)
-    if (effect_id in problem.required
+    if (types.favourited(problem, effect_id)
             and effect_id in model.ON_THE_ENEMY_EFFECT_IDS):
         return said(f"{name}: you favourited it, but it acts on the enemy, so "
                     f"it moves no number.", types.SILENT_REQUIRED_OTHER_TYPE)
@@ -670,7 +670,7 @@ def _silent_effect(candidate: types.Candidate, effect_id: int,
     # The same holds for a weapon-type bonus of another type and for a
     # condition on an enemy ailment the build does not inflict (01.11.2026,
     # QA-321).
-    if (effect_id in problem.required
+    if (types.favourited(problem, effect_id)
             and effect_id not in dict(ctx.declared)
             and _waits_on_its_condition(effect_id, built)):
         ailment = effecttext.ailment_awaited(effect)
@@ -1323,12 +1323,16 @@ def required_but_unmet(left_out: Sequence[int],
     way back (AK-461), because the player can change it.
     """
     def named(effect_id: int) -> str:
-        return _effect_name(ctx, effect_id) or f"effect {effect_id}"
+        # ponytail: a favourited family is named by its first member; give
+        # it the family's own heading if the sentence is ever misread.
+        family = (" or another of its family"
+                  if len(types.alternatives(problem, effect_id)) > 1 else "")
+        return (_effect_name(ctx, effect_id) or f"effect {effect_id}") + family
 
     no_deep_slot_in_play = not any(slot.deep for slot in problem.slots)
     lines = []
     for eid in sorted(left_out, key=named):
-        if any(eid in copy.effect_ids or eid in copy.curse_ids
+        if any(types.carries(problem, copy, eid)
                for pool in pools for copy in pool.candidates):
             lines.append(
                 f"Your copies can carry “{named(eid)}”, which you favourited, "
@@ -1336,7 +1340,7 @@ def required_but_unmet(left_out: Sequence[int],
                 f"already meets.")
             continue
         owned = [relic for relic in inventory.relics
-                 if eid in relic.effect_ids or eid in relic.curse_ids]
+                 if types.carries(problem, relic, eid)]
         if not owned:
             lines.append(
                 f"No copy you own carries “{named(eid)}”, which you "
@@ -1402,7 +1406,7 @@ def _empty_slot(problem: types.SlotProblem, pool: types.SlotPool,
     """One free slot without a choice, by AD-057.4's order of reasons."""
     index = pool.slot_index
     wanted = tuple(eid for eid in sorted(problem.required)
-                   if any(eid in copy.effect_ids or eid in copy.curse_ids
+                   if any(types.carries(problem, copy, eid)
                           for copy in pool.candidates))
     if wanted:
         return types.EmptySlot(
@@ -1507,8 +1511,7 @@ def required_met_by_a_hold(problem: types.SlotProblem,
     for effect_id in sorted(problem.required):
         carriers = [entry for entry in problem.held
                     if entry.relic is not None
-                    and (effect_id in entry.relic.effect_ids
-                         or effect_id in entry.relic.curse_ids)]
+                    and types.carries(problem, entry.relic, effect_id)]
         if not carriers:
             continue
         where = ", ".join(f"{entry.relic.name} held in Slot {entry.index + 1}"

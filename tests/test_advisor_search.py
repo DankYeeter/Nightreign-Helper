@@ -1088,7 +1088,8 @@ def test_many_open_favourites_are_refuted_without_walking_every_order(
     level = {eid: (offer(0, eid, 1.0, effects={eid}),) for eid in wanted}
     asked = []
     still_unmet = search._still_unmet
-    monkeypatch.setattr(search, "_still_unmet", lambda unmet, copy: (
-        asked.append(1), still_unmet(unmet, copy))[1])
-    assert not search._can_still_be_met(wanted, [level] * 6, frozenset())
+    monkeypatch.setattr(search, "_still_unmet", lambda problem, unmet, copy: (
+        asked.append(1), still_unmet(problem, unmet, copy))[1])
+    assert not search._can_still_be_met(types.SlotProblem(), wanted,
+                                        [level] * 6, frozenset())
     assert len(asked) < 100_000

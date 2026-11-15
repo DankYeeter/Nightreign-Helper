@@ -341,7 +341,7 @@ class WhyLine(QWidget):
         """
         if self.line.effect_id in self._filters.resolved_excluded:
             return effectfilters.EXCLUDED
-        if self.line.effect_id in self._filters.required:
+        if self.line.effect_id in self._filters.favoured:
             return effectfilters.REQUIRED
         return None
 
@@ -421,6 +421,15 @@ class BlockLine(QWidget):
 
 
 # --- the block in the slot card --------------------------------------------
+
+def equipped_out_line(avoided_names) -> str:
+    """Said on a suggestion whose slot holds a relic the run may not use."""
+    names = list(avoided_names)
+    if not names:
+        return ""
+    return (f"Your equipped relic is left out: you avoided "
+            f"{' and '.join(names)}.")
+
 
 class SuggestionBlock(QFrame):
     """What the advisor would put in this slot, while the answer lives.
@@ -513,6 +522,12 @@ class SuggestionBlock(QFrame):
         self.count_line = _plain(colour=MUTED, size=SMALL_TEXT)
         column.addWidget(self.count_line)
 
+        # Why the relic in the slot is not the suggestion although it looks
+        # as good or better: the player avoided one of its effects (user
+        # question 2026-11-15).
+        self.equipped_out = _plain(colour=MUTED, size=SMALL_TEXT)
+        column.addWidget(self.equipped_out)
+
         self.lines = QWidget()
         self._line_column = QVBoxLayout(self.lines)
         self._line_column.setContentsMargins(0, 0, 0, 0)
@@ -548,6 +563,7 @@ class SuggestionBlock(QFrame):
                             may_explain: bool = True,
                             curse_tooltip: str = "",
                             held_favourite_line: str = "",
+                            equipped_out_line: str = "",
                             pinned: bool = False,
                             names=None,
                             favourited: frozenset[int] = frozenset(),
@@ -586,6 +602,9 @@ class SuggestionBlock(QFrame):
         self.pinned_line.setVisible(pinned and not already_equipped)
         self.count_line.setText(group.count_line)
         self.count_line.setVisible(not already_equipped)
+        self.equipped_out.setText(equipped_out_line)
+        self.equipped_out.setVisible(not already_equipped
+                                     and bool(equipped_out_line))
         self._draw_the_lines(
             [line for line in group.lines if types.drawn_in_the_block(line)],
             names or {}, favourited)
@@ -651,7 +670,7 @@ class SuggestionBlock(QFrame):
         self._clear_the_lines()
         for part in (self.use_button, self.why_button, self.reject_button,
                      self.relic_name, self.relic_symbol, self.pinned_line, self.count_line, self.lines, self.held_favourite,
-                     self.already_equipped):
+                     self.equipped_out, self.already_equipped):
             part.setVisible(False)
         self.empty_reason.setText(reason)
         self.empty_reason.setToolTip(as_a_tooltip(reason))
@@ -670,6 +689,7 @@ class SuggestionBlock(QFrame):
         self.relic_name.clear()
         self.count_line.clear()
         self.held_favourite.clear()
+        self.equipped_out.clear()
         self.setVisible(False)
 
 
@@ -869,8 +889,11 @@ class WhyDialog(QDialog):
                 (self.required_list, REQUIRED_HEADING,
                  self._filters.required)):
             names = sorted(self._name_of(effect_id) for effect_id in ids)
+            if label is self.required_list:
+                names += sorted(f"{key} (any one of the family)" for key
+                                in self._filters.favourite_families)
             label.setText("\n".join((heading, *names)))
-            label.setVisible(bool(ids))
+            label.setVisible(bool(names))
         stacks = self._filters.counted_stacks(self._effects)
         self.stacks_list.setText("\n".join((STACKS_HEADING, *sorted(
             f"{self._name_of(effect_id)}: {count}"

@@ -152,14 +152,10 @@ def _stack_effects(copy) -> frozenset[int]:
                      if effect_id in model.STACK_LIMITS)
 
 
-def _carries(copy, effect_id: int) -> bool:
-    """Effect or curse: both are effect ids, both meet a requirement."""
-    return effect_id in copy.effect_ids or effect_id in copy.curse_ids
-
-
-def _still_unmet(unmet: tuple[int, ...], offer: types.Candidate
-                 ) -> tuple[int, ...]:
-    return tuple(eid for eid in unmet if not _carries(offer, eid))
+def _still_unmet(problem: types.SlotProblem, unmet: tuple[int, ...],
+                 offer: types.Candidate) -> tuple[int, ...]:
+    return tuple(eid for eid in unmet
+                 if not types.carries(problem, offer, eid))
 
 
 def _carriers_by_level(problem: types.SlotProblem,
@@ -167,12 +163,13 @@ def _carriers_by_level(problem: types.SlotProblem,
                        ) -> list[dict[int, tuple[types.Candidate, ...]]]:
     """Per free slot, per required effect, the whole pool's carriers in
     pool order -- computed once, read at every level and every cut."""
-    return [{eid: tuple(copy for copy in pool.candidates if _carries(copy, eid))
+    return [{eid: tuple(copy for copy in pool.candidates
+                        if types.carries(problem, copy, eid))
              for eid in sorted(problem.required)}
             for pool in pools]
 
 
-def _can_still_be_met(unmet: tuple[int, ...],
+def _can_still_be_met(problem: types.SlotProblem, unmet: tuple[int, ...],
                       later: Sequence[dict[int, tuple[types.Candidate, ...]]],
                       spent: frozenset[int],
                       refuted: set[tuple[int, tuple[int, ...]]] | None = None
@@ -197,9 +194,10 @@ def _can_still_be_met(unmet: tuple[int, ...],
     for effect in unmet:
         for copy in later[0].get(effect, ()):
             if copy.handle not in spent and _can_still_be_met(
-                    _still_unmet(unmet, copy), later[1:], spent, refuted):
+                    problem, _still_unmet(problem, unmet, copy), later[1:],
+                    spent, refuted):
                 return True
-    if _can_still_be_met(unmet, later[1:], spent, refuted):
+    if _can_still_be_met(problem, unmet, later[1:], spent, refuted):
         return True
     refuted.add(question)
     return False
@@ -229,7 +227,8 @@ def attainable(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
     """
     held = types.held_relics(problem)
     effects = [eid for eid in sorted(problem.required)
-               if not any(_carries(relic, eid) for relic in held)]
+               if not any(types.carries(problem, relic, eid)
+                          for relic in held)]
     if not effects:
         return frozenset(problem.required)
     worth: dict[int, float] = {}
@@ -241,7 +240,7 @@ def attainable(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
         for copy in pool.candidates:
             mask = 0
             for bit, eid in enumerate(effects):
-                if _carries(copy, eid):
+                if types.carries(problem, copy, eid):
                     mask |= 1 << bit
                     gain = types.marginal_for(copy, pool.rank_by)
                     worth[eid] = max(worth.get(eid, gain), gain)
@@ -357,8 +356,8 @@ def _branches(state: _State, offers: Sequence[types.Candidate],
 
 def _successors(state: _State, offers: Sequence[types.Candidate], floor: int,
                 budget: types.Budget, scorer: Scorer,
-                carriers: dict[int, tuple[types.Candidate, ...]]
-                ) -> list[_State]:
+                carriers: dict[int, tuple[types.Candidate, ...]],
+                problem: types.SlotProblem) -> list[_State]:
     """This state, one level deeper. Three outcomes, and each has a reason.
 
     The ordinary one is a successor per branch. The state itself is never
@@ -403,7 +402,7 @@ def _successors(state: _State, offers: Sequence[types.Candidate], floor: int,
         grown.append(_State(chosen=chosen,
                             spent=state.spent | {offer.handle},
                             score=scorer.score(chosen),
-                            unmet=_still_unmet(state.unmet, offer),
+                            unmet=_still_unmet(problem, state.unmet, offer),
                             stacked=state.stacked | _stack_effects(offer)))
     return grown
 
@@ -529,13 +528,13 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
     # A held relic meets a requirement: a second copy of a non-stacking effect
     # would be a duplicate without value (AD-036.4).
     unmet = tuple(eid for eid in sorted(problem.required)
-                  if not any(_carries(relic, eid)
+                  if not any(types.carries(problem, relic, eid)
                              for relic in types.held_relics(problem)))
     live = [_State(chosen=(), spent=types.held_handles(problem),
                    score=scorer.score(()), unmet=unmet,
                    stacked=frozenset().union(
                        *map(_stack_effects, types.held_relics(problem))))]
-    if not _can_still_be_met(unmet, carriers, live[0].spent):
+    if not _can_still_be_met(problem, unmet, carriers, live[0].spent):
         return ()
     for level, slot in enumerate(free):
         if should_cancel():
@@ -548,10 +547,10 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
         for state in live:
             grown.extend(_successors(
                 state, offers, _floor_in_the_group(state, group, rank_of),
-                budget, scorer, carriers[level]))
+                budget, scorer, carriers[level], problem))
         grown = [state for state in grown
-                 if _can_still_be_met(state.unmet, carriers[level + 1:],
-                                      state.spent)]
+                 if _can_still_be_met(problem, state.unmet,
+                                      carriers[level + 1:], state.spent)]
         grown.sort(key=_order)
         live = _once_per_placement(grown, group_of)[:budget.beam_width]
 

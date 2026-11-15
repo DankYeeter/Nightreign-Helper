@@ -263,6 +263,9 @@ def _with_the_balance_span(request: types.AdvisorRequest, inventory,
     (user 2026-11-08). The damage half reads no `Hit with` and no damage
     type, as `goals._balanced` does."""
     plain = dataclasses.replace(ctx, hit_with="", damage_type="")
+    # What the slots can reach, not what the player wears: no relic is kept.
+    request = dataclasses.replace(request, problem=dataclasses.replace(
+        request.problem, equipped=()))
     damage = run(dataclasses.replace(request, goal_id="max_damage",
                                      hit_with="", damage_type=""),
                  inventory, plain, goals, should_cancel)
@@ -375,17 +378,104 @@ def _explained(suggestion: types.Suggestion, problem: types.SlotProblem,
     (AD-014.1).
     """
     chosen = explain.chosen_for(suggestion, pools, placed)
-    built = evaluate(problem, chosen, ctx, goal=goal)
+    kept = _keep_the_equipped(problem, chosen, placed, pools, ctx, goal)
+    built = evaluate(problem, kept, ctx, goal=goal)
+    if kept != chosen:
+        chosen = kept
+        suggestion = dataclasses.replace(
+            suggestion, score=goal.score(built, ctx),
+            choices=tuple(types.SlotChoice(
+                slot_index=copy.slot_index, handle=copy.handle,
+                relic_id=copy.relic_id, name=copy.name) for copy in chosen))
     groups = explain.reasons(problem, chosen, base, built, ctx, goal)
     return dataclasses.replace(suggestion, reasons=groups), chosen, built
+
+
+#: User decision 2026-11-15 ("keine ausbesserung ohne einen klar besseren
+#: kandidaten"): a relic the player has in a slot is replaced only when the
+#: build is worth more than this share more with the suggested copy.
+CLEARLY_BETTER = 0.001
+
+#: How far down a slot's pool `_keep_the_equipped` looks for a copy as good
+#: as a worn one that carries an avoided effect.
+# ponytail: the head of the pre-sort only; the whole pool if a copy is missed.
+SECOND_LOOK = 20
+
+
+def _keep_the_equipped(problem: types.SlotProblem,
+                       chosen: Sequence[types.Candidate],
+                       placed: Sequence[types.Candidate],
+                       pools: Sequence[types.SlotPool],
+                       ctx: types.GoalContext, goal: types.Goal
+                       ) -> tuple[types.Candidate, ...]:
+    """`chosen`, with the player's own relic back wherever the suggested
+    copy is not clearly better (`CLEARLY_BETTER`).
+
+    Slot by slot in the vessel's order, each measured in the build as it
+    stands by then. An equipped relic carrying an avoided effect is kept
+    only where the suggested copy is worse: one at least as good takes the
+    avoided effect away, and that is reason enough (user, 2026-11-15, "wenn
+    ich mindestens gleich gut bin und einen effekt vermeiden kann"). Its
+    figure is formed with the effect struck, as for a held relic
+    (`evaluate.effect_ids_of`). Where such a worn copy beats the suggested
+    one, the head of the slot's pool is asked once more for a copy at least
+    as good (`SECOND_LOOK`). A star is never taken out, and no favourite the
+    suggestion carries is lost.
+    """
+    kept = list(chosen)
+    offered = {pool.slot_index: pool.candidates for pool in pools}
+    starred = {copy.slot_index for copy in placed}
+
+    def worth(copies) -> float:
+        return goal.score(evaluate(problem, tuple(copies), ctx, goal=goal),
+                          ctx).value
+
+    def favourites(copies) -> set[int]:
+        return {eid for eid in problem.required
+                if any(types.carries(problem, copy, eid) for copy in copies)}
+
+    value = worth(kept) if problem.equipped else 0.0
+    for worn in problem.equipped:
+        at = next((i for i, copy in enumerate(kept)
+                   if copy.slot_index == worn.slot_index), None)
+        # ponytail: a worn copy the suggestion moved to another slot is left
+        # where the suggestion put it; swap the two back if players mind.
+        if (at is None or worn.slot_index in starred
+                or types.roll_of(worn) in problem.rejected
+                or any(copy.handle == worn.handle for copy in kept)):
+            continue
+        trial = [*kept[:at], worn, *kept[at + 1:]]
+        if not favourites(trial) >= favourites(kept):
+            continue
+        trial_value = worth(trial)
+        avoided = not problem.excluded.isdisjoint(
+            (*worn.effect_ids, *worn.curse_ids))
+        # Float noise only: with an avoided effect the worn copy has to win.
+        margin = -1e-9 if avoided else CLEARLY_BETTER
+        if value - trial_value > margin * abs(value):
+            continue
+        if avoided:
+            spent = {copy.handle for copy in kept}
+            others = [(worth(other), other) for other in (
+                [*kept[:at], option, *kept[at + 1:]]
+                for option in offered.get(worn.slot_index, ())[:SECOND_LOOK]
+                if option.handle not in spent)
+                if favourites(other) >= favourites(trial)]
+            best = max(others, key=lambda pair: pair[0], default=None)
+            if best and best[0] >= trial_value - 1e-9 * abs(trial_value):
+                value, kept = best
+                continue
+        kept, value = trial, trial_value
+    return tuple(kept)
 
 
 def _required_left_out(problem: types.SlotProblem,
                        chosen: Sequence[types.Candidate]) -> tuple[int, ...]:
     """The favourites no held relic and no copy of the suggestion carries."""
-    carried = {eid for relic in (*types.held_relics(problem), *chosen)
-               for eid in (*relic.effect_ids, *relic.curse_ids)}
-    return tuple(sorted(problem.required - carried))
+    carriers = (*types.held_relics(problem), *chosen)
+    return tuple(sorted(
+        eid for eid in problem.required
+        if not any(types.carries(problem, relic, eid) for relic in carriers)))
 
 
 def _lay_the_pins(inventory, problem: types.SlotProblem,
@@ -697,7 +787,7 @@ def vessel_questions(request: types.AdvisorRequest,
                 vessel["id"], unfit_holds=tuple(relic.name for relic in unfit)))
             continue
         problem = dataclasses.replace(
-            request.problem, slots=slots,
+            request.problem, slots=slots, equipped=(),
             held=tuple(sorted((entry for _, entry in moved),
                               key=lambda entry: entry.index)))
         questions.append(types.VesselQuestion(
