@@ -244,3 +244,21 @@ starts there.
   relic with the same effect adds anything now follows the game's own rule:
   203 effects count once, so some totals fall. The Bosses tab shows
   Heolstor's first form. **The data cache is rebuilt once on first start.**
+- **1.23.0** — a new look: glass panels over a picture from your own game
+  files (Roundtable Hold by default, chosen at the foot of the navigation),
+  the tabs became a list of views down the left edge, and each attribute has
+  a bar. A new view, **Recommended effects**, ranks every effect a relic can
+  roll for your Nightfarer and goal beside how many of your relics carry it.
+  Optimize keeps the relics you already wear unless the suggestion is clearly
+  better, and a whole family of effects can be a Favourite. A new **Advisor**
+  box above the level slider works out early game (level 5) or late game
+  (level 13) instead of the slider's level. Buffs that an effect only
+  triggers ("Taking attacks improves attack power", "Taking Damage Boosts
+  Damage Negation") can be ticked under Conditional & situational. The last
+  five field bosses have a name and their own figures; Demon's Plating and
+  the flask effects show their figures; 29 more effects are "One copy only".
+  Fixed: "Load equipped" reads the stored builds again, and attributes
+  between the game's anchor levels were up to 1 too high (242 of 1,200
+  values change, and the attack ratings that scale with them). The first
+  start shows one sentence and a bar that fills. **The data cache and the
+  symbols are rebuilt once on first start, which may take a few minutes.**

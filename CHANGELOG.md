@@ -6,6 +6,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+## [1.23.0] - 2026-11-15
+
 ### Added
 - **New view "Recommended effects".** Every effect a relic can roll, ranked by
   what one copy adds for a Nightfarer and goal, beside how many of your normal
