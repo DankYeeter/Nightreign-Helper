@@ -340,7 +340,7 @@ class WhyLine(QWidget):
     def kind(self) -> str | None:
         """Which of the two sets holds this line's effect, `None` for
         neutral. Avoided is the resolved set (AD-039.3): a member of an
-        avoided family is struck through, one on `Allow` is not (AK-317.5).
+        avoided family is struck through, one with its own mark is not.
         """
         if self.line.effect_id in self._filters.resolved_excluded:
             return effectfilters.EXCLUDED

@@ -953,11 +953,11 @@ def test_every_line_of_the_dialog_shows_its_effects_state_and_sets_none(
     dialog.deleteLater()
 
 
-def test_a_member_of_an_avoided_family_is_struck_and_one_on_allow_is_not(
+def test_a_member_of_an_avoided_family_is_struck_and_one_on_ignore_is_not(
         qapp):
     """AD-039.3, AK-317.5: the line reads the resolved set -- a family
-    marking strikes the member through, `Allow` draws it like any
-    unmarked effect, with no glyph of its own."""
+    marking strikes the member through, its own `Ignore` draws it small
+    and grey, with no glyph of its own."""
     from nrplanner.theme import BAD
 
     filters = effectfilters.EffectFilters(families={1: "Improved Attack Power"})
@@ -968,8 +968,9 @@ def test_a_member_of_an_avoided_family_is_struck_and_one_on_allow_is_not(
         filters.mark_family("Improved Attack Power", True)
         assert line.kind() == effectfilters.EXCLUDED
         assert line.label.font().strikeOut() and BAD in line.label.styleSheet()
-        filters.mark(1, effectfilters.ALLOWED)
-        assert line.kind() is None and line.bullet.text() == "•"
+        filters.mark(1, effectfilters.IGNORED)
+        assert line.kind() == effectfilters.IGNORED
+        assert line.bullet.text() == "•"
         assert not line.label.font().strikeOut()
     finally:
         filters.mark_family("Improved Attack Power", False)

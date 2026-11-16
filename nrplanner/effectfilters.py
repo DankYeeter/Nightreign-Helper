@@ -1,11 +1,11 @@
 """Which effects the player struck out of, or pinned into, every suggestion.
 
 `GOAL.md` A18 gives the player *Avoid* per effect id, A19 *Favourite*
-(AK-300), A23 *Avoid* per family with *Allow* per member (AD-039); AD-036.5
+(AK-300), A23 *Avoid* per family (AD-039); AD-036.5
 puts all of it in the one settings store the program has, under one fixed
 key each. The ids and family names are the **value**, never the key
 (AD-030, OF-15): nothing here derives a key from anything, and the key
-space is eight per Nightfarer (`key_for`, user 2026-11-08), plus the
+space is seven per Nightfarer (`key_for`, user 2026-11-08), plus the
 shared keys of older versions, which a Nightfarer reads until it has its own. No `__schema` step either -- a store that
 never held a key reads back as empty, which is exactly what an older
 program state means by it.
@@ -16,20 +16,20 @@ questions, Optimize's and the relic picker's, count for a stack effect
 says, and it touches none of the sets below.
 
 The three id sets are disjoint by construction (AK-276: an effect is never
-excluded and required at once, and `Allow` is a third state of the same
+excluded and required at once, and `Ignore` is a third state of the same
 kind). Marking an effect in one set takes it out of the others, so the
 window never has to ask which state it is leaving. The store is not trusted
 to agree: a process that ended between two writes, or a hand in the
 registry, can leave one id under two keys, and a pair that reached
 `SlotProblem` stopped the advisor at every start (QA-267/SEC-045). Loading
-therefore makes the sets disjoint -- `required` wins, then `allowed`
-(Director, 2026-09-14; AD-039.4) -- and writes the repair back; a marking
-writes all four keys through one `QSettings` with one `sync()`, so the gap
+therefore makes the sets disjoint -- `required` wins, then `excluded`
+(Director, 2026-09-14) -- and writes the repair back; a marking
+writes all its keys through one `QSettings` with one `sync()`, so the gap
 is as small as the store allows.
 
 What the advisor is handed is one resolved set (AD-039.3): the ids marked
-`Avoid` and every id whose family is avoided, less the ids on `Allow` and
-the ids on `Favourite` -- Favourite wins over a family, so `SlotProblem`
+`Avoid` and every id whose family is avoided, less the ids marked `Ignore`
+or `Favourite` themselves -- a member's own mark wins over its family, so `SlotProblem`
 never sees an id in both of its sets. Resolved over every id of the
 dataset, not the owned ones: a relic of an avoided family found tomorrow is
 avoided too.
@@ -37,8 +37,11 @@ avoided too.
 `Ignore` (user request 2026-11-16) is the fourth marking and the mild one:
 a relic carrying the id is offered like any other, and the id counts as
 nothing in the advisor's figures -- no gain, and for a curse no loss
-(`SlotProblem.ignored`). Per id and per family; `Avoid` and `Favourite`
-win over it wherever two markings meet on one id.
+(`SlotProblem.ignored`). Per id and per family. With it the older `Allow`
+went (user decision 2026-11-16: "entweder will ich etwas, ich will etwas
+nicht, oder es ist mir egal"): a member of an avoided family is let back in
+by its own `Ignore` or `Favourite`. The `advisor/allowed` key of older
+versions is neither read nor written.
 
 An id the dataset has since lost, or a family name it no longer forms,
 stays stored and travels with the problem; it meets nothing and costs
@@ -55,7 +58,6 @@ from . import favourites, model
 
 EXCLUDED = "excluded"
 REQUIRED = "required"
-ALLOWED = "allowed"
 AVOIDED_FAMILIES = "avoided_families"
 #: User decision 2026-11-15: `Favourite` on a family header, one member of
 #: it in the build is enough.
@@ -65,7 +67,6 @@ IGNORED = "ignored"
 IGNORED_FAMILIES = "ignored_families"
 STACKS = "stacks"
 KEYS = {EXCLUDED: "advisor/excluded", REQUIRED: "advisor/required",
-        ALLOWED: "advisor/allowed",
         AVOIDED_FAMILIES: "advisor/avoided_families",
         FAVOURITE_FAMILIES: "advisor/favourite_families",
         IGNORED: "advisor/ignored",
@@ -163,14 +164,14 @@ def stored_stacks(hero_id: int | None = None) -> dict[int, int]:
 
 
 def store(excluded: Iterable[int], required: Iterable[int],
-          allowed: Iterable[int], avoided_families: Iterable[str],
+          avoided_families: Iterable[str],
           favourite_families: Iterable[str] = (),
           hero_id: int | None = None, *, ignored: Iterable[int] = (),
           ignored_families: Iterable[str] = ()) -> None:
-    """All seven keys, through one store object and one `sync()`."""
+    """All six keys, through one store object and one `sync()`."""
     settings = favourites.settings()
     for kind, ids in ((EXCLUDED, excluded), (REQUIRED, required),
-                      (ALLOWED, allowed), (IGNORED, ignored)):
+                      (IGNORED, ignored)):
         settings.setValue(key_for(kind, hero_id),
                           ",".join(str(i) for i in sorted(ids)))
     settings.setValue(key_for(AVOIDED_FAMILIES, hero_id),
@@ -202,27 +203,24 @@ class EffectFilters(QObject):
         self.families: Mapping[int, str] = dict(families or {})
         self._load(hero_id)
 
-    #: The seven sets a marking moves, in `store`'s order.
-    _SETS = (EXCLUDED, REQUIRED, ALLOWED, AVOIDED_FAMILIES,
+    #: The six sets a marking moves, in `store`'s order.
+    _SETS = (EXCLUDED, REQUIRED, AVOIDED_FAMILIES,
              FAVOURITE_FAMILIES, IGNORED, IGNORED_FAMILIES)
 
     def _state(self) -> tuple:
         return tuple(getattr(self, name) for name in self._SETS)
 
     def _write(self) -> None:
-        store(self.excluded, self.required, self.allowed,
+        store(self.excluded, self.required,
               self.avoided_families, self.favourite_families, self.hero_id,
               ignored=self.ignored, ignored_families=self.ignored_families)
 
     def _load(self, hero_id: int | None) -> None:
         self.hero_id = hero_id
         self.required = stored(REQUIRED, hero_id)
-        as_stored = (stored(EXCLUDED, hero_id), stored(ALLOWED, hero_id),
-                     stored(IGNORED, hero_id))
-        self.allowed = as_stored[1] - self.required
-        self.excluded = as_stored[0] - self.required - self.allowed
-        self.ignored = (as_stored[2] - self.required - self.allowed
-                        - self.excluded)
+        as_stored = (stored(EXCLUDED, hero_id), stored(IGNORED, hero_id))
+        self.excluded = as_stored[0] - self.required
+        self.ignored = as_stored[1] - self.required - self.excluded
         self.avoided_families = stored_text(AVOIDED_FAMILIES, hero_id)
         # A family is one or the other; a store that says both reads as
         # favourited, as an id does, and as avoided before ignored.
@@ -232,7 +230,7 @@ class EffectFilters(QObject):
                                  - self.favourite_families
                                  - self.avoided_families)
         self.stacks = stored_stacks(hero_id)
-        if (self.excluded, self.allowed, self.ignored) != as_stored:
+        if (self.excluded, self.ignored) != as_stored:
             self._write()
         self._resolve()
 
@@ -248,7 +246,7 @@ class EffectFilters(QObject):
     def mark(self, effect_id: int, kind: str | None) -> None:
         """Put one effect into the `kind` set, or into none for `None`."""
         sets = {name: getattr(self, name) - {effect_id}
-                for name in (EXCLUDED, REQUIRED, ALLOWED, IGNORED)}
+                for name in (EXCLUDED, REQUIRED, IGNORED)}
         if kind in sets:
             sets[kind] |= {effect_id}
         self._apply(**sets)
@@ -316,7 +314,7 @@ class EffectFilters(QObject):
                      if key in self.avoided_families}
         #: AD-039.3: what `SlotProblem.excluded` is handed.
         self.resolved_excluded: frozenset[int] = frozenset(
-            (self.excluded | by_family) - self.allowed - self.required)
+            (self.excluded | by_family) - self.ignored - self.required)
         #: Every id drawn as favourited: marked itself, or of a favourited
         #: family and neither avoided nor ignored on its own.
         self.favoured: frozenset[int] = self.required | frozenset(

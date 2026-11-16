@@ -1287,11 +1287,12 @@ def test_the_marked_sets_reach_the_problem_the_window_asks(planner):
     filters.mark(11, effectfilters.EXCLUDED)
     filters.mark(22, effectfilters.REQUIRED)
     filters.mark_family(family, True)
-    filters.mark(7330000, effectfilters.ALLOWED)
+    filters.mark(7330000, effectfilters.IGNORED)
     try:
         problem = advisorbar.asking_from(planner, "max_damage").request.problem
-        # AD-039.3: the avoided family, less the member on Allow.
+        # AD-039.3: the avoided family, less the member set to Ignore.
         assert problem.excluded == {11} | members - {7330000}
+        assert problem.ignored == {7330000}
         assert 7080000 in problem.excluded and len(members) > 2
         assert problem.required == {22}
     finally:

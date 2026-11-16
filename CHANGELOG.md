@@ -15,6 +15,13 @@ History before 1.10.0 was not reconstructed; this file starts here.
   other marks; Why names an ignored effect as "you set it to Ignore, so it is
   not counted."
 
+### Changed
+- **The Allow box in the Filters window is gone.** An effect is now wanted
+  (Favourite), unwanted (Avoid) or indifferent (Ignore). A member of an
+  avoided family comes back in through its own Favourite or Ignore. Allow
+  marks set in an older version no longer apply: such an effect is avoided
+  with its family again until you mark it.
+
 ## [1.23.0] - 2026-11-15
 
 ### Added

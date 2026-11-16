@@ -271,11 +271,12 @@ suggested, but the effect counts as nothing — Optimize and the relic picker's
 figures do not pick a relic because of it, the Recommended effects view does
 not list it, and an ignored curse costs nothing either. **Ignore** on a
 family heading ignores every member, unless one is set to Favourite or
-Avoid. Every Nightfarer
+Avoid. An effect you mark none of the three ways counts as it is. Every Nightfarer
 keeps its own marks: what you check for the Guardian does not touch the
 Duchess. Effects that belong
 to one family sit under a heading: **Avoid** on the heading avoids every
-member below it, and **Allow** on one member lets just that one back in.
+member below it, and **Favourite** or **Ignore** on one member lets just
+that one back in.
 **Favourite** on the heading asks for any one member: every suggestion then
 carries at least one effect of that family, whichever tier. An
 effect that stacks, such as "Attack power increased for each Night Invader
@@ -292,10 +293,9 @@ values you set. A search field above the list filters by name, with the same syn
 relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
 the search field says so directly: "Favourite: every suggestion for this
 Nightfarer must carry this effect, if it can. Avoid: no suggestion uses a
-relic that carries it — on a family header, every member below, unless one is set to Allow. Ignore: the effect
+relic that carries it — on a family header, every member below, unless one has a mark of its own. Ignore: the effect
 may be on a suggested relic, but it counts as nothing — no gain, and for a
-curse no loss. Allow lets that one
-member back in without allowing the rest of the family. These marks are saved
+curse no loss. These marks are saved
 for every Nightfarer; one that only works for another Nightfarer is ignored
 here. They are separate from the ★ you can give a relic in the
 relic picker: that is per Nightfarer, and Optimize puts a favourited relic
@@ -454,7 +454,7 @@ vessel, its cards and its suggestion stay as they were.
 - The comparison goes stale — `Out of date — use Optimize again to compare.`,
   the figures stay — when you change the goal or its boxes,
   the Nightfarer, the Deep of Night box, an Avoid, Favourite or
-  Allow mark, a star, a rejection, a hold, or re-read the save. Opening
+  Ignore mark, a star, a rejection, a hold, or re-read the save. Opening
   another vessel, **Use** and **Apply all** and editing a slot by hand do not
   make it stale. Moving the level slider asks the suggestion and the
   comparison again at the new level; an applied suggestion stays applied.

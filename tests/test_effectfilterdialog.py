@@ -45,8 +45,7 @@ def _owned(*relics) -> inventory.Inventory:
 def filters():
     marks = effectfilters.EffectFilters(families=FAMILIES)
     yield marks
-    for effect_id in set(marks.excluded | marks.required | marks.allowed
-                         | marks.ignored):
+    for effect_id in set(marks.excluded | marks.required | marks.ignored):
         marks.mark(effect_id, None)
     for key in set(marks.avoided_families):
         marks.mark_family(key, False)
@@ -106,7 +105,7 @@ def test_the_window_is_modal_titled_and_sorted_by_name_without_case(window):
 def test_a_family_of_two_or_more_rows_has_a_heading_with_two_boxes(window):
     """AK-316.1, and the user decision of 2026-11-15: the heading carries
     the family key as its name, the sum of copies, a Favourite and an Avoid
-    box and no Allow; members carry Allow, a headless single does not."""
+    box, and since 2026-11-16 an Ignore box; no row has an Allow any more."""
     head = _head(window)
     assert head.text(dlg.COL_NAME) == FAMILY
     assert head.text(dlg.COL_TYPE) == ""
@@ -116,9 +115,10 @@ def test_a_family_of_two_or_more_rows_has_a_heading_with_two_boxes(window):
     assert window.family_box(FAMILY).toolTip() == dlg.FAMILY_AVOID_TOOLTIP
     assert (window.tree.itemWidget(head, dlg.COL_FAVOURITE)
             is window.family_favourite_box(FAMILY))
-    assert window.tree.itemWidget(head, dlg.COL_ALLOW) is None
-    assert window.allow_box(13) is not None
-    assert window.allow_box(10) is None
+    assert (window.tree.itemWidget(head, dlg.COL_IGNORE)
+            is window.family_ignore_box(FAMILY))
+    assert "Allow" not in dlg.HEADINGS
+    assert not hasattr(window, "allow_box")
     assert all(item.childCount() == 0 for item in _top_level(window)
                if item is not head)
 
@@ -138,27 +138,26 @@ def test_the_two_boxes_are_disjoint_and_write_through(window, filters):
     assert filters.required == set() and filters.excluded == set()
 
 
-def test_allow_is_clickable_regardless_of_the_family_state(window, filters):
-    """AK-316.3, AK-317 Nachtrag: the heading's box calls `mark_family`
-    both ways; Allow stays enabled and keeps one tooltip whether or not
-    the family is avoided, and its stored check survives the family
+def test_a_members_own_ignore_lets_it_back_into_an_avoided_family(window,
+                                                                  filters):
+    """AK-316.3, and the user decision of 2026-11-16 that took Allow away:
+    the heading's box calls `mark_family` both ways, a member set to Ignore
+    is not avoided with its family, and its mark survives the family
     toggling either way."""
-    allow = window.allow_box(13)
-    assert allow.isEnabled()
-    assert allow.toolTip() == dlg.ALLOW_TOOLTIP
-    allow.click()
-    assert filters.allowed == {13}
-    # Not yet avoided, so Allow has nothing to pull back in.
+    ignore = window.ignore_box(13)
+    ignore.click()
+    assert filters.ignored == {13}
     assert filters.resolved_excluded == set()
     window.family_box(FAMILY).click()
     assert filters.avoided_families == {FAMILY}
-    assert allow.isEnabled() and allow.isChecked()
+    assert ignore.isEnabled() and ignore.isChecked()
     assert filters.resolved_excluded == {14}
+    assert filters.resolved_ignored == {13}
     # The members' own marks are untouched by the family (AK-316.3).
     assert not window.boxes(13)[1].isChecked()
     window.family_box(FAMILY).click()
     assert filters.avoided_families == set()
-    assert allow.isChecked() and allow.isEnabled()
+    assert ignore.isChecked() and ignore.isEnabled()
 
 
 def test_a_marking_made_elsewhere_is_drawn_without_a_restart(window, filters):
@@ -252,7 +251,7 @@ def test_the_three_empty_states(qapp, filters, window):
             empty.deleteLater()
 
 
-def test_tab_walks_favourite_avoid_allow_and_space_toggles(window, filters):
+def test_tab_walks_favourite_avoid_ignore_and_space_toggles(window, filters):
     """AK-305: reading order within a row, Space switches the box."""
     window.show()
     QApplication.processEvents()
@@ -267,8 +266,6 @@ def test_tab_walks_favourite_avoid_allow_and_space_toggles(window, filters):
     filters.mark_family(FAMILY, True)
     QTest.keyClick(avoid, Qt.Key_Tab)
     assert QApplication.focusWidget() is window.ignore_box(13)
-    QTest.keyClick(window.ignore_box(13), Qt.Key_Tab)
-    assert QApplication.focusWidget() is window.allow_box(13)
     window.close()
 
 
@@ -336,10 +333,9 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
         "Favourite: every suggestion must carry this effect, if it can — "
         "on a family header, any one member. Avoid: no "
         "suggestion uses a relic that carries it — on a family header, every "
-        "member below, unless one is set to Allow. Ignore: the effect may be "
-        "on a suggested relic, but it counts as nothing — no gain, and for a "
-        "curse no loss. Allow lets that one member "
-        "back in without allowing the rest of the family. These marks are saved "
+        "member below, unless one has a mark of its own. Ignore: the effect "
+        "may be on a suggested relic, but it counts as nothing — no gain, "
+        "and for a curse no loss. These marks are saved "
         "for every Nightfarer; one that only works for another "
         "Nightfarer is ignored here. They are separate from the ★ you can give a "
         "relic in the relic picker: that is per Nightfarer, and Optimize puts "
@@ -354,7 +350,7 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
         "No suggestion uses a relic that carries this effect.")
     assert dlg.FAMILY_AVOID_TOOLTIP == (
         "No suggestion uses a relic that carries an effect of this family, "
-        "unless a member below is set to Allow.")
+        "unless a member below is set to Favourite or Ignore.")
     labels = [label for label in window.findChildren(QLabel)
               if label.text() == dlg.MARKS_EXPLANATION]
     assert len(labels) == 1
@@ -544,7 +540,7 @@ def test_a_row_with_a_stacks_field_is_as_high_as_one_without(stack_window):
 
 
 def test_tab_reaches_the_stacks_field_after_the_boxes_of_its_row(stack_window):
-    """On a member after Allow, on a single after Ignore."""
+    """After Ignore, on a single and on a member alike."""
     window = stack_window
     window.show()
     QApplication.processEvents()
@@ -555,10 +551,10 @@ def test_tab_reaches_the_stacks_field_after_the_boxes_of_its_row(stack_window):
     assert QApplication.focusWidget() is window.ignore_box(STACKING)
     QTest.keyClick(window.ignore_box(STACKING), Qt.Key_Tab)
     assert QApplication.focusWidget() is window.stack_fields[STACKING]
-    allow = window.allow_box(STACKING_MEMBER)
-    allow.setFocus()
+    last = window.ignore_box(STACKING_MEMBER)
+    last.setFocus()
     QApplication.processEvents()
-    QTest.keyClick(allow, Qt.Key_Tab)
+    QTest.keyClick(last, Qt.Key_Tab)
     assert QApplication.focusWidget() is window.stack_fields[STACKING_MEMBER]
 
 
@@ -585,8 +581,7 @@ def test_favourite_on_a_family_header_asks_for_any_one_member(window, filters):
         filters.favour_family(FAMILY, False)
 
 
-def test_ignore_is_a_fourth_box_on_a_row_and_a_third_on_a_heading(window,
-                                                                  filters):
+def test_ignore_is_the_third_box_on_a_row_and_on_a_heading(window, filters):
     """User request 2026-11-16: the effect may be there and counts as
     nothing. One state per row, like the other boxes; on a heading the whole
     family, and a family is avoided, favourited or ignored."""

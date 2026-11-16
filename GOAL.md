@@ -479,6 +479,14 @@ favourite entwaessern."*
   "Increased Dagger Attack Power" und "Increased Attack Power with 3+
   Daggers" auf Allow → Optimize schlaegt nur diese beiden aus der Familie
   vor, ohne sie zu erzwingen.
+- **Nachtrag 16.11.2026 (Nutzer):** Allow entfaellt, dafuer **Ignore** je
+  Effekt und je Familie ("entweder will ich etwas, ich will etwas nicht,
+  oder es ist mir egal"). Ignore: der Effekt darf auf einem vorgeschlagenen
+  Relikt stehen, zaehlt aber als null. Ein Mitglied einer vermiedenen
+  Familie kommt ueber sein eigenes Favourite oder Ignore zurueck. Der
+  Nachweis oben gilt damit nicht mehr: "darf rein und zaehlt normal" gibt
+  es unter einer vermiedenen Familie nicht mehr; dafuer bleibt die Familie
+  unmarkiert und die uebrigen Mitglieder werden einzeln vermieden.
 
 *Reihenfolge (Nutzer 20:13): Release 1.13.2 zuerst, A22/A23 als 1.14.0 mit
 eigener Pruefkette.*

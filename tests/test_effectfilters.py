@@ -131,16 +131,20 @@ FAMILIES = {1: "Improved Attack Power", 2: "Improved Attack Power",
             5: "Improved Mind and Faith, Reduced Intelligence"}
 
 
-def test_a_family_marking_and_an_allow_are_there_again_at_the_next_start(store):
-    """AD-039.4, AK-316.7: the two new keys, read back by a new instance."""
+def test_a_family_marking_is_there_again_and_an_old_allow_is_not_read(store):
+    """AK-316.7: the family key, read back by a new instance. `Allow` went
+    on 2026-11-16: what an older version left under its key is neither read
+    nor overwritten."""
+    store.setValue("advisor/allowed", "2")
     filters = effectfilters.EffectFilters(families=FAMILIES)
     filters.mark_family("Improved Attack Power", True)
-    filters.mark(2, effectfilters.ALLOWED)
 
     restarted = effectfilters.EffectFilters(families=FAMILIES)
     assert restarted.avoided_families == {"Improved Attack Power"}
-    assert restarted.allowed == {2}
+    assert restarted.resolved_excluded == {1, 2, 3}
+    assert not hasattr(restarted, "allowed")
     assert store.value("advisor/allowed", "", type=str) == "2"
+    store.setValue("advisor/allowed", "")
     assert store.value("advisor/avoided_families", "",
                        type=str) == "Improved Attack Power"
 
@@ -157,15 +161,15 @@ def test_a_family_key_with_a_comma_survives_the_store(store):
     assert restarted.resolved_excluded == {4, 5}
 
 
-def test_the_resolved_set_is_the_family_less_allow_and_favourite(store):
-    """AD-039.3: every dataset id of an avoided family, less the ones on
-    Allow and the ones favourited (Favourite wins), plus the ids avoided
-    on their own. `changed` fires for a family marking too."""
+def test_the_resolved_set_is_the_family_less_ignore_and_favourite(store):
+    """AD-039.3: every dataset id of an avoided family, less the ones set
+    to Ignore and the ones favourited (a member's own mark wins), plus the
+    ids avoided on their own. `changed` fires for a family marking too."""
     filters = effectfilters.EffectFilters(families=FAMILIES)
     heard = []
     filters.changed.connect(lambda: heard.append(True))
     filters.mark_family("Improved Attack Power", True)
-    filters.mark(2, effectfilters.ALLOWED)
+    filters.mark(2, effectfilters.IGNORED)
     filters.mark(3, effectfilters.REQUIRED)
     filters.mark(4, effectfilters.EXCLUDED)
     assert filters.resolved_excluded == {1, 4}
@@ -173,38 +177,39 @@ def test_the_resolved_set_is_the_family_less_allow_and_favourite(store):
                              required=filters.required).required == {3}
     filters.mark_family("Improved Attack Power", False)
     assert filters.resolved_excluded == {4}
-    assert filters.allowed == {2}, "Allow stays stored for the next Avoid"
+    assert filters.ignored == {2}, "the own mark stays for the next Avoid"
     filters.mark_family("Improved Attack Power", False)
     assert len(heard) == 5
 
 
-def test_allow_is_a_third_state_of_the_same_id(store):
+def test_ignore_is_a_third_state_of_the_same_id(store):
     filters = effectfilters.EffectFilters()
     filters.mark(5, effectfilters.EXCLUDED)
-    filters.mark(5, effectfilters.ALLOWED)
-    assert (filters.excluded, filters.allowed) == (frozenset(), {5})
+    filters.mark(5, effectfilters.IGNORED)
+    assert (filters.excluded, filters.ignored) == (frozenset(), {5})
     filters.mark(5, effectfilters.REQUIRED)
-    assert (filters.allowed, filters.required) == (frozenset(), {5})
+    assert (filters.ignored, filters.required) == (frozenset(), {5})
 
 
-def test_an_id_under_three_keys_is_required_and_under_two_is_allowed(store):
+def test_an_id_under_three_keys_is_required_and_under_two_is_excluded(store):
     """T-292c point 2: loading makes the three id sets disjoint --
-    `required`, then `allowed`, then `excluded` -- and the overlap in every
+    `required`, then `excluded`, then `ignored` -- and the overlap in every
     pair reaches `SlotProblem` without a `ValueError`."""
     store.setValue(effectfilters.KEYS[effectfilters.EXCLUDED], "5,6,7,8")
     store.setValue(effectfilters.KEYS[effectfilters.REQUIRED], "6,9")
-    store.setValue(effectfilters.KEYS[effectfilters.ALLOWED], "7,9")
+    store.setValue(effectfilters.KEYS[effectfilters.IGNORED], "7,9")
     store.sync()
 
     filters = effectfilters.EffectFilters(families={5: "a", 9: "a"})
     filters.mark_family("a", True)
 
     assert (filters.excluded, filters.required,
-            filters.allowed) == ({5, 8}, {6, 9}, {7})
-    assert store.value("advisor/excluded", "", type=str) == "5,8"
-    assert store.value("advisor/allowed", "", type=str) == "7"
+            filters.ignored) == ({5, 7, 8}, {6, 9}, frozenset())
+    assert store.value("advisor/excluded", "", type=str) == "5,7,8"
+    assert store.value("advisor/ignored", "", type=str) == ""
     assert types.SlotProblem(excluded=filters.resolved_excluded,
-                             required=filters.required).excluded == {5, 8}
+                             ignored=filters.resolved_ignored,
+                             required=filters.required).excluded == {5, 7, 8}
 
 
 @pytest.mark.parametrize("damaged, names", [
@@ -315,7 +320,7 @@ def test_ignore_is_stored_per_id_and_per_family_and_yields_to_the_others(
     """User request 2026-11-16: `Ignore` counts an effect as nothing without
     taking its relic away. It is a state of its own, so marking another way
     moves the id; a member favourited or avoided on its own is not ignored
-    with its family, and a member ignored on its own does not stand for a
+    with its family, a member ignored on its own is not avoided with it, and a member ignored on its own does not stand for a
     favourited family."""
     families = {1: "A", 2: "A", 3: "B", 4: "B", 5: "C"}
     filters = effectfilters.EffectFilters(families=families)
@@ -349,8 +354,9 @@ def test_ignore_is_stored_per_id_and_per_family_and_yields_to_the_others(
     assert restarted.resolved_ignored == {1, 3, 4, 5}
     restarted.mark_family("B", True)
     assert restarted.ignored_families == {"A"}
-    assert restarted.resolved_excluded == {3, 4}
-    assert restarted.resolved_ignored == {1, 5}
+    # 3 is ignored on its own, and that lets it back in (no Allow any more).
+    assert restarted.resolved_excluded == {4}
+    assert restarted.resolved_ignored == {1, 3, 5}
 
 
 def test_a_store_that_says_ignored_and_another_state_reads_as_the_other(store):
