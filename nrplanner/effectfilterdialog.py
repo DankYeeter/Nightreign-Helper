@@ -63,9 +63,10 @@ TITLE = "Effect filters"
 #: keeps its 449 px. T-336h (07.11.2026): a row with a Stacks field no longer
 #: stands taller than the others, which moves neither the size nor the tree's
 #: 449 px (offscreen) and 542 px (live, Windows, at 100, 125 and 150 %).
-#: Ignore in the place of Allow (16.11.2026, offscreen on Linux only, not
-#: re-measured on Windows): the column asks 4 px more than Allow did.
-OPENING_SIZE = (706, 733)
+#: Ignore in the place of Allow (16.11.2026): the column asks 4 px more than
+#: Allow did, and on Windows (offscreen, CI runner) the legend's Ignore
+#: sentence takes one line of 13 px more; with both the tree keeps its 449 px.
+OPENING_SIZE = (706, 746)
 
 (COL_FAVOURITE, COL_AVOID, COL_IGNORE, COL_STACKS, COL_NAME, COL_TYPE,
  COL_COPIES) = range(7)
