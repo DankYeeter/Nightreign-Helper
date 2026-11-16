@@ -31,6 +31,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
   which is why Optimize picked all three. They are one effect and count once
   now. The same holds for 22 other effects kept as two records, such as
   "Switching Weapons Boosts Attack Power".
+- **Relics that belong to another player could appear as your own.** The
+  save file also keeps relic records from the last expedition, and those
+  can be other players'. Only relics that the save's own inventory list
+  names count as yours now. Nothing changes for a save that holds only
+  your own relics.
 
 ## [1.23.0] - 2026-11-15
 

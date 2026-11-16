@@ -270,5 +270,6 @@ starts there.
   effect is avoided with its family again until you mark it. Fixed: "Taking
   attacks improves attack power" on three relics counted as +52% instead of
   +15%, which is why Optimize picked it three times; it and 22 other effects
-  the game keeps as several records count once now. The data cache is not
-  rebuilt.
+  the game keeps as several records count once now. Also fixed: relics that
+  belong to another player could appear as your own; only relics that the
+  save's own inventory list names count now. The data cache is not rebuilt.
