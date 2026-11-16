@@ -265,7 +265,13 @@ relic, curses included. Each row has two check boxes, **Favourite** and
 **Avoid**: check **Favourite** and every suggestion for this Nightfarer must
 carry that effect, if it can; check **Avoid** and no suggestion uses a
 relic that carries it (a relic you place or hold yourself stays where you
-put it); checking one clears the other on the same row. Every Nightfarer
+put it); checking one clears the other on the same row. A third box,
+**Ignore**, is the mild one: a relic that carries the effect may still be
+suggested, but the effect counts as nothing — Optimize and the relic picker's
+figures do not pick a relic because of it, the Recommended effects view does
+not list it, and an ignored curse costs nothing either. **Ignore** on a
+family heading ignores every member, unless one is set to Favourite or
+Avoid. Every Nightfarer
 keeps its own marks: what you check for the Guardian does not touch the
 Duchess. Effects that belong
 to one family sit under a heading: **Avoid** on the heading avoids every
@@ -286,7 +292,9 @@ values you set. A search field above the list filters by name, with the same syn
 relic picker's search (`AND`, `OR`, `NOT`, `"quoted phrases"`). A line under
 the search field says so directly: "Favourite: every suggestion for this
 Nightfarer must carry this effect, if it can. Avoid: no suggestion uses a
-relic that carries it — on a family header, every member below, unless one is set to Allow. Allow lets that one
+relic that carries it — on a family header, every member below, unless one is set to Allow. Ignore: the effect
+may be on a suggested relic, but it counts as nothing — no gain, and for a
+curse no loss. Allow lets that one
 member back in without allowing the rest of the family. These marks are saved
 for every Nightfarer; one that only works for another Nightfarer is ignored
 here. They are separate from the ★ you can give a relic in the
@@ -295,7 +303,8 @@ in when it fits. Stacks: how many stacks Optimize and the relic picker's figures
 count for an effect that stacks, not the stat sheet; 0 does not count it, empty
 uses the count ticked on the stat sheet, otherwise 1." A counter
 above the list reads "{shown} of {total} effects", with "{n} favourited"
-and "{n} avoided" added once either count is above zero. The list sorts
+and "{n} avoided" added once either count is above zero, and "{n} ignored"
+likewise. The list sorts
 alphabetically by name; any column header can be clicked to sort by it
 instead. Marks are remembered across restarts.
 

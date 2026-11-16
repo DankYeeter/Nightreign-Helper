@@ -308,3 +308,57 @@ def test_a_nightfarer_without_own_markings_starts_from_the_shared_ones(
         hero_id=two_heroes[0]).required == frozenset()
     assert effectfilters.EffectFilters(
         hero_id=two_heroes[1]).required == {7000200}
+
+
+def test_ignore_is_stored_per_id_and_per_family_and_yields_to_the_others(
+        store):
+    """User request 2026-11-16: `Ignore` counts an effect as nothing without
+    taking its relic away. It is a state of its own, so marking another way
+    moves the id; a member favourited or avoided on its own is not ignored
+    with its family, and a member ignored on its own does not stand for a
+    favourited family."""
+    families = {1: "A", 2: "A", 3: "B", 4: "B", 5: "C"}
+    filters = effectfilters.EffectFilters(families=families)
+    filters.mark(5, effectfilters.IGNORED)
+    filters.ignore_family("A", True)
+    filters.mark(2, effectfilters.REQUIRED)
+    assert store.value("advisor/ignored", "", type=str) == "5"
+    assert store.value("advisor/ignored_families", "", type=str) == "A"
+
+    restarted = effectfilters.EffectFilters(families=families)
+    assert restarted.ignored == {5}
+    assert restarted.ignored_families == {"A"}
+    assert restarted.resolved_ignored == {1, 5}
+    assert restarted.resolved_excluded == frozenset()
+    types.SlotProblem(excluded=restarted.resolved_excluded,
+                      ignored=restarted.resolved_ignored,
+                      required=restarted.required)
+
+    restarted.mark(5, effectfilters.EXCLUDED)
+    assert not restarted.ignored and restarted.excluded == {5}
+    restarted.mark(5, effectfilters.IGNORED)
+    assert restarted.ignored == {5} and not restarted.excluded
+
+    restarted.favour_family("B", True)
+    restarted.mark(3, effectfilters.IGNORED)
+    assert restarted.favoured == {2, 4}
+    assert restarted.favourite_groups(lambda effect_id: "x") == ((4,),)
+    assert restarted.resolved_ignored == {1, 3, 5}
+    restarted.ignore_family("B", True)
+    assert restarted.favourite_families == frozenset()
+    assert restarted.resolved_ignored == {1, 3, 4, 5}
+    restarted.mark_family("B", True)
+    assert restarted.ignored_families == {"A"}
+    assert restarted.resolved_excluded == {3, 4}
+    assert restarted.resolved_ignored == {1, 5}
+
+
+def test_a_store_that_says_ignored_and_another_state_reads_as_the_other(store):
+    store.setValue("advisor/ignored", "1,2,3")
+    store.setValue("advisor/required", "1")
+    store.setValue("advisor/excluded", "2")
+    store.sync()
+    filters = effectfilters.EffectFilters()
+    assert (filters.required, filters.excluded, filters.ignored) == (
+        {1}, {2}, {3})
+    assert store.value("advisor/ignored", "", type=str) == "3"

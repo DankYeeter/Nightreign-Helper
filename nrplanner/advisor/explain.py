@@ -590,6 +590,9 @@ def _marked_line(candidate: types.Candidate, effect_id: int, name: str,
     if effect_id in problem.excluded:
         text = _avoided_sentence(name)
         silence = types.SILENT_EXCLUDED
+    elif effect_id in problem.ignored:
+        text = f"{name}: you set it to Ignore, so it is not counted."
+        silence = types.SILENT_IGNORED
     elif types.favourited(problem, effect_id):
         text = f"{name}: you favourited it, so it always counts."
         silence = types.SILENT_REQUIRED

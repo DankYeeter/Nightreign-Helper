@@ -63,3 +63,19 @@ def test_the_table_shows_one_row_per_family_and_follows_the_planner(
     assert tab.table.item(0, recommendedtab.COL_DEEP).text() == "1"
     tab.missing_only.setChecked(True)
     assert tab.table.rowCount() == len(tab.rows()) - 1
+
+
+def test_an_ignored_effect_counts_as_nothing_and_is_not_listed(
+        game_data, wylder, qapp):
+    """User request 2026-11-16: the filter window's Ignore."""
+    rows = recommendedtab.rank(game_data, wylder, 15, goals.MAX_DAMAGE.id)
+    top = rows[0].effect["id"]
+    without = recommendedtab.rank(game_data, wylder, 15, goals.MAX_DAMAGE.id,
+                                  ignored=frozenset({top}))
+    assert top not in {row.effect["id"] for row in without}
+    assert len(without) == len(rows) - 1
+
+    tab = recommendedtab.RecommendedTab(
+        game_data, ignored_for=lambda hero_id: frozenset({top}))
+    assert top not in {row.effect["id"] for row in tab.rows()}
+    assert "Ignore" in tab.summary.text()

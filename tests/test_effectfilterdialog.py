@@ -45,10 +45,13 @@ def _owned(*relics) -> inventory.Inventory:
 def filters():
     marks = effectfilters.EffectFilters(families=FAMILIES)
     yield marks
-    for effect_id in set(marks.excluded | marks.required | marks.allowed):
+    for effect_id in set(marks.excluded | marks.required | marks.allowed
+                         | marks.ignored):
         marks.mark(effect_id, None)
     for key in set(marks.avoided_families):
         marks.mark_family(key, False)
+    for key in set(marks.ignored_families):
+        marks.ignore_family(key, False)
 
 
 @pytest.fixture
@@ -263,6 +266,8 @@ def test_tab_walks_favourite_avoid_allow_and_space_toggles(window, filters):
     assert filters.excluded == {13}
     filters.mark_family(FAMILY, True)
     QTest.keyClick(avoid, Qt.Key_Tab)
+    assert QApplication.focusWidget() is window.ignore_box(13)
+    QTest.keyClick(window.ignore_box(13), Qt.Key_Tab)
     assert QApplication.focusWidget() is window.allow_box(13)
     window.close()
 
@@ -331,7 +336,9 @@ def test_marks_explanation_label_is_present_and_unfocusable(window):
         "Favourite: every suggestion must carry this effect, if it can — "
         "on a family header, any one member. Avoid: no "
         "suggestion uses a relic that carries it — on a family header, every "
-        "member below, unless one is set to Allow. Allow lets that one member "
+        "member below, unless one is set to Allow. Ignore: the effect may be "
+        "on a suggested relic, but it counts as nothing — no gain, and for a "
+        "curse no loss. Allow lets that one member "
         "back in without allowing the rest of the family. These marks are saved "
         "for every Nightfarer; one that only works for another "
         "Nightfarer is ignored here. They are separate from the ★ you can give a "
@@ -537,7 +544,7 @@ def test_a_row_with_a_stacks_field_is_as_high_as_one_without(stack_window):
 
 
 def test_tab_reaches_the_stacks_field_after_the_boxes_of_its_row(stack_window):
-    """On a member after Allow, on a single after Avoid."""
+    """On a member after Allow, on a single after Ignore."""
     window = stack_window
     window.show()
     QApplication.processEvents()
@@ -545,6 +552,8 @@ def test_tab_reaches_the_stacks_field_after_the_boxes_of_its_row(stack_window):
     avoid.setFocus()
     QApplication.processEvents()
     QTest.keyClick(avoid, Qt.Key_Tab)
+    assert QApplication.focusWidget() is window.ignore_box(STACKING)
+    QTest.keyClick(window.ignore_box(STACKING), Qt.Key_Tab)
     assert QApplication.focusWidget() is window.stack_fields[STACKING]
     allow = window.allow_box(STACKING_MEMBER)
     allow.setFocus()
@@ -574,3 +583,36 @@ def test_favourite_on_a_family_header_asks_for_any_one_member(window, filters):
         assert not favour.isChecked()
     finally:
         filters.favour_family(FAMILY, False)
+
+
+def test_ignore_is_a_fourth_box_on_a_row_and_a_third_on_a_heading(window,
+                                                                  filters):
+    """User request 2026-11-16: the effect may be there and counts as
+    nothing. One state per row, like the other boxes; on a heading the whole
+    family, and a family is avoided, favourited or ignored."""
+    assert dlg.HEADINGS[dlg.COL_IGNORE] == "Ignore"
+    ignore = window.ignore_box(11)
+    assert ignore.toolTip() == dlg.IGNORE_TOOLTIP
+    ignore.click()
+    assert filters.ignored == {11} and filters.resolved_ignored == {11}
+    assert "1 ignored" in window.counter.text()
+    assert effectfilters.EffectFilters(families=FAMILIES).ignored == {11}
+
+    window.boxes(11)[1].click()
+    assert filters.excluded == {11} and not filters.ignored
+    assert not ignore.isChecked()
+    ignore.click()
+    assert filters.ignored == {11} and not filters.excluded
+    assert not window.boxes(11)[1].isChecked()
+
+    family = window.family_ignore_box(FAMILY)
+    assert family.toolTip() == dlg.FAMILY_IGNORE_TOOLTIP
+    family.click()
+    assert filters.ignored_families == {FAMILY}
+    assert filters.resolved_ignored == {11, 13, 14}
+    assert "3 ignored" not in window.counter.text()
+    assert "2 ignored" in window.counter.text()
+    window.family_box(FAMILY).click()
+    assert filters.avoided_families == {FAMILY}
+    assert not filters.ignored_families and not family.isChecked()
+    assert filters.resolved_ignored == {11}

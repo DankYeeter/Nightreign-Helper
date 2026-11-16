@@ -170,6 +170,11 @@ class SlotProblem:
     (`evaluate.effect_ids_of`), and the `Why` says it was excluded rather
     than that it carried no number.
 
+    `ignored` are the effect ids the player marked `Ignore` (user request
+    2026-11-16): struck before the calculation like an excluded id
+    (`evaluate.effect_ids_of`), so they count as nothing -- but a copy that
+    carries one is offered like any other.
+
     `rejected` are the rolls the player turned down for this question (A28,
     AD-060): no copy of such a roll is offered, whichever copy was shown.
     What the player holds is untouched, as it is for `excluded`.
@@ -205,6 +210,7 @@ class SlotProblem:
     slots: tuple[Slot, ...] = ()
     held: tuple[HeldSlot, ...] = ()
     excluded: frozenset[int] = frozenset()
+    ignored: frozenset[int] = frozenset()
     required: frozenset[int] = frozenset()
     favourites_of_others: frozenset[int] = frozenset()
     rejected: frozenset[Roll] = frozenset()
@@ -213,7 +219,7 @@ class SlotProblem:
     any_of: tuple[tuple[int, ...], ...] = ()
 
     def __post_init__(self) -> None:
-        both = self.excluded & self.required
+        both = (self.excluded | self.ignored) & self.required
         if both:
             raise ValueError(
                 f"effects {sorted(both)} are both excluded and required; an "
@@ -737,6 +743,9 @@ SILENT_NOT_IN_THE_DATA = "not_in_the_data"
 #: The player excluded it (`SlotProblem.excluded`, A18): it never reached the
 #: calculation, so it is not "waiting on a condition" -- it was not asked.
 SILENT_EXCLUDED = "excluded"
+#: The player ignored it (`SlotProblem.ignored`): there, and counted as
+#: nothing because they said so.
+SILENT_IGNORED = "ignored"
 #: The player required it (`SlotProblem.required`, A19) and it moved no
 #: figure of its own: the line says why the copy was suggested all the same.
 SILENT_REQUIRED = "required"

@@ -55,7 +55,9 @@ def effect_ids_of(problem: types.SlotProblem,
     An id in `problem.excluded` is struck here and nowhere else (AD-036.2):
     this is the one road every effect takes to `model.compute`, so the base
     build, the pre-sort, the beam, the picker ranking and the `Why` all see
-    the same build without it.
+    the same build without it. An id in `problem.ignored` goes the same
+    way (user request 2026-11-16): it counts as nothing, and unlike an
+    excluded one its relic stays on offer.
     """
     ids: list[int] = []
     for relic in types.held_relics(problem):
@@ -65,7 +67,8 @@ def effect_ids_of(problem: types.SlotProblem,
         ids.extend(candidate.effect_ids)
         ids.extend(candidate.curse_ids)
     ids.extend(ctx.armament_effect_ids)
-    return tuple(eid for eid in ids if eid not in problem.excluded)
+    struck = problem.excluded | problem.ignored
+    return tuple(eid for eid in ids if eid not in struck)
 
 
 def _effects(ctx: types.GoalContext,

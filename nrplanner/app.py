@@ -874,7 +874,8 @@ class Planner(QMainWindow):
         self.effects_tab = EffectsTab(data, self.icons)
         tabs.addTab(self.effects_tab, "Effects && chances")
         self.recommended_tab = RecommendedTab(
-            data, self.icons, self.effects_tab._gem_strip)
+            data, self.icons, self.effects_tab._gem_strip,
+            ignored_for=self.effect_filters.resolved_ignored_for)
         tabs.addTab(self.recommended_tab, "Recommended effects")
         # Its Nightfarer and level are the planner's, read when it comes to
         # the front.

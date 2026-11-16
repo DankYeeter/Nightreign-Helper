@@ -375,7 +375,15 @@ def marking_clauses(filters) -> list[str]:
                      + len(filters.favourite_families), "favourited")]
             if filters.required or filters.favourite_families else []) + (
             [families_avoided(len(filters.avoided_families))]
-            if filters.avoided_families else [])
+            if filters.avoided_families else []) + (
+            [_marked(ignored_count(filters), "ignored")]
+            if ignored_count(filters) else [])
+
+
+def ignored_count(filters) -> int:
+    """Ids and families marked `Ignore`, as one number: both are few and
+    neither takes a relic away."""
+    return len(filters.ignored) + len(filters.ignored_families)
 
 
 def _closing_clauses(situation: Situation) -> tuple[str, ...]:
@@ -1074,6 +1082,7 @@ def asking_from(planner, goal_id: str) -> Asking | None:
             all_effects[str(effect_id)], hero["name"]) else None)
     problem = types.SlotProblem(slots=slots, held=held,
                                 excluded=planner.effect_filters.resolved_excluded,
+                                ignored=planner.effect_filters.resolved_ignored,
                                 required=(favourited - of_others)
                                 | {group[0] for group in any_of},
                                 any_of=any_of,

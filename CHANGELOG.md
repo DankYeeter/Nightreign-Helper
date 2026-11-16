@@ -6,6 +6,15 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Added
+- **Ignore in the Filters window.** Next to Favourite and Avoid, every effect
+  and every family header has an **Ignore** box. A relic that carries an
+  ignored effect may still be suggested, but the effect counts as nothing:
+  Optimize, the relic picker's figures and the Recommended effects view no
+  longer pick or rank anything because of it. Saved per Nightfarer like the
+  other marks; Why names an ignored effect as "you set it to Ignore, so it is
+  not counted."
+
 ## [1.23.0] - 2026-11-15
 
 ### Added
