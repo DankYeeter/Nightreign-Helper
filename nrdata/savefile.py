@@ -438,6 +438,53 @@ def read_owned_relics(
     return out
 
 
+#: What the save's own inventory list says of a relic it holds: the copy's
+#: handle followed by a quantity of one. The list is a run of 14-byte entries
+#: (u32 handle, u32 quantity, u32 order, two more bytes) and is not aligned to
+#: four bytes, so it is looked for as bytes rather than walked.
+_HELD_ONCE = struct.Struct("<II")
+
+
+def relics_the_inventory_lists(slot_data: bytes,
+                               owned: list[OwnedRelic]) -> list[OwnedRelic]:
+    """Of the relic records in this slot, the ones the player actually holds.
+
+    A relic record is the game's note that a copy *exists* in this slot, and
+    that is not the same as owning it: the slot also keeps the state of the
+    last expedition, and what other players brought to it can be written into
+    the same table. Reading every record as owned showed one player relics
+    that belonged to another. What a player owns is what the slot's inventory
+    list names, and the list names a copy by its handle -- so a record whose
+    handle the list does not carry is not offered.
+
+    Measured 2026-11-16 on a real save: 323 records, 323 of them listed, so
+    nothing is taken from a player who holds only his own.
+
+    Two records are left alone. One so close to the start of the slot that it
+    has no handle in front of it cannot be asked about. And a slot in which
+    **no** record is listed at all is a slot whose list this reader does not
+    recognise -- a layout it has not met -- and answering "no relics" for that
+    would be the wrong answer the other way round, so such a slot is read as
+    it always was.
+    """
+    listed: list[OwnedRelic] = []
+    unasked: list[OwnedRelic] = []
+    for relic in owned:
+        at = relic.offset + HANDLE_OFFSET
+        if at < 0:
+            unasked.append(relic)
+            continue
+        (handle,) = struct.unpack_from("<I", slot_data, at)
+        # Zero is "no handle", and zero-then-one is in every slot by chance.
+        if handle and slot_data.find(_HELD_ONCE.pack(handle, 1)) != -1:
+            listed.append(relic)
+    if not listed:
+        return owned
+    if not unasked:
+        return listed
+    return sorted(listed + unasked, key=lambda relic: relic.offset)
+
+
 # ---------------------------------------------------------------------------
 # The equipped loadout: which relic sits in which vessel slot, per Nightfarer.
 #

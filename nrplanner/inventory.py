@@ -554,6 +554,9 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
     for name, blob in slots.items():
         owned = savefile.read_owned_relics(blob, valid_relics, valid_effects,
                                            mode=mode)
+        # Only what the slot's own inventory list names: a record alone says
+        # a copy exists here, and another player's can (see the function).
+        owned = savefile.relics_the_inventory_lists(blob, owned)
         if not owned:
             continue
 
