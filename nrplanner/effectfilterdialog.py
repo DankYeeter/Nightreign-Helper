@@ -1,5 +1,6 @@
-"""The effect filter window: Favourite and Avoid per owned effect, Avoid per
-family and Allow per member (`UI_SPEC` §3.6, GOAL A21, A23).
+"""The effect filter window: Favourite, Avoid and Ignore per owned effect
+and per family (`UI_SPEC` §3.6, GOAL A21, A23; Ignore, and no Allow any
+more: user 2026-11-16).
 
 One row per effect or curse id over every relic copy the player owns, never
 per relic (AK-304), grouped under a heading per family with two or more
@@ -34,7 +35,7 @@ from PySide6.QtWidgets import (QCheckBox, QDialog, QHeaderView, QLabel,
                                QVBoxLayout)
 
 from . import effectfilters, effecttext, model, search
-from .advisorbar import CLAUSES, families_avoided
+from .advisorbar import CLAUSES, families_avoided, ignored_count
 from .theme import ACCENT, BAD, MUTED
 
 TITLE = "Effect filters"
@@ -62,12 +63,15 @@ TITLE = "Effect filters"
 #: keeps its 449 px. T-336h (07.11.2026): a row with a Stacks field no longer
 #: stands taller than the others, which moves neither the size nor the tree's
 #: 449 px (offscreen) and 542 px (live, Windows, at 100, 125 and 150 %).
-OPENING_SIZE = (702, 733)
+#: Ignore in the place of Allow (16.11.2026): the column asks 4 px more than
+#: Allow did, and on Windows (offscreen, CI runner) the legend's Ignore
+#: sentence takes one line of 13 px more; with both the tree keeps its 449 px.
+OPENING_SIZE = (706, 746)
 
-(COL_FAVOURITE, COL_AVOID, COL_ALLOW, COL_STACKS, COL_NAME, COL_TYPE,
+(COL_FAVOURITE, COL_AVOID, COL_IGNORE, COL_STACKS, COL_NAME, COL_TYPE,
  COL_COPIES) = range(7)
-HEADINGS = ("Favourite", "Avoid", "Allow", "Stacks", "Name", "Type", "Copies")
-FLAG_COLUMNS = (COL_FAVOURITE, COL_AVOID, COL_ALLOW)
+HEADINGS = ("Favourite", "Avoid", "Ignore", "Stacks", "Name", "Type", "Copies")
+FLAG_COLUMNS = (COL_FAVOURITE, COL_AVOID, COL_IGNORE)
 
 #: As wide as the stat sheet's count box; two digits and their margins fit.
 STACKS_FIELD_WIDTH = 42
@@ -83,9 +87,10 @@ COPIES_DEFINITION = ("Copies counts relics you own that carry this effect or "
 MARKS_EXPLANATION = ("Favourite: every suggestion must carry this effect, "
                      "if it can — on a family header, any one member. "
                      "Avoid: no suggestion uses a relic that carries it — on "
-                     "a family header, every member below, unless one is set "
-                     "to Allow. Allow lets that one member back in without "
-                     "allowing the rest of the family. These marks are saved "
+                     "a family header, every member below, unless one has "
+                     "a mark of its own. Ignore: the effect may be on a "
+                     "suggested relic, but it counts as nothing — no gain, "
+                     "and for a curse no loss. These marks are saved "
                      "for every Nightfarer; one that only works for another "
                      "Nightfarer is ignored here. "
                      "They are separate from the ★ you can "
@@ -101,6 +106,11 @@ SEARCH_PLACEHOLDER = ("Filter by effect or curse — supports AND, OR, NOT and "
 FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry this "
                      "effect, if it can.")
 AVOID_TOOLTIP = "No suggestion uses a relic that carries this effect."
+IGNORE_TOOLTIP = ("Suggestions may carry this effect, but it counts as "
+                  "nothing: no relic is picked because of it.")
+FAMILY_IGNORE_TOOLTIP = ("Suggestions may carry effects of this family, but "
+                         "they count as nothing, unless a member below is "
+                         "set to Favourite or Avoid.")
 #: User decision 2026-11-15.
 FAMILY_FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry "
                             "at least one effect of this family, if it can; "
@@ -108,11 +118,7 @@ FAMILY_FAVOURITE_TOOLTIP = ("Every suggestion for this Nightfarer must carry "
 #: AK-317.2-4.
 FAMILY_AVOID_TOOLTIP = ("No suggestion uses a relic that carries an effect "
                         "of this family, unless a member below is set to "
-                        "Allow.")
-#: AK-317 Nachtrag: always clickable, one tooltip for both states.
-ALLOW_TOOLTIP = ("Let this one effect into suggestions even while its family "
-                 "is avoided. It matters only once the family header is set "
-                 "to Avoid.")
+                        "Favourite or Ignore.")
 STACKS_TOOLTIP = ("How many stacks Optimize and the relic picker's figures "
                   "count, a whole number from 0 to {limit}; 0 leaves this effect "
                   "out. Empty: the count ticked on the stat sheet, otherwise "
@@ -174,7 +180,9 @@ def counter_line(shown: int, total: int, filters) -> str:
                [f"{len(filters.excluded)} avoided"]
                if filters.excluded else []) + (
                [families_avoided(len(filters.avoided_families))]
-               if filters.avoided_families else [])
+               if filters.avoided_families else []) + (
+               [f"{ignored_count(filters)} ignored"]
+               if ignored_count(filters) else [])
     return CLAUSES.join([f"{shown} of {total} effects", *clauses])
 
 
@@ -222,15 +230,16 @@ class EffectFilterWindow(QDialog):
         self._filters = filters
         self._rows = rows
         self._symbol_of = symbol_of or (lambda _effect_id: None)
-        #: effect id -> (row, Favourite box, Avoid box, Allow box or None, item)
+        #: effect id -> (row, Favourite box, Avoid box, Ignore box, item)
         self._marks: dict[int, tuple] = {}
-        #: family key -> (Avoid box, heading item, Favourite box)
+        #: family key -> (Avoid box, heading item, Favourite box, Ignore box)
         self._family_marks: dict[str, tuple] = {}
         #: effect id -> its Stacks field, stack effects only
         self.stack_fields: dict[int, QLineEdit] = {}
         self._box_css = ("QCheckBox::indicator:checked {{ background-color: "
                          "{c}; border: 1px solid {c}; border-radius: 2px; }}")
-        self._colours = {COL_FAVOURITE: ACCENT, COL_AVOID: BAD}
+        self._colours = {COL_FAVOURITE: ACCENT, COL_AVOID: BAD,
+                         COL_IGNORE: MUTED}
         self.setWindowTitle(TITLE)
         self.setModal(True)
         self.resize(*OPENING_SIZE)
@@ -285,8 +294,7 @@ class EffectFilterWindow(QDialog):
             by_family[row.family].append(row)
         for key, members in by_family.items():
             if len(members) < 2:
-                self._add_id_row(members[0], self.tree.invisibleRootItem(),
-                                 with_allow=False)
+                self._add_id_row(members[0], self.tree.invisibleRootItem())
                 continue
             head = _Item(self.tree)
             head.setText(COL_NAME, key)
@@ -300,9 +308,13 @@ class EffectFilterWindow(QDialog):
                 lambda on, k=key: self._filters.favour_family(k, on))
             self.tree.setItemWidget(head, COL_FAVOURITE, favour)
             self.tree.setItemWidget(head, COL_AVOID, avoid)
-            self._family_marks[key] = (avoid, head, favour)
+            ignore = self._box(FAMILY_IGNORE_TOOLTIP, MUTED)
+            ignore.clicked.connect(
+                lambda on, k=key: self._filters.ignore_family(k, on))
+            self.tree.setItemWidget(head, COL_IGNORE, ignore)
+            self._family_marks[key] = (avoid, head, favour, ignore)
             for row in members:
-                self._add_id_row(row, head, with_allow=True)
+                self._add_id_row(row, head)
             head.setExpanded(True)
         self.tree.setSortingEnabled(True)
         self.tree.sortItems(COL_NAME, Qt.AscendingOrder)
@@ -324,7 +336,7 @@ class EffectFilterWindow(QDialog):
             box.setStyleSheet(self._box_css.format(c=colour))
         return box
 
-    def _add_id_row(self, row: Row, parent, with_allow: bool) -> None:
+    def _add_id_row(self, row: Row, parent) -> None:
         item = _Item(parent)
         item.setText(COL_NAME, row.name)
         symbol = self._symbol_of(row.effect_id)
@@ -333,10 +345,10 @@ class EffectFilterWindow(QDialog):
         item.setData(COL_NAME, Qt.UserRole, row.effect_id)
         item.setText(COL_TYPE, "Curse" if row.is_curse else "Effect")
         item.setData(COL_COPIES, Qt.DisplayRole, row.copies)
+        # In column order: it is the order Tab walks them in.
         columns = [(COL_FAVOURITE, FAVOURITE_TOOLTIP, effectfilters.REQUIRED),
-                   (COL_AVOID, AVOID_TOOLTIP, effectfilters.EXCLUDED)]
-        if with_allow:
-            columns.append((COL_ALLOW, ALLOW_TOOLTIP, effectfilters.ALLOWED))
+                   (COL_AVOID, AVOID_TOOLTIP, effectfilters.EXCLUDED),
+                   (COL_IGNORE, IGNORE_TOOLTIP, effectfilters.IGNORED)]
         boxes = []
         for column, tooltip, kind in columns:
             box = self._box(tooltip, self._colours.get(column))
@@ -345,8 +357,6 @@ class EffectFilterWindow(QDialog):
                     i, k if on else None))
             self.tree.setItemWidget(item, column, box)
             boxes.append(box)
-        if not with_allow:
-            boxes.append(None)
         if row.stacks:
             self._add_stacks_field(row, item)
         self._marks[row.effect_id] = (row, *boxes, item)
@@ -398,13 +408,17 @@ class EffectFilterWindow(QDialog):
         _, favourite, avoid, _, _ = self._marks[effect_id]
         return favourite, avoid
 
-    def allow_box(self, effect_id: int) -> QCheckBox | None:
-        """The Allow box of one row, `None` on a row without a family head."""
-        return self._marks[effect_id][3]
-
     def family_box(self, key: str) -> QCheckBox:
         """The Avoid box on the heading of one family."""
         return self._family_marks[key][0]
+
+    def ignore_box(self, effect_id: int) -> QCheckBox:
+        """The Ignore box of one row."""
+        return self._marks[effect_id][3]
+
+    def family_ignore_box(self, key: str) -> QCheckBox:
+        """The Ignore box on the heading of one family."""
+        return self._family_marks[key][3]
 
     def family_favourite_box(self, key: str) -> QCheckBox:
         """The Favourite box on the heading of one family."""
@@ -412,17 +426,16 @@ class EffectFilterWindow(QDialog):
 
     def _draw_the_marks(self) -> None:
         filters = self._filters
-        for effect_id, (row, favourite, avoid, allow, item) in self._marks.items():
+        for effect_id, (row, favourite, avoid, ignore, item) in self._marks.items():
             favourite.setChecked(effect_id in filters.required)
             avoid.setChecked(effect_id in filters.excluded)
             item.on[COL_FAVOURITE] = favourite.isChecked()
             item.on[COL_AVOID] = avoid.isChecked()
-            if allow is not None:
-                # AK-317 Nachtrag: always clickable, stored state keeps
-                # showing regardless of the family's Avoid state.
-                allow.setChecked(effect_id in filters.allowed)
-                item.on[COL_ALLOW] = allow.isChecked()
-        for key, (avoid, head, favour) in self._family_marks.items():
+            ignore.setChecked(effect_id in filters.ignored)
+            item.on[COL_IGNORE] = ignore.isChecked()
+        for key, (avoid, head, favour, ignore) in self._family_marks.items():
+            ignore.setChecked(key in filters.ignored_families)
+            head.on[COL_IGNORE] = ignore.isChecked()
             avoid.setChecked(key in filters.avoided_families)
             head.on[COL_AVOID] = avoid.isChecked()
             favour.setChecked(key in filters.favourite_families)

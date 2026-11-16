@@ -6,6 +6,32 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+## [1.23.1] - 2026-11-16
+
+### Added
+- **Ignore in the Filters window.** Next to Favourite and Avoid, every effect
+  and every family header has an **Ignore** box. A relic that carries an
+  ignored effect may still be suggested, but the effect counts as nothing:
+  Optimize, the relic picker's figures and the Recommended effects view no
+  longer pick or rank anything because of it. Saved per Nightfarer like the
+  other marks; Why names an ignored effect as "you set it to Ignore, so it is
+  not counted."
+
+### Changed
+- **The Allow box in the Filters window is gone.** An effect is now wanted
+  (Favourite), unwanted (Avoid) or indifferent (Ignore). A member of an
+  avoided family comes back in through its own Favourite or Ignore. Allow
+  marks set in an older version no longer apply: such an effect is avoided
+  with its family again until you mark it.
+
+### Fixed
+- **"Taking attacks improves attack power" no longer counts three times.**
+  The game keeps this effect as three records, one on rolled relics and two
+  on fixed ones, and the build added +15% for each: +52% with three relics,
+  which is why Optimize picked all three. They are one effect and count once
+  now. The same holds for 22 other effects kept as two records, such as
+  "Switching Weapons Boosts Attack Power".
+
 ## [1.23.0] - 2026-11-15
 
 ### Added

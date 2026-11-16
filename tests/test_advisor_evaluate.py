@@ -30,6 +30,7 @@ import dataclasses
 import pytest
 
 from nrplanner import model, weaponslots
+from nrplanner.advisor import types
 from nrplanner.advisor import evaluate as evaluate_module
 from nrplanner.advisor.evaluate import evaluate
 
@@ -591,6 +592,28 @@ def test_an_excluded_id_is_struck_before_the_model_sees_it(monkeypatch,
                          (), ctx)), (
         "three excluded ids and nothing else is the empty build")
 
+
+def test_an_ignored_id_is_struck_but_its_relic_stays_on_offer(game_data):
+    """User request 2026-11-16: `Ignore` counts an effect as nothing -- the
+    road `excluded` takes through `effect_ids_of` -- and, unlike `Avoid`,
+    leaves the copy that carries it a candidate."""
+    hero = cases.hero_by_name(game_data, "Wylder")
+    inventory = advisor.make_inventory(game_data, hero, count=1)
+    chosen = inventory.relics[0]
+    problem = advisor.problem([advisor.RED])
+    ignoring = dataclasses.replace(
+        problem, ignored=frozenset(chosen.effect_ids))
+    ctx = advisor.context(game_data, hero)
+    assignment = (model_candidate(chosen, 0),)
+
+    assert evaluate_module.effect_ids_of(ignoring, assignment, ctx) == ()
+    assert figures(evaluate(ignoring, assignment, ctx)) == \
+        figures(evaluate(problem, (), ctx))
+    assert not types.unwanted(ignoring, chosen)
+    assert types.unwanted(dataclasses.replace(
+        problem, excluded=frozenset(chosen.effect_ids)), chosen)
+    with pytest.raises(ValueError):
+        types.SlotProblem(ignored=frozenset({1}), required=frozenset({1}))
 
 # -- helpers ---------------------------------------------------------------
 

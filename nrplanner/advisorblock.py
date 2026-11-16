@@ -105,6 +105,7 @@ MARK_LEGEND = ("▲ marks an effect you favourited. A struck-through effect does
 #: wording AK-300).
 EXCLUDED_HEADING = "Effects you've avoided:"
 REQUIRED_HEADING = "Effects you've favourited:"
+IGNORED_HEADING = "Effects you've set to Ignore:"
 STACKS_HEADING = "Stacks you set in the effect filter:"
 
 #: The colour `RelicSlot._sync_mode` gives a working rolled effect. A literal
@@ -167,6 +168,8 @@ def _styled(line: types.ReasonLine, kind: str | None) -> LineStyle:
         return LineStyle(bullet, BAD, struck=True)
     if kind == effectfilters.REQUIRED:
         return LineStyle(REQUIRED_BULLET, ACCENT, bold=True)
+    if kind == effectfilters.IGNORED:
+        return LineStyle(bullet, MUTED, small=True)
     if line.is_curse:
         return LineStyle(bullet, CURSE)
     if line.silence == types.SILENT_ANOTHER_NIGHTFARER:
@@ -337,12 +340,14 @@ class WhyLine(QWidget):
     def kind(self) -> str | None:
         """Which of the two sets holds this line's effect, `None` for
         neutral. Avoided is the resolved set (AD-039.3): a member of an
-        avoided family is struck through, one on `Allow` is not (AK-317.5).
+        avoided family is struck through, one with its own mark is not.
         """
         if self.line.effect_id in self._filters.resolved_excluded:
             return effectfilters.EXCLUDED
         if self.line.effect_id in self._filters.favoured:
             return effectfilters.REQUIRED
+        if self.line.effect_id in self._filters.resolved_ignored:
+            return effectfilters.IGNORED
         return None
 
     def _redraw(self) -> None:
@@ -818,8 +823,10 @@ class WhyDialog(QDialog):
         self.excluded_list = _plain()
         self.required_list = _plain()
         self.stacks_list = _plain()
+        self.ignored_list = _plain()
         column.addWidget(self.excluded_list)
         column.addWidget(self.required_list)
+        column.addWidget(self.ignored_list)
         column.addWidget(self.stacks_list)
 
         # One label rather than one per name: the heading and the names are
@@ -887,8 +894,13 @@ class WhyDialog(QDialog):
                 (self.excluded_list, EXCLUDED_HEADING,
                  self._filters.excluded),
                 (self.required_list, REQUIRED_HEADING,
-                 self._filters.required)):
+                 self._filters.required),
+                (self.ignored_list, IGNORED_HEADING,
+                 self._filters.ignored)):
             names = sorted(self._name_of(effect_id) for effect_id in ids)
+            if label is self.ignored_list:
+                names += sorted(f"{key} (the whole family)" for key
+                                in self._filters.ignored_families)
             if label is self.required_list:
                 names += sorted(f"{key} (any one of the family)" for key
                                 in self._filters.favourite_families)

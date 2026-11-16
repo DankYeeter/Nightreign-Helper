@@ -1,11 +1,11 @@
 """Which effects the player struck out of, or pinned into, every suggestion.
 
 `GOAL.md` A18 gives the player *Avoid* per effect id, A19 *Favourite*
-(AK-300), A23 *Avoid* per family with *Allow* per member (AD-039); AD-036.5
+(AK-300), A23 *Avoid* per family (AD-039); AD-036.5
 puts all of it in the one settings store the program has, under one fixed
 key each. The ids and family names are the **value**, never the key
 (AD-030, OF-15): nothing here derives a key from anything, and the key
-space is five per Nightfarer (`key_for`, user 2026-11-08), plus the five
+space is seven per Nightfarer (`key_for`, user 2026-11-08), plus the
 shared keys of older versions, which a Nightfarer reads until it has its own. No `__schema` step either -- a store that
 never held a key reads back as empty, which is exactly what an older
 program state means by it.
@@ -16,23 +16,32 @@ questions, Optimize's and the relic picker's, count for a stack effect
 says, and it touches none of the sets below.
 
 The three id sets are disjoint by construction (AK-276: an effect is never
-excluded and required at once, and `Allow` is a third state of the same
+excluded and required at once, and `Ignore` is a third state of the same
 kind). Marking an effect in one set takes it out of the others, so the
 window never has to ask which state it is leaving. The store is not trusted
 to agree: a process that ended between two writes, or a hand in the
 registry, can leave one id under two keys, and a pair that reached
 `SlotProblem` stopped the advisor at every start (QA-267/SEC-045). Loading
-therefore makes the sets disjoint -- `required` wins, then `allowed`
-(Director, 2026-09-14; AD-039.4) -- and writes the repair back; a marking
-writes all four keys through one `QSettings` with one `sync()`, so the gap
+therefore makes the sets disjoint -- `required` wins, then `excluded`
+(Director, 2026-09-14) -- and writes the repair back; a marking
+writes all its keys through one `QSettings` with one `sync()`, so the gap
 is as small as the store allows.
 
 What the advisor is handed is one resolved set (AD-039.3): the ids marked
-`Avoid` and every id whose family is avoided, less the ids on `Allow` and
-the ids on `Favourite` -- Favourite wins over a family, so `SlotProblem`
+`Avoid` and every id whose family is avoided, less the ids marked `Ignore`
+or `Favourite` themselves -- a member's own mark wins over its family, so `SlotProblem`
 never sees an id in both of its sets. Resolved over every id of the
 dataset, not the owned ones: a relic of an avoided family found tomorrow is
 avoided too.
+
+`Ignore` (user request 2026-11-16) is the fourth marking and the mild one:
+a relic carrying the id is offered like any other, and the id counts as
+nothing in the advisor's figures -- no gain, and for a curse no loss
+(`SlotProblem.ignored`). Per id and per family. With it the older `Allow`
+went (user decision 2026-11-16: "entweder will ich etwas, ich will etwas
+nicht, oder es ist mir egal"): a member of an avoided family is let back in
+by its own `Ignore` or `Favourite`. The `advisor/allowed` key of older
+versions is neither read nor written.
 
 An id the dataset has since lost, or a family name it no longer forms,
 stays stored and travels with the problem; it meets nothing and costs
@@ -49,16 +58,19 @@ from . import favourites, model
 
 EXCLUDED = "excluded"
 REQUIRED = "required"
-ALLOWED = "allowed"
 AVOIDED_FAMILIES = "avoided_families"
 #: User decision 2026-11-15: `Favourite` on a family header, one member of
 #: it in the build is enough.
 FAVOURITE_FAMILIES = "favourite_families"
+#: User request 2026-11-16: the effect may be there, it counts as nothing.
+IGNORED = "ignored"
+IGNORED_FAMILIES = "ignored_families"
 STACKS = "stacks"
 KEYS = {EXCLUDED: "advisor/excluded", REQUIRED: "advisor/required",
-        ALLOWED: "advisor/allowed",
         AVOIDED_FAMILIES: "advisor/avoided_families",
         FAVOURITE_FAMILIES: "advisor/favourite_families",
+        IGNORED: "advisor/ignored",
+        IGNORED_FAMILIES: "advisor/ignored_families",
         STACKS: "advisor/stacks"}
 
 #: Family names are stored one per line: a comma is part of some of them
@@ -152,19 +164,22 @@ def stored_stacks(hero_id: int | None = None) -> dict[int, int]:
 
 
 def store(excluded: Iterable[int], required: Iterable[int],
-          allowed: Iterable[int], avoided_families: Iterable[str],
+          avoided_families: Iterable[str],
           favourite_families: Iterable[str] = (),
-          hero_id: int | None = None) -> None:
-    """All five keys, through one store object and one `sync()`."""
+          hero_id: int | None = None, *, ignored: Iterable[int] = (),
+          ignored_families: Iterable[str] = ()) -> None:
+    """All six keys, through one store object and one `sync()`."""
     settings = favourites.settings()
     for kind, ids in ((EXCLUDED, excluded), (REQUIRED, required),
-                      (ALLOWED, allowed)):
+                      (IGNORED, ignored)):
         settings.setValue(key_for(kind, hero_id),
                           ",".join(str(i) for i in sorted(ids)))
     settings.setValue(key_for(AVOIDED_FAMILIES, hero_id),
                       FAMILY_SEPARATOR.join(sorted(avoided_families)))
     settings.setValue(key_for(FAVOURITE_FAMILIES, hero_id),
                       FAMILY_SEPARATOR.join(sorted(favourite_families)))
+    settings.setValue(key_for(IGNORED_FAMILIES, hero_id),
+                      FAMILY_SEPARATOR.join(sorted(ignored_families)))
     settings.sync()
 
 
@@ -188,59 +203,77 @@ class EffectFilters(QObject):
         self.families: Mapping[int, str] = dict(families or {})
         self._load(hero_id)
 
+    #: The six sets a marking moves, in `store`'s order.
+    _SETS = (EXCLUDED, REQUIRED, AVOIDED_FAMILIES,
+             FAVOURITE_FAMILIES, IGNORED, IGNORED_FAMILIES)
+
+    def _state(self) -> tuple:
+        return tuple(getattr(self, name) for name in self._SETS)
+
+    def _write(self) -> None:
+        store(self.excluded, self.required,
+              self.avoided_families, self.favourite_families, self.hero_id,
+              ignored=self.ignored, ignored_families=self.ignored_families)
+
     def _load(self, hero_id: int | None) -> None:
         self.hero_id = hero_id
         self.required = stored(REQUIRED, hero_id)
-        as_stored = (stored(EXCLUDED, hero_id), stored(ALLOWED, hero_id))
-        self.allowed = as_stored[1] - self.required
-        self.excluded = as_stored[0] - self.required - self.allowed
+        as_stored = (stored(EXCLUDED, hero_id), stored(IGNORED, hero_id))
+        self.excluded = as_stored[0] - self.required
+        self.ignored = as_stored[1] - self.required - self.excluded
         self.avoided_families = stored_text(AVOIDED_FAMILIES, hero_id)
         # A family is one or the other; a store that says both reads as
-        # favourited, as an id does.
+        # favourited, as an id does, and as avoided before ignored.
         self.favourite_families = stored_text(FAVOURITE_FAMILIES, hero_id)
         self.avoided_families -= self.favourite_families
+        self.ignored_families = (stored_text(IGNORED_FAMILIES, hero_id)
+                                 - self.favourite_families
+                                 - self.avoided_families)
         self.stacks = stored_stacks(hero_id)
-        if (self.excluded, self.allowed) != as_stored:
-            store(self.excluded, self.required, self.allowed,
-                  self.avoided_families, self.favourite_families, hero_id)
+        if (self.excluded, self.ignored) != as_stored:
+            self._write()
         self._resolve()
 
     def set_hero(self, hero_id: int | None) -> None:
         """Load the markings of this Nightfarer; every set is its own."""
         if hero_id == self.hero_id:
             return
-        before = (self.excluded, self.required, self.allowed,
-                  self.avoided_families, self.favourite_families, self.stacks)
+        before = (*self._state(), self.stacks)
         self._load(hero_id)
-        if before != (self.excluded, self.required, self.allowed,
-                      self.avoided_families, self.favourite_families,
-                      self.stacks):
+        if before != (*self._state(), self.stacks):
             self.changed.emit()
 
     def mark(self, effect_id: int, kind: str | None) -> None:
         """Put one effect into the `kind` set, or into none for `None`."""
         sets = {name: getattr(self, name) - {effect_id}
-                for name in (EXCLUDED, REQUIRED, ALLOWED)}
+                for name in (EXCLUDED, REQUIRED, IGNORED)}
         if kind in sets:
             sets[kind] |= {effect_id}
-        self._apply(sets[EXCLUDED], sets[REQUIRED], sets[ALLOWED],
-                    self.avoided_families)
+        self._apply(**sets)
+
+    def _mark_family(self, kind: str, key: str, on: bool) -> None:
+        """Put one family into the `kind` set and out of the other two, or
+        only out of `kind`."""
+        sets = {name: getattr(self, name) - ({key} if on or name == kind
+                                             else set())
+                for name in (AVOIDED_FAMILIES, FAVOURITE_FAMILIES,
+                             IGNORED_FAMILIES)}
+        if on:
+            sets[kind] |= {key}
+        self._apply(**sets)
 
     def mark_family(self, key: str, avoided: bool) -> None:
         """Avoid, or stop avoiding, every effect of one family."""
-        families = (self.avoided_families | {key} if avoided
-                    else self.avoided_families - {key})
-        self._apply(self.excluded, self.required, self.allowed, families,
-                    self.favourite_families - ({key} if avoided else set()))
+        self._mark_family(AVOIDED_FAMILIES, key, avoided)
 
     def favour_family(self, key: str, favoured: bool) -> None:
         """Ask for one effect of this family in every suggestion, or stop
         asking. A favourited family is not an avoided one."""
-        families = (self.favourite_families | {key} if favoured
-                    else self.favourite_families - {key})
-        self._apply(self.excluded, self.required, self.allowed,
-                    self.avoided_families - ({key} if favoured else set()),
-                    families)
+        self._mark_family(FAVOURITE_FAMILIES, key, favoured)
+
+    def ignore_family(self, key: str, ignored: bool) -> None:
+        """Count every effect of this family as nothing, or stop."""
+        self._mark_family(IGNORED_FAMILIES, key, ignored)
 
     def set_stacks(self, effect_id: int, count: int | None) -> None:
         """How many stacks the advisor's questions count for this effect;
@@ -264,18 +297,15 @@ class EffectFilters(QObject):
         return {effect_id: count for effect_id, count in self.stacks.items()
                 if model.accumulates(effects.get(str(effect_id)) or {})}
 
-    def _apply(self, excluded, required, allowed, avoided_families,
-               favourite_families=None) -> None:
-        if favourite_families is None:
-            favourite_families = self.favourite_families
-        after = (excluded, required, allowed, frozenset(avoided_families),
-                 frozenset(favourite_families))
-        if after == (self.excluded, self.required, self.allowed,
-                     self.avoided_families, self.favourite_families):
+    def _apply(self, **sets) -> None:
+        before = self._state()
+        after = tuple(frozenset(sets.get(name, old))
+                      for name, old in zip(self._SETS, before))
+        if after == before:
             return
-        (self.excluded, self.required, self.allowed,
-         self.avoided_families, self.favourite_families) = after
-        store(*after, hero_id=self.hero_id)
+        for name, value in zip(self._SETS, after):
+            setattr(self, name, value)
+        self._write()
         self._resolve()
         self.changed.emit()
 
@@ -284,26 +314,43 @@ class EffectFilters(QObject):
                      if key in self.avoided_families}
         #: AD-039.3: what `SlotProblem.excluded` is handed.
         self.resolved_excluded: frozenset[int] = frozenset(
-            (self.excluded | by_family) - self.allowed - self.required)
+            (self.excluded | by_family) - self.ignored - self.required)
         #: Every id drawn as favourited: marked itself, or of a favourited
-        #: family and not avoided on its own.
+        #: family and neither avoided nor ignored on its own.
         self.favoured: frozenset[int] = self.required | frozenset(
             effect_id for effect_id, key in self.families.items()
             if key in self.favourite_families
-            and effect_id not in self.resolved_excluded)
+            and effect_id not in self.resolved_excluded
+            and effect_id not in self.ignored)
+        #: What `SlotProblem.ignored` is handed: marked itself or of an
+        #: ignored family, unless avoided or favourited.
+        self.resolved_ignored: frozenset[int] = frozenset(
+            self.ignored | {effect_id for effect_id, key
+                            in self.families.items()
+                            if key in self.ignored_families}
+        ) - self.resolved_excluded - self.favoured
+
+    def resolved_ignored_for(self, hero_id: int | None) -> frozenset[int]:
+        """`resolved_ignored` as another Nightfarer has it, for a reader
+        that looks at one this object is not on."""
+        if hero_id == self.hero_id:
+            return self.resolved_ignored
+        return EffectFilters(families=self.families,
+                             hero_id=hero_id).resolved_ignored
 
     def favourite_groups(self, works) -> tuple[tuple[int, ...], ...]:
         """Per favourited family the ids of which one is enough, the one
         that stands for it first: the shortest name, so the family's plain
         form where it has one. `works(effect_id)` gives that name, or `None`
-        for an id that does nothing for this Nightfarer; an id avoided on its
-        own is no member. A family left without members asks for nothing."""
+        for an id that does nothing for this Nightfarer; an id avoided or
+        ignored on its own is no member. A family left without members asks for nothing."""
         groups = []
         for key in sorted(self.favourite_families):
             named = {effect_id: works(effect_id)
                      for effect_id, family in self.families.items()
                      if family == key
-                     and effect_id not in self.resolved_excluded}
+                     and effect_id not in self.resolved_excluded
+                     and effect_id not in self.ignored}
             members = sorted((eid for eid, name in named.items()
                               if name is not None),
                              key=lambda eid: (len(named[eid]), eid))

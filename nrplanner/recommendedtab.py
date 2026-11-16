@@ -136,11 +136,13 @@ def context(data: Mapping, hero: Mapping, level: int) -> types.GoalContext:
 
 
 def rank(data: Mapping, hero: Mapping, level: int, goal_id: str,
-         owned=None) -> list[Row]:
-    """Every rollable buff this Nightfarer gains from, best first."""
+         owned=None, ignored: frozenset[int] = frozenset()) -> list[Row]:
+    """Every rollable buff this Nightfarer gains from, best first. An effect
+    in `ignored` (the filter window's Ignore) counts as nothing and so is
+    not listed."""
     goal = goals.GOALS[goal_id]
     ctx = context(data, hero, level)
-    nothing = types.SlotProblem()
+    nothing = types.SlotProblem(ignored=frozenset(ignored))
 
     def figure(effect_ids: tuple[int, ...]) -> float:
         asked = dataclasses.replace(ctx, armament_effect_ids=effect_ids)
@@ -256,9 +258,12 @@ class _Card(QFrame):
 
 class RecommendedTab(QWidget):
     def __init__(self, data: dict, icons=None,
-                 gem_strip: Callable | None = None):
+                 gem_strip: Callable | None = None,
+                 ignored_for: Callable | None = None):
         super().__init__()
         self.data = data
+        #: Nightfarer id -> the effect ids set to Ignore in the effect filter.
+        self._ignored_for = ignored_for or (lambda _hero_id: frozenset())
         self.icons = icons
         self._gem_strip = gem_strip
         self.owned = None
@@ -349,7 +354,8 @@ class RecommendedTab(QWidget):
         """What the table shows, in order."""
         hero = self.data["heroes"][self.hero_box.currentIndex()]
         ranked = rank(self.data, hero, self.level,
-                      self.goal_box.currentData(), self.owned)
+                      self.goal_box.currentData(), self.owned,
+                      self._ignored_for(hero["id"]))
         if self.best_only.isChecked():
             ranked = best_versions(ranked)
         count = self.show_box.currentData()
@@ -392,6 +398,8 @@ class RecommendedTab(QWidget):
             if counted else "—")
         self.summary.setText(
             f"Rated at level {self.level}."
+            + (" Effects you set to Ignore in the effect filter are left out."
+               if self._ignored_for(self.hero_box.currentData()) else "")
             + ("" if counted else f" {NO_SAVE}"))
 
         if self.missing_only.isChecked() and counted:
