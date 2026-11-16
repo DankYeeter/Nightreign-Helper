@@ -201,6 +201,21 @@ def single_copy(eff: dict) -> bool:
     return ("startGoodsId" not in mods
             and any(f in mods for f in SINGLE_COPY_FIELDS))
 
+
+
+def same_copy(eff: dict) -> int:
+    """What two relics must share to carry "the same effect" in the game.
+
+    The game keeps some effects as several records that apply one SpEffect
+    row: "Taking attacks improves attack power" is 7032200 on a rolled relic
+    and 10001 and 100000 on fixed ones. The instance the game holds is that
+    row's, not the record's, so three relics with the three records are one
+    +15% and not three (user report 2026-11-16: the advisor chose all three).
+    The first row is the effect's own; the record's id where it has none.
+    """
+    rows = eff.get("sp_effect_ids") or ()
+    return int(rows[0]) if rows else int(eff["id"])
+
 # Flat additions, not multipliers -- shown as a count rather than a percentage.
 # characterSkillGauge belongs here, not above: its baseline across the 13,472
 # SpEffect rows is 0.0, not 1.0, and the values it takes are point awards
@@ -1318,22 +1333,24 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
                 # holds one instance of does not double it. "Taking attacks
                 # improves attack power" switched on is +15% on one relic
                 # and on three.
-                if eff.get("one_instance") and eff["id"] in declared_once:
+                if eff.get("one_instance") and same_copy(eff) in declared_once:
                     build.warnings.append(Warning(
                         "duplicate",
                         f"{eff['name']} — the game keeps one instance of "
                         f"this effect"))
                     continue
-                declared_once.add(eff["id"])
+                declared_once.add(same_copy(eff))
                 expanded.extend([{**eff, FORCED: True}] * times)
             else:
                 expanded.append(eff)
         effects = expanded
 
+    # Counted by the row the game holds, not by the record: two records of
+    # one row are two copies of one effect (`same_copy`).
     seen_ids: dict[int, int] = {}
     counted: list[dict] = []
     for eff in effects:
-        eid = eff["id"]
+        eid = same_copy(eff)
         seen_ids[eid] = seen_ids.get(eid, 0) + 1
         if single_copy(eff) and seen_ids[eid] > 1:
             build.warnings.append(

@@ -6,6 +6,14 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Fixed
+- **"Taking attacks improves attack power" no longer counts three times.**
+  The game keeps this effect as three records, one on rolled relics and two
+  on fixed ones, and the build added +15% for each: +52% with three relics,
+  which is why Optimize picked all three. They are one effect and count once
+  now. The same holds for 22 other effects kept as two records, such as
+  "Switching Weapons Boosts Attack Power".
+
 ## [1.23.0] - 2026-11-15
 
 ### Added
