@@ -262,3 +262,13 @@ starts there.
   values change, and the attack ratings that scale with them). The first
   start shows one sentence and a bar that fills. **The data cache and the
   symbols are rebuilt once on first start, which may take a few minutes.**
+- **1.23.1** — the Filters window has three boxes per effect and per family:
+  **Favourite**, **Avoid** and the new **Ignore**. A relic with an ignored
+  effect may still be suggested, but the effect counts as nothing for
+  Optimize, the relic picker's figures and Recommended effects. The **Allow**
+  box is gone, and Allow marks from older versions no longer apply: such an
+  effect is avoided with its family again until you mark it. Fixed: "Taking
+  attacks improves attack power" on three relics counted as +52% instead of
+  +15%, which is why Optimize picked it three times; it and 22 other effects
+  the game keeps as several records count once now. The data cache is not
+  rebuilt.

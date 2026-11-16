@@ -306,3 +306,51 @@ def test_the_relatives_are_conditions_with_their_figures(game_data):
     # The hand-outs and the ladder stay text.
     for key in ("7340000", "7037600"):
         assert game_data["effects"][key].get("triggered"), key
+
+
+#: "Taking attacks improves attack power" as the game keeps it: one record a
+#: relic rolls and two that fixed relics carry, all three on row 7032200.
+TAKING_ATTACKS = ("7032200", "10001", "100000")
+
+
+def test_three_records_of_one_row_are_one_instance_not_three(game_data):
+    """User report 2026-11-16: the advisor chose the effect on three relics.
+    Each relic carried another record of it, so the one-instance rule, asked
+    per record, let all three through: +15%, +32%, +52%."""
+    from nrplanner import model
+    effects = [game_data["effects"][key] for key in TAKING_ATTACKS]
+    assert {model.same_copy(effect) for effect in effects} == {7032200}
+    hero = game_data["heroes"][0]
+    declared = model.advisor_defaults()
+    one = model.compute(hero, 15, effects[:1], game_data["curves"],
+                        declared=declared)
+    three = model.compute(hero, 15, effects, game_data["curves"],
+                          declared=declared)
+    assert one.rates["physicsAttackRate"] > 1.14
+    assert three.rates == one.rates
+    assert sum("keeps one instance" in w.text for w in three.warnings) == 2
+
+
+def test_no_record_twin_of_a_one_instance_effect_adds_anything(game_data):
+    """The same for every effect the game holds once and keeps as several
+    records ("Switching Weapons Boosts Attack Power", "+1 additional
+    Character Skill use", the fixed relics' own copies of a rolled effect)."""
+    import collections
+
+    from nrplanner import model
+    twins = collections.defaultdict(list)
+    for effect in game_data["effects"].values():
+        if effect.get("one_instance") and effect.get("name"):
+            twins[model.same_copy(effect), effect["name"]].append(effect)
+    twins = {key: rows for key, rows in twins.items() if len(rows) > 1}
+    assert len(twins) >= 20
+    declared = model.advisor_defaults()
+    for hero in game_data["heroes"]:
+        for rows in twins.values():
+            one = model.compute(hero, 15, rows[:1], game_data["curves"],
+                                declared=declared, want_qualitative=False)
+            both = model.compute(hero, 15, rows[:2], game_data["curves"],
+                                 declared=declared, want_qualitative=False)
+            assert both.rates == one.rates, rows[0]["name"]
+            assert both.other == one.other, rows[0]["name"]
+            assert both.attributes == one.attributes, rows[0]["name"]
