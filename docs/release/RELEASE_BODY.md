@@ -273,3 +273,7 @@ starts there.
   the game keeps as several records count once now. Also fixed: relics that
   belong to another player could appear as your own; only relics that the
   save's own inventory list names count now. The data cache is not rebuilt.
+- **1.23.2** — every effect and curse line on a suggestion card in the Build
+  planner has a **∅** button left of the ✕: it sets the effect to Ignore, the
+  same mark as the Ignore box in Filters, and Optimize runs again at once.
+  The data cache is not rebuilt.
