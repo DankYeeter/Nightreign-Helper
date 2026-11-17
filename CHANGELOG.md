@@ -6,6 +6,12 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Added
+- **Ignore straight from a suggestion.** Every effect and curse line on a
+  suggestion card has a **∅** button left of the ✕. It sets the effect to
+  Ignore, the same mark as the Ignore box in Filters: relics that carry it
+  stay in, the effect counts as nothing, and Optimize runs again at once.
+
 ## [1.23.1] - 2026-11-16
 
 ### Added

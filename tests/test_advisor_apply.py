@@ -734,6 +734,28 @@ def test_an_x_marks_the_effect_and_asks_again(planner, monkeypatch):
         planner.effect_filters.mark(effect_id, None)
 
 
+def test_the_ignore_button_marks_the_effect_and_asks_again(planner,
+                                                           monkeypatch):
+    """User request 2026-11-17: the Filters window's `Ignore` from the block,
+    one run at once, as an X does it."""
+    card, _copy, effect_id, answer = a_card_with_a_line(planner)
+    run = _NoRun(planner.advisor_bar, monkeypatch)
+    try:
+        card.suggestion.drawn_lines[0].ignore.click()
+
+        assert effect_id in planner.effect_filters.ignored
+        assert effect_id not in planner.effect_filters.excluded
+        assert planner.advisor_bar.answer is answer
+        assert len(run.asked) == 1
+        request, debounce = run.asked[0]
+        assert debounce == 0
+        assert effect_id in request.problem.ignored
+        assert effect_id not in request.problem.excluded
+        assert not card.suggestion.isEnabled()
+    finally:
+        planner.effect_filters.mark(effect_id, None)
+
+
 def test_a_mark_set_in_the_filter_window_starts_no_run(planner, monkeypatch):
     """AK-289, unchanged: only the block asks again."""
     _card, _copy, effect_id, _answer = a_card_with_a_line(planner)

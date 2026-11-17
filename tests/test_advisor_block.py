@@ -233,7 +233,7 @@ def test_the_block_carries_exactly_use_why_and_reject(block):
     block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     buttons = [button for button in block.findChildren(QAbstractButton)
-               if not isinstance(button, advisorblock.AvoidButton)]
+               if not isinstance(button, advisorblock.LineButton)]
     assert [button.text() for button in buttons] == ["Use", "Why this relic",
                                                      "Reject"]
     assert all(button.isVisibleTo(block) for button in buttons)
@@ -1448,6 +1448,70 @@ def test_the_xs_of_a_block_are_one_tab_stop(block):
     assert stops() == [avoid[-1]]
     QTest.keyClick(avoid[-1], Qt.Key_Return)
     assert seen == [block.drawn_lines[-1].line.effect_id]
+
+
+def test_every_drawn_line_has_an_ignore_button_beside_its_x(block):
+    """User request 2026-11-17: Ignore from the block, left of the X."""
+    effect = types.ReasonLine(slot_index=0, effect_id=1, text="Line.")
+    wanted = types.ReasonLine(slot_index=0, effect_id=2, text="Wanted line.")
+    curse = types.ReasonLine(slot_index=0, effect_id=3, text="Curse line.",
+                             is_curse=True)
+    block.show_the_suggestion(
+        "Maximise damage", a_group(effect, wanted, curse),
+        names={1: "Strength", 2: "Vigor", 3: "Gloom"},
+        favourited=frozenset({2}))
+    ignore = [one.ignore for one in block.drawn_lines]
+
+    assert [button.text() for button in ignore] == ["∅"] * 3
+    assert all((b.width(), b.height()) == (24, 24) for b in ignore)
+    for one in block.drawn_lines:
+        row = one.layout()
+        assert row.indexOf(one.ignore) == row.indexOf(one.avoid) - 1
+    assert ignore[0].accessibleName() == "Ignore Strength"
+    assert ignore[0].accessibleDescription() == (
+        "Ignore “Strength” — relics that carry it stay in, it just counts as "
+        "nothing. Undo in Filters.")
+    assert ignore[1].accessibleDescription() == (
+        "Ignore “Vigor” — this replaces your Favourite for it. "
+        "Undo in Filters.")
+    assert ignore[2].accessibleDescription().startswith(
+        "Ignore the curse “Gloom”")
+    assert len(block.findChildren(advisorblock.AvoidButton)) == 3
+
+    seen = []
+    block.ignore_requested.connect(seen.append)
+    ignore[1].click()
+    assert seen == [2]
+
+
+def test_an_ignored_curse_line_offers_no_second_ignore(block):
+    """The curse stays in the block and says it is ignored; only the X is
+    left to press there."""
+    curse = types.ReasonLine(slot_index=0, effect_id=3, text="Curse line.",
+                             is_curse=True, silence=types.SILENT_IGNORED)
+    block.show_the_suggestion("Maximise damage", a_group(curse))
+
+    assert block.drawn_lines[0].ignore.isHidden()
+    assert not block.drawn_lines[0].avoid.isHidden()
+
+
+def test_left_and_right_change_between_ignore_and_x(block):
+    """AK-423 stays: one tab stop for the whole group, wherever it stands."""
+    block.show_the_suggestion("Maximise damage", a_mixed_group())
+    lines = block.drawn_lines
+    assert len(lines) >= 2
+    every = [b for one in lines for b in (one.ignore, one.avoid)]
+
+    def stops():
+        return [b for b in every if b.focusPolicy() & Qt.TabFocus]
+
+    assert stops() == [lines[0].avoid]
+    QTest.keyClick(lines[0].avoid, Qt.Key_Left)
+    assert stops() == [lines[0].ignore]
+    QTest.keyClick(lines[0].ignore, Qt.Key_Down)
+    assert stops() == [lines[1].ignore]
+    QTest.keyClick(lines[1].ignore, Qt.Key_Right)
+    assert stops() == [lines[1].avoid]
 
 
 def test_the_x_group_follows_reject_in_the_tab_order(block):
