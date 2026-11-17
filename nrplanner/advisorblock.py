@@ -30,7 +30,7 @@ drawn only where there is something to press them for -- a suggestion that is
 already lying in the slot draws the one line of §3.2 and no control.
 
 **The dialog shows the marks, it does not set them** (AK-301), the X in the
-block is the one other place that sets one. A line whose
+block and the Ignore button beside it are the one other place that sets one. A line whose
 effect the player favourited or avoided (`effectfilters`) is drawn in that
 state -- `▲` and bold, or struck through -- as a `WhyLine`, a `QLabel` bullet
 beside a `QLabel` text with no control on it: marks are set in the effect
@@ -78,6 +78,9 @@ REJECT_PINNED_TOOLTIP = "Your favourite stays marked."
 #: The X at the end of a line in the block (AK-420, AK-421).
 AVOID_CAPTION = "✕"
 AVOID_BUTTON_SIZE = 24
+#: Its milder neighbour (user request 2026-11-17): the effect stays, and
+#: counts as nothing.
+IGNORE_CAPTION = "∅"
 
 #: The legend for `✦`, once per `Why` dialog and in no block (AK-141).
 CURSE_LEGEND = ("✦ marks a curse. A cost with no number beside it is still a "
@@ -365,30 +368,45 @@ def _avoid_tooltip(line: types.ReasonLine, name: str, favourited: bool) -> str:
     return f"{first} Undo in Filters."
 
 
-class AvoidButton(QToolButton):
-    """The X at the end of one line (AK-420, AK-421).
+def _ignore_tooltip(line: types.ReasonLine, name: str, favourited: bool) -> str:
+    """What the Ignore button will do, in the X's three sentences."""
+    if favourited:
+        first = f"Ignore “{name}” — this replaces your Favourite for it."
+    else:
+        first = (f"Ignore {'the curse ' if line.is_curse else ''}“{name}” — "
+                 f"relics that carry it stay in, it just counts as nothing.")
+    return f"{first} Undo in Filters."
+
+
+class LineButton(QToolButton):
+    """One of the two marks at the end of a line (AK-420, AK-421).
 
     All of a block's are one tab stop (AK-423): `walk` asks the block to move
-    along them, and only the one standing on the stop takes `Tab`.
+    along them, and only the one standing on the stop takes `Tab`. Up and
+    Down stay in the column, Left and Right change between the two of a line.
     """
 
-    def __init__(self, line: types.ReasonLine, name: str, favourited: bool,
+    #: The word the accessible name opens with, and the hover colour.
+    VERB = ""
+    CAPTION = ""
+    HOVER = BAD
+
+    def __init__(self, line: types.ReasonLine, name: str, tooltip: str,
                  walk, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.effect_id = line.effect_id
         self._walk = walk
-        tooltip = _avoid_tooltip(line, name, favourited)
-        self.setText(AVOID_CAPTION)
+        self.setText(self.CAPTION)
         self.setFixedSize(AVOID_BUTTON_SIZE, AVOID_BUTTON_SIZE)
         self.setAutoRaise(True)
         self.setFocusPolicy(Qt.ClickFocus)
         self.setToolTip(as_a_tooltip(tooltip))
-        self.setAccessibleName(f"Avoid {name}")
+        self.setAccessibleName(f"{self.VERB} {name}")
         self.setAccessibleDescription(tooltip)
         self.setStyleSheet(
             f"QToolButton {{ color: {MUTED}; border: 1px solid transparent; }}"
-            f" QToolButton:hover {{ color: {BAD}; }}"
-            f" QToolButton:focus {{ color: {BAD};"
+            f" QToolButton:hover {{ color: {self.HOVER}; }}"
+            f" QToolButton:focus {{ color: {self.HOVER};"
             f" border: 1px solid {ACCENT}; }}")
 
     def keyPressEvent(self, event) -> None:
@@ -398,12 +416,42 @@ class AvoidButton(QToolButton):
             self._walk(self, -1)
         elif event.key() == Qt.Key_Down:
             self._walk(self, 1)
+        elif event.key() in (Qt.Key_Left, Qt.Key_Right):
+            self._walk(self, 0)
         else:
             super().keyPressEvent(event)
 
 
+class AvoidButton(LineButton):
+    """The X at the end of one line: no relic with this effect (AK-424)."""
+
+    VERB = "Avoid"
+    CAPTION = AVOID_CAPTION
+
+    def __init__(self, line: types.ReasonLine, name: str, favourited: bool,
+                 walk, parent: QWidget | None = None) -> None:
+        super().__init__(line, name, _avoid_tooltip(line, name, favourited),
+                         walk, parent)
+
+
+class IgnoreButton(LineButton):
+    """Beside the X: the effect may stay and counts as nothing (user request
+    2026-11-17, the Filters window's `Ignore` set from the block)."""
+
+    VERB = "Ignore"
+    CAPTION = IGNORE_CAPTION
+    HOVER = EFFECT_TEXT
+
+    def __init__(self, line: types.ReasonLine, name: str, favourited: bool,
+                 walk, parent: QWidget | None = None) -> None:
+        super().__init__(line, name, _ignore_tooltip(line, name, favourited),
+                         walk, parent)
+
+
 class BlockLine(QWidget):
-    """One line of the block: bullet, text, X (AK-420), plain text throughout."""
+    """One line of the block: bullet, text, Ignore, X (AK-420), plain text
+    throughout. A line that already says the effect is ignored (a curse; any
+    other leaves the block) offers no second Ignore."""
 
     def __init__(self, line: types.ReasonLine, name: str, favourited: bool,
                  walk, parent: QWidget | None = None, *,
@@ -417,11 +465,14 @@ class BlockLine(QWidget):
         self.bullet.setWordWrap(False)
         self.label = _plain(line.text)
         _dress(_styled(line, None), self.bullet, self.label, self.label.font())
+        self.ignore = IgnoreButton(line, name, favourited, walk)
+        self.ignore.setVisible(line.silence != types.SILENT_IGNORED)
         self.avoid = AvoidButton(line, name, favourited, walk)
         row.addWidget(self.bullet, 0, Qt.AlignTop)
         if symbol is not None:
             row.addWidget(iconpack.symbol_label(symbol), 0, Qt.AlignTop)
         row.addWidget(self.label, 1)
+        row.addWidget(self.ignore, 0, Qt.AlignTop)
         row.addWidget(self.avoid, 0, Qt.AlignTop)
 
 
@@ -458,6 +509,8 @@ class SuggestionBlock(QFrame):
     reject_requested = Signal()
     #: An X was pressed: avoid this effect or curse (AK-424).
     avoid_requested = Signal(int)
+    #: The button beside an X was pressed: count this effect as nothing.
+    ignore_requested = Signal(int)
 
     def __init__(self, parent: QWidget | None = None, *, icons=None) -> None:
         super().__init__(parent)
@@ -636,6 +689,9 @@ class SuggestionBlock(QFrame):
             drawn.avoid.clicked.connect(
                 lambda _checked=False, effect_id=line.effect_id:
                 self.avoid_requested.emit(effect_id))
+            drawn.ignore.clicked.connect(
+                lambda _checked=False, effect_id=line.effect_id:
+                self.ignore_requested.emit(effect_id))
             self._line_column.addWidget(drawn)
             self.drawn_lines.append(drawn)
             QWidget.setTabOrder(before, drawn.avoid)
@@ -650,10 +706,19 @@ class SuggestionBlock(QFrame):
             drawn.deleteLater()
         self.drawn_lines = []
 
-    def _walk_the_xs(self, button: AvoidButton, step: int) -> None:
-        """Arrow keys along the X's, and the tab stop moves along (AK-423)."""
-        buttons = [drawn.avoid for drawn in self.drawn_lines]
-        target = buttons[(buttons.index(button) + step) % len(buttons)]
+    def _walk_the_xs(self, button: LineButton, step: int) -> None:
+        """Arrow keys along the X's, and the tab stop moves along (AK-423).
+        Step 0 is Left or Right: to the other button of the same line."""
+        pairs = [(drawn.ignore, drawn.avoid) for drawn in self.drawn_lines]
+        row = next(i for i, pair in enumerate(pairs) if button in pair)
+        column = pairs[row].index(button)
+        if step == 0:
+            column = 1 - column
+        target = pairs[(row + step) % len(pairs)][column]
+        if target.isHidden():
+            target = pairs[(row + step) % len(pairs)][1]
+        if target is button:
+            return
         button.setFocusPolicy(Qt.ClickFocus)
         target.setFocusPolicy(Qt.StrongFocus)
         target.setFocus(Qt.TabFocusReason)

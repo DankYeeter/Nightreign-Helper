@@ -3358,6 +3358,9 @@ class Planner(QMainWindow):
             card.suggestion.avoid_requested.connect(
                 lambda effect_id, slot=card:
                 self._avoid_from_the_block(slot, effect_id))
+            card.suggestion.ignore_requested.connect(
+                lambda effect_id, slot=card:
+                self._ignore_from_the_block(slot, effect_id))
             # AK-274: the card's own `Why` opens the very dialog the bar's
             # does -- same handler, so there is no second account to keep in
             # step with the first.
@@ -3422,6 +3425,16 @@ class Planner(QMainWindow):
             self.effect_filters.mark(effect_id, effectfilters.EXCLUDED)
         self._ask_again_from(card, stopped=f"Stopped. “{name}” stays avoided.",
                              done=f"“{name}” avoided.",
+                             done_tip="Undo this in Filters.")
+
+    def _ignore_from_the_block(self, card, effect_id: int) -> None:
+        """The button beside an X (user request 2026-11-17): the Filters
+        window's `Ignore`, set from the block, and asked again like an X."""
+        name = advisorblock.effect_name(self.effects, effect_id)
+        with self.advisor_bar.while_the_player_applies_it():
+            self.effect_filters.mark(effect_id, effectfilters.IGNORED)
+        self._ask_again_from(card, stopped=f"Stopped. “{name}” stays ignored.",
+                             done=f"“{name}” ignored.",
                              done_tip="Undo this in Filters.")
 
     def _reject_from_the_block(self, card) -> None:

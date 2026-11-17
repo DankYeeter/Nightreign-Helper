@@ -377,7 +377,7 @@ Curses are part of that identity: the same relic with and without a curse is not
 the same thing. The picker also collapses duplicate rolls down to one tile for
 the same reason.
 
-**Taking an effect or a relic out of a suggestion.** Two buttons on the
+**Taking an effect or a relic out of a suggestion.** Three buttons on the
 suggestion cards do it without leaving the card.
 
 - **✕** at the end of every effect and curse line puts that effect on
@@ -387,8 +387,14 @@ suggestion cards do it without leaving the card.
   works out, the line reads `Stopped. “{name}” stays avoided.` The tooltip
   says "Avoid “{name}” — no suggestion will use a relic that carries it. Undo
   in Filters." Taking it back is Filters, search for the effect, uncheck
-  **Avoid**. The ✕ buttons of a card form one Tab stop; the arrow keys move
-  between them.
+  **Avoid**.
+- **∅**, left of the ✕, is the mild version: it sets the effect to **Ignore**
+  — the same as checking Ignore in **Filters**. Relics that carry it stay in,
+  the effect just counts as nothing, so it no longer pulls a relic into a
+  suggestion. Optimize runs again at once and the status line ends
+  `“{name}” ignored.` Taking it back is Filters, uncheck **Ignore**. The ∅
+  and ✕ buttons of a card form one Tab stop; Up and Down move along the
+  lines, Left and Right between the two buttons of a line.
 - **Reject**, beside **Why this relic**, means "not this relic": "Do not
   suggest this relic, or any copy with the same effects, for this build."
   Optimize runs again at once and the status line ends `“{relic name}”
