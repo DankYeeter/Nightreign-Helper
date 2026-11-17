@@ -6,6 +6,14 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Changed
+- **Defense counts only the damage picked under Incoming.** With **Physical**
+  only physical damage negation counts; with an element (Magic, Fire,
+  Lightning, Holy) that element counts beside physical. Negation of any other
+  element no longer adds a quarter of itself, so Optimize under Minimise
+  damage taken and Balanced no longer picks a relic for it, and the Defense
+  figures in the vessel list drop accordingly.
+
 ## [1.23.2] - 2026-11-17
 
 ### Added

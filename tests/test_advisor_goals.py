@@ -2281,37 +2281,34 @@ def test_a_penalty_on_one_type_is_not_hidden_by_negation_on_another():
     assert goals.strongest_cut({}, weights) == 1.0
 
 
-def test_physical_counts_in_full_and_an_element_a_quarter():
-    """User decision 2026-11-08, 15:20: fire -16 % no longer stands for every
-    hit; it adds a quarter of itself to the physical figure."""
+def test_incoming_physical_counts_physical_and_no_element():
+    """User decision 2026-11-17: with `Incoming: Physical` an element's
+    negation takes no part (before: a quarter of itself, 2026-11-08)."""
     weights = dict(goals.DEFAULT_WEIGHTING.weights)
     fire_only = {"fireDamageCutRate": 0.84}
-    assert goals.strongest_cut(fire_only, weights) == pytest.approx(0.96)
+    assert goals.strongest_cut(fire_only, weights) == 1.0
     physical = {"slashDamageCutRate": 0.88, "blowDamageCutRate": 0.88}
     assert goals.strongest_cut(physical, weights) == 0.88
     both = {**physical, **fire_only, "magicDamageCutRate": 0.9}
-    assert goals.strongest_cut(both, weights) == pytest.approx(0.88 * 0.96)
-    # A physical relic beats the fire one, and fire still decides a tie.
-    assert (goals.strongest_cut(physical, weights)
-            < goals.strongest_cut(fire_only, weights))
-    assert (goals.strongest_cut(both, weights)
-            < goals.strongest_cut(physical, weights))
+    assert goals.strongest_cut(both, weights) == 0.88
+    # The player's case: physical -21.2 % and fire -15 % is 0.788, not 0.758.
+    assert goals.strongest_cut({"neutralDamageCutRate": 0.788,
+                                "fireDamageCutRate": 0.85}, weights) == 0.788
 
 
-def test_an_elemental_penalty_counts_a_quarter_too():
+def test_an_elemental_penalty_is_not_counted_either():
     weights = dict(goals.DEFAULT_WEIGHTING.weights)
-    assert goals.strongest_cut({"darkDamageCutRate": 1.2}, weights) \
-        == pytest.approx(1.05)
+    assert goals.strongest_cut({"darkDamageCutRate": 1.2}, weights) == 1.0
     assert goals.strongest_cut({"neutralDamageCutRate": 1.2}, weights) == 1.2
 
 
 def test_the_boss_element_counts_in_full():
     """`Incoming: Fire`: fire joins the physical kinds, the strongest of them
-    stands, and the other elements stay at a quarter."""
+    stands, and the other elements are not counted."""
     weights = dict(goals.incoming_weighting("Fire").weights)
     rates = {"slashDamageCutRate": 0.88, "fireDamageCutRate": 0.84,
              "magicDamageCutRate": 0.9}
-    assert goals.strongest_cut(rates, weights) == pytest.approx(0.84 * 0.975)
+    assert goals.strongest_cut(rates, weights) == 0.84
     assert goals.incoming_weighting("Fire").id \
         != goals.incoming_weighting("Dark").id != goals.DEFAULT_WEIGHTING.id
     with pytest.raises(KeyError):
@@ -2323,4 +2320,4 @@ def test_the_default_weighting_says_its_rule(game_data, wylder):
     build = evaluate(advisor.problem([advisor.RED]), (), ctx)
     score = goals.MIN_DAMAGE_TAKEN.score(build, ctx)
     assert score.weights_note == goals.DEFAULT_WEIGHTING.note
-    assert "quarter" in score.weights_note
+    assert "not counted" in score.weights_note
