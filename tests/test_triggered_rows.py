@@ -354,3 +354,14 @@ def test_no_record_twin_of_a_one_instance_effect_adds_anything(game_data):
             assert both.rates == one.rates, rows[0]["name"]
             assert both.other == one.other, rows[0]["name"]
             assert both.attributes == one.attributes, rows[0]["name"]
+
+
+def test_a_placeholder_relic_row_is_no_source_of_a_roll(game_data):
+    """Relic rows 1..3 ("Antique", no place in the relic list) point at the
+    pools weapon passives are drawn from; nothing hands those rows out."""
+    effects = game_data["effects"]
+    for key in ("8670100", "8620100"):   # ... at Full HP, Taking Damage ...
+        assert not effects[key]["colours"], effects[key]["name"]
+        assert not effects[key]["chance"], effects[key]["name"]
+    # Its namesake of the real pools is untouched.
+    assert effects["7012300"]["colours"] == [0, 1, 2, 3]
