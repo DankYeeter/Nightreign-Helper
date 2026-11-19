@@ -14,6 +14,15 @@ History before 1.10.0 was not reconstructed; this file starts here.
   damage taken and Balanced no longer picks a relic for it, and the Defense
   figures in the vessel list drop accordingly.
 
+### Fixed
+- **Relics of other players no longer count as yours.** For an expedition the
+  game writes the relics all three players have equipped into your save. The
+  planner now offers only what your save's own inventory list names, with no
+  exception: a player who owns no relic yet sees none, and a save whose list
+  this version cannot read is reported as unreadable instead of being guessed
+  at. Measured on a save after an expedition of three: 345 relic records, 327
+  owned, 327 shown.
+
 ## [1.23.2] - 2026-11-17
 
 ### Added

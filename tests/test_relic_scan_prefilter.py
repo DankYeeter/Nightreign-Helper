@@ -380,7 +380,11 @@ def an_inventory_read_of(monkeypatch, tmp_path, relic_id: int):
     file that is deliberately free of it.
     """
     buffer = bytearray(4096)
-    record_at(buffer, 0, relic_id=relic_id, effects=True)
+    # A handle in front of the record and the inventory list's entry for it
+    # behind: a record the list does not name is not the player's.
+    struct.pack_into("<I", buffer, 0, 0xC0800054)
+    record_at(buffer, 4, relic_id=relic_id, effects=True)
+    struct.pack_into("<II", buffer, 2050, 0xC0800054, 1)
     save = tmp_path / "NR0000.sl2"
     save.write_bytes(b"")
     monkeypatch.setattr(inventory, "_decrypt_slots",
@@ -421,7 +425,12 @@ def test_the_way_is_chosen_once_for_a_load_and_not_once_per_slot(monkeypatch,
     """
     buffer = bytearray(4096)
     for index in range(3):
-        record_at(buffer, index * 80, effects=True)
+        # Handle in front, the inventory list's entry for it further back:
+        # a record the list does not name is not the player's.
+        struct.pack_into("<I", buffer, index * 80, 0xC0800054 + index)
+        record_at(buffer, index * 80 + 4, effects=True)
+        struct.pack_into("<II", buffer, 2050 + index * 14,
+                         0xC0800054 + index, 1)
     save = tmp_path / "NR0000.sl2"
     save.write_bytes(b"")
     monkeypatch.setattr(inventory, "_decrypt_slots", lambda path: {
