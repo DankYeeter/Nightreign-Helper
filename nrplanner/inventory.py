@@ -556,7 +556,12 @@ def _scan_save(path: pathlib.Path, valid_relics: set, valid_effects: set,
                                            mode=mode)
         # Only what the slot's own inventory list names: a record alone says
         # a copy exists here, and another player's can (see the function).
-        owned = savefile.relics_the_inventory_lists(blob, owned)
+        try:
+            owned = savefile.relics_the_inventory_lists(blob, owned)
+        except NotWhatItClaims as exc:
+            # As `SaveNotReadable`, so `scan` goes on to the next file and
+            # says this only when no file could be read at all.
+            raise SaveNotReadable(errortext.in_english(exc)) from exc
         if not owned:
             continue
 

@@ -835,7 +835,12 @@ def test_the_refusal_reaches_the_window_instead_of_the_console(tmp_path):
     anything to say about a slot this sparse.
     """
     slot = bytearray(first_marker() * (64 * 1024 // 4))
-    slot[0:len(DOUBLED_ID)] = DOUBLED_ID
+    # The record with its handle in front, and the inventory list's entry
+    # for that handle at the end: without it the relic is nobody's.
+    handle = struct.pack("<I", 0xC0800054)
+    slot[0:4] = handle
+    slot[4:4 + len(DOUBLED_ID)] = DOUBLED_ID
+    slot[-8:] = handle + struct.pack("<I", 1)
     path = prepared_save(tmp_path, bytes(slot))
     relic_meta = {KNOWN_RELIC_ID: {"id": KNOWN_RELIC_ID, "name": "Test relic",
                                    "colour": 0}}
