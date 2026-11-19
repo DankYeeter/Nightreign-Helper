@@ -1920,8 +1920,13 @@ def test_the_survival_goal_rises_when_less_damage_gets_through(game_data,
                          game_data.get("curves", {})
                          ).rates["magicDamageCutRate"] < 1.0, (
         "the case needs an effect that lowers incoming damage")
-    assert goals.GOALS["min_damage_taken"].score(protected, ctx).value > \
-        goals.GOALS["min_damage_taken"].score(plain, ctx).value
+    # Asked with `Incoming: Magic`: under `Physical` an element's negation
+    # takes no part (user decision 2026-11-17), which the last line holds.
+    magic = advisor.context(game_data, wylder,
+                            weighting=goals.incoming_weighting("Magic"))
+    score = goals.GOALS["min_damage_taken"].score
+    assert score(protected, magic).value > score(plain, magic).value
+    assert score(protected, ctx).value == score(plain, ctx).value
 
 
 def test_the_survival_goal_uses_the_weights_it_is_handed(game_data, wylder):
