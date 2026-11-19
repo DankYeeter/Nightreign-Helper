@@ -159,7 +159,13 @@ MAX_LEVEL = 15
 #      instead of rounded: 242 of the 1,200 values come out one lower. A
 #      cache left on 24 shows those attributes one above the game's.
 #  26  the line of "Unifying Fate" names its unit ("30% of max FP").
-EXTRACT_VERSION = 26
+#  27  `effects[].colours` and `chance` no longer count the relic rows the
+#      relic list does not show (`UNLISTED_SORT`). A cache left on 26 offers
+#      weapon passives as red relic rolls.
+EXTRACT_VERSION = 27
+
+#: EquipParamAntique.sortId of a row the relic list leaves out.
+UNLISTED_SORT = -1
 
 #: How much of `build` is behind it when each stage ends (`progress`).
 P_ARCHIVES, P_EFFECTS, P_TABLES, P_BOSSES = 0.25, 0.35, 0.38, 0.72
@@ -2909,6 +2915,13 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path,
         colour = row.values.get("relicColor")
         is_deep = row.values.get("unknown_1b") == DEEP_MARKER
         target = deep_colours_by_effect if is_deep else colours_by_effect
+        # A row without a place in the relic list is not a relic the player
+        # can hold: the six rows named "Antique" (1..6), Murk, the Sovereign
+        # Sigil and the Scenic Flatstone. No drop table, lot or shop hands
+        # them out. Rows 1..3 point at the pools weapon passives are drawn
+        # from, which made every such passive look like a red relic roll at
+        # about 2% ("Improved Damage Negation at Full HP").
+        listed = row.values.get("sortId", -1) != UNLISTED_SORT
 
         # Curse slots: extra effect tables that only ever yield debuffs, so a
         # relic referencing one always drags a curse along with its good rolls.
@@ -2922,7 +2935,7 @@ def build(game_dir: pathlib.Path, defs_dir: pathlib.Path,
             if tid and tid > 0:
                 entries = resolve_table(tid)
                 pool_sizes.append(len(entries))
-                for key, chance in entries:
+                for key, chance in entries if listed else ():
                     target[key].add(colour)
                     shares[(key, colour, is_deep)].append(chance)
                     stats = curse_sources.setdefault(key, [0, 0])

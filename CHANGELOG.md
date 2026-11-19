@@ -6,6 +6,13 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Fixed
+
+- Weapon passives such as "Improved Damage Negation at Full HP" and "Taking
+  Damage Boosts Damage Negation" are no longer offered as red relic rolls at
+  about 2%. Their chance came from placeholder relic rows the game never hands
+  out. The game data is read again once on the first start.
+
 ## [1.23.2] - 2026-11-17
 
 ### Added
