@@ -6,6 +6,8 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+## [1.23.3] - 2026-11-19
+
 ### Changed
 - **Defense counts only the damage picked under Incoming.** With **Physical**
   only physical damage negation counts; with an element (Magic, Fire,
@@ -22,13 +24,11 @@ History before 1.10.0 was not reconstructed; this file starts here.
   this version cannot read is reported as unreadable instead of being guessed
   at. Measured on a save after an expedition of three: 345 relic records, 327
   owned, 327 shown.
-
-### Fixed
-
-- Weapon passives such as "Improved Damage Negation at Full HP" and "Taking
-  Damage Boosts Damage Negation" are no longer offered as red relic rolls at
-  about 2%. Their chance came from placeholder relic rows the game never hands
-  out. The game data is read again once on the first start.
+- **Weapon passives are no longer offered as relic rolls.** "Improved Damage
+  Negation at Full HP", "Taking Damage Boosts Damage Negation" and 75 other
+  effects showed as red relic rolls at about 2%. Their chance came from
+  placeholder relic rows the game never hands out. The game data is read
+  again once on the first start.
 
 ## [1.23.2] - 2026-11-17
 

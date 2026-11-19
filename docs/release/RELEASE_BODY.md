@@ -277,3 +277,13 @@ starts there.
   planner has a **∅** button left of the ✕: it sets the effect to Ignore, the
   same mark as the Ignore box in Filters, and Optimize runs again at once.
   The data cache is not rebuilt.
+- **1.23.3** — Defense counts only the damage picked under **Incoming**:
+  with Physical only physical damage negation, with an element that element
+  beside physical. Negation of any other element no longer adds a quarter of
+  itself, so some Defense figures drop. Fixed: relics of other players no
+  longer count as yours (for an expedition the game writes the equipped
+  relics of all three players into your save; only what your save's own
+  inventory list names is offered now, with no exception). Fixed: 77 weapon
+  passives such as "Improved Damage Negation at Full HP" are no longer shown
+  as red relic rolls at about 2%. **The data cache is rebuilt once on first
+  start.**
