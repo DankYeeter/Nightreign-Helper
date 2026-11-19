@@ -623,6 +623,8 @@ def test_the_line_about_the_stored_builds_says_it_in_english(monkeypatch,
     monkeypatch.setattr(inventory, "_decrypt_slots", one_slot)
     monkeypatch.setattr(savefile, "read_owned_relics",
                         lambda *a, **k: [relic])
+    monkeypatch.setattr(savefile, "relics_the_inventory_lists",
+                        lambda _blob, owned: owned)
     monkeypatch.setattr(savefile, "read_relic_handles", lambda *a, **k: {})
     monkeypatch.setattr(savefile, "read_loadouts", refuse)
 

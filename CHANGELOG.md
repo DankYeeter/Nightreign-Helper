@@ -6,6 +6,30 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+## [1.23.3] - 2026-11-19
+
+### Changed
+- **Defense counts only the damage picked under Incoming.** With **Physical**
+  only physical damage negation counts; with an element (Magic, Fire,
+  Lightning, Holy) that element counts beside physical. Negation of any other
+  element no longer adds a quarter of itself, so Optimize under Minimise
+  damage taken and Balanced no longer picks a relic for it, and the Defense
+  figures in the vessel list drop accordingly.
+
+### Fixed
+- **Relics of other players no longer count as yours.** For an expedition the
+  game writes the relics all three players have equipped into your save. The
+  planner now offers only what your save's own inventory list names, with no
+  exception: a player who owns no relic yet sees none, and a save whose list
+  this version cannot read is reported as unreadable instead of being guessed
+  at. Measured on a save after an expedition of three: 345 relic records, 327
+  owned, 327 shown.
+- **Weapon passives are no longer offered as relic rolls.** "Improved Damage
+  Negation at Full HP", "Taking Damage Boosts Damage Negation" and 75 other
+  effects showed as red relic rolls at about 2%. Their chance came from
+  placeholder relic rows the game never hands out. The game data is read
+  again once on the first start.
+
 ## [1.23.2] - 2026-11-17
 
 ### Added

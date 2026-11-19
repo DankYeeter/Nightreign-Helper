@@ -120,11 +120,10 @@ always reads the whole armament. In the vessel list each vessel then says both
 gains against the same vessel with no relics, for example
 `AR +60 % / Defense +70 %`.
 **Defense** is effective HP: max HP over the share of a hit that gets through.
-The strongest physical damage negation counts in full and the strongest
-elemental one adds a quarter of itself; nothing is added up. Under **Minimise
-damage taken** and **Balanced** the box **Incoming** lets you pick the element
-a boss deals (Magic, Fire, Lightning, Holy), which then counts in full beside
-physical.
+Only the strongest physical damage negation counts; nothing is added up.
+Under **Minimise damage taken** and **Balanced** the box **Incoming** lets you
+pick the element a boss deals (Magic, Fire, Lightning, Holy), which then counts
+in full beside physical. Negation of any other element is not counted.
 The box **Advisor** above the level slider says which part of a run
 the advisor optimises for. Bonuses in
 points, such as Increased Maximum HP (+100 HP) or Strength +3, are worth less

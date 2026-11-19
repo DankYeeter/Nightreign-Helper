@@ -115,10 +115,10 @@ ELEMENT_CUT_FIELDS = MappingProxyType({
     "Dark": "darkDamageCutRate",
 })
 
-#: What negation of an element nobody chose is worth beside physical: a
-#: quarter, so it decides between relics that are otherwise level and never
-#: pushes a physical effect out (user decision 2026-11-08, 15:20).
-ELEMENT_WEIGHT = 0.25
+#: What negation of an element nobody chose is worth: nothing. `Incoming` says
+#: which damage the player expects, and only that is counted (user decision
+#: 2026-11-17, replacing the quarter of 2026-11-08).
+ELEMENT_WEIGHT = 0.0
 
 _ELEMENT_WORDS = {"Magic": "magic", "Fire": "fire", "Thunder": "lightning",
                   "Dark": "holy"}
@@ -145,8 +145,8 @@ def phase_level(phase: str, set_level: int) -> int:
 
 
 def incoming_weighting(element: str = "") -> types.Weighting:
-    """Physical in full, the elements at `ELEMENT_WEIGHT`, and the one
-    element the player expects from a boss in full as well.
+    """Physical in full, and the one element the player expects from a boss
+    in full as well; the other elements take no part (`ELEMENT_WEIGHT`).
 
     `element` is a key of `ELEMENT_CUT_FIELDS` or `""` for no boss in mind.
     The id is part of the cache key, so each choice is its own question.
@@ -162,11 +162,10 @@ def incoming_weighting(element: str = "") -> types.Weighting:
         id=f"physical+{element}" if element else "physical",
         label=f"Physical and {_ELEMENT_WORDS[element]}" if element
         else "Physical",
-        note=(f"Only the strongest {counted} damage negation counts in full, "
-              f"and the worst such penalty likewise; the strongest negation "
-              f"of {'another' if element else 'an'} element adds a quarter "
-              f"of itself. Negation of different types is never added up or "
-              f"averaged."),
+        note=(f"Only the strongest {counted} damage negation counts, and the "
+              f"worst such penalty likewise; negation of "
+              f"{'another' if element else 'an'} element is not counted. "
+              f"Negation of different types is never added up or averaged."),
         weights=tuple((field_name,
                        1.0 if field_name in full else ELEMENT_WEIGHT)
                       for field_name in DAMAGE_CUT_FIELDS),
@@ -293,8 +292,8 @@ _DAMAGE_TAKEN_SCOPE = (
     "you take; the game files name the fields, not how the engine applies "
     "them.",
     "Which damage types you will meet is not in the game data: physical "
-    "negation counts in full, elemental negation at a quarter, and an "
-    "element chosen under Incoming in full.",
+    "negation counts in full, an element chosen under Incoming likewise, "
+    "and negation of any other element not at all.",
     "Ailment and status resistance are not part of this figure.",
     "Only the damage reduction the equipped effects carry is counted; "
     "nothing else that lowers damage in play is in this figure.",
@@ -909,7 +908,7 @@ def _min_damage_taken(build: model.Build,
         display=f"Effective HP {effective:.0f}",
         unit="effective HP",
         weights_note=(STRONGEST_ONLY_NOTE
-                      if len(set(weights.values()) - {0}) == 1
+                      if len(set(weights.values())) == 1
                       else ctx.weighting.note),
     )
 

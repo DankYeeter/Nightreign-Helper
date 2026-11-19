@@ -195,9 +195,8 @@ PHASE_TOOLTIP = (
 
 #: What the `Incoming` box does. Static, like `DAMAGE_TYPE_TOOLTIP`.
 INCOMING_TOOLTIP = ("Which damage you expect to take. Physical negation "
-                    "always counts in full and elemental negation at a "
-                    "quarter; pick a boss's element to count that one in "
-                    "full as well.")
+                    "always counts; elemental negation counts only for the "
+                    "boss's element you pick here.")
 
 
 class State(enum.Enum):
@@ -634,10 +633,9 @@ AR_READS = ("AR is your Nightfarer's starting armament at its lowest tier, "
 #: What `Defense` is: effective HP (`goals._min_damage_taken`).
 DEFENSE_READS = ("Defense is effective HP: your max HP divided by the share "
                  "of a hit that gets through. More HP counts in full, and so "
-                 "does the strongest physical damage negation; the strongest "
-                 "elemental negation adds a quarter of itself, or counts in "
-                 "full for the element chosen under Incoming. Never a sum or "
-                 "an average.")
+                 "does the strongest physical damage negation; elemental "
+                 "negation counts only for the element chosen under "
+                 "Incoming. Never a sum or an average.")
 
 
 def _from_to(figure: str, base_figure: str) -> str:

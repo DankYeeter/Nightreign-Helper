@@ -444,45 +444,54 @@ def read_owned_relics(
 #: four bytes, so it is looked for as bytes rather than walked.
 _HELD_ONCE = struct.Struct("<II")
 
+#: How many relic records a slot can carry that belong to nobody's inventory:
+#: an expedition has three players and each brings the six relics of one
+#: vessel. Measured 2026-11-19 on a real save after a session of three: 345
+#: records, 327 listed, and the 18 others were three runs of six with
+#: consecutive handles, each handle written exactly once in the whole slot.
+MOST_RECORDS_AN_EXPEDITION_LEAVES = 3 * 6
+
 
 def relics_the_inventory_lists(slot_data: bytes,
                                owned: list[OwnedRelic]) -> list[OwnedRelic]:
     """Of the relic records in this slot, the ones the player actually holds.
 
     A relic record is the game's note that a copy *exists* in this slot, and
-    that is not the same as owning it: the slot also keeps the state of the
-    last expedition, and what other players brought to it can be written into
-    the same table. Reading every record as owned showed one player relics
-    that belonged to another. What a player owns is what the slot's inventory
-    list names, and the list names a copy by its handle -- so a record whose
-    handle the list does not carry is not offered.
+    that is not the same as owning it. For an expedition the game writes the
+    relics every player of the session has equipped into this same table --
+    the player's own as second copies, and those of the two others. Reading
+    every record as owned showed one player relics that belonged to another
+    (reported 2026-11-16, measured 2026-11-19, see the constant above). What
+    a player owns is what the slot's inventory list names, and the list names
+    a copy by its handle -- so a record whose handle the list does not carry
+    is not offered. No exception is made for a record that cannot be asked:
+    one with no handle, or so close to the start of the slot that none fits
+    in front of it, is not owned either.
 
-    Measured 2026-11-16 on a real save: 323 records, 323 of them listed, so
-    nothing is taken from a player who holds only his own.
-
-    Two records are left alone. One so close to the start of the slot that it
-    has no handle in front of it cannot be asked about. And a slot in which
-    **no** record is listed at all is a slot whose list this reader does not
-    recognise -- a layout it has not met -- and answering "no relics" for that
-    would be the wrong answer the other way round, so such a slot is read as
-    it always was.
+    When the list names **none** of the records there are two readings, and
+    neither offers a relic. A handful of records is a player who holds no
+    relic of his own yet and has been on an expedition; the answer is an
+    empty inventory, which is true. More records than an expedition leaves
+    is a slot whose list this reader does not recognise, and that is said
+    aloud: handing back the records unasked is the very fault this function
+    exists against, and an empty inventory would be a wrong answer about a
+    player who owns hundreds.
     """
     listed: list[OwnedRelic] = []
-    unasked: list[OwnedRelic] = []
     for relic in owned:
         at = relic.offset + HANDLE_OFFSET
         if at < 0:
-            unasked.append(relic)
             continue
         (handle,) = struct.unpack_from("<I", slot_data, at)
         # Zero is "no handle", and zero-then-one is in every slot by chance.
         if handle and slot_data.find(_HELD_ONCE.pack(handle, 1)) != -1:
             listed.append(relic)
-    if not listed:
-        return owned
-    if not unasked:
-        return listed
-    return sorted(listed + unasked, key=lambda relic: relic.offset)
+    if not listed and len(owned) > MOST_RECORDS_AN_EXPEDITION_LEAVES:
+        raise NotWhatItClaims(
+            f"this save holds {len(owned)} relic records and its inventory "
+            f"list names none of them; the game may have changed how it "
+            f"stores what you own. Look for a newer version of this program.")
+    return listed
 
 
 # ---------------------------------------------------------------------------
