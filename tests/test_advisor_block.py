@@ -165,22 +165,57 @@ def drawn_text(widget) -> str:
 
 # --- what stands in the block and what does not ----------------------------
 
-def test_the_block_leaves_the_silent_effects_to_the_why_dialog(block):
-    """Director's correction 1: a curse is a trap, a silent effect is not.
-
-    The price of a suggestion has to be readable before it is applied; the
-    nothing does not, and it is what made the worst measured card 16 lines
-    tall.
+def test_the_block_lists_every_effect_of_the_relic(block):
+    """Owner, 23.11.2026: the block lists the relic's effects one for one as
+    the game does, so the relic can be found again in game. It replaces the
+    Director's correction of 06.09.2026, which left a silent effect to the
+    `Why` dialog -- "Occasionally Nullify Attacks When Damage Negation is
+    Lowered" was missing from the card of the relic that carries it.
     """
     group = a_mixed_group()
     block.show_the_suggestion("Maximise damage", group)
 
+    assert [one.line for one in block.drawn_lines] == list(group.lines)
     drawn = block_text(block)
     assert "Improved Melee Attack Power" in drawn
+    assert "[Duchess] Improved Sleep Resistance" in drawn
     assert "Ultimate Art Charging Impaired" in drawn
     assert "Taking Damage Causes Madness Buildup" in drawn
-    assert "works only for Duchess" not in drawn
-    assert "only applies under a condition" not in drawn
+
+
+def test_an_effect_with_several_figures_is_listed_once(block):
+    """The game lists "Improved Melee Attack Power" once; so does the block,
+    with every figure behind the one name (owner, 23.11.2026)."""
+    name = "Improved Melee Attack Power"
+    figures = ["Physical Attack, melee armaments only +6.0%",
+               "Magic Attack, melee armaments only +6.0%"]
+    group = a_group(*(types.ReasonLine(slot_index=0, effect_id=7006600,
+                                       text=f"{name}: {figure}",
+                                       figure=figure)
+                      for figure in figures),
+                    a_line("Improved Skill Attack Power: +15.0%",
+                           effect_id=7006700))
+    block.show_the_suggestion("Maximise damage", group)
+
+    assert [one.label.text() for one in block.drawn_lines] == [
+        f"{name}: {figures[0]} · {figures[1]}",
+        "Improved Skill Attack Power: +15.0%"]
+
+
+def test_an_effect_without_a_number_is_its_name_alone(block):
+    """The card stays short: the game's name on the line, the sentence that
+    says why there is no number in the tooltip and in `Why`."""
+    nullify = "Occasionally Nullify Attacks When Damage Negation is Lowered"
+    silent = types.ReasonLine(
+        slot_index=0, effect_id=7037800,
+        text=f"{nullify}: only applies under a condition, so no number here.",
+        silence=types.SILENT_UNDER_A_CONDITION)
+    block.show_the_suggestion("Maximise damage", a_group(silent),
+                              names={7037800: nullify})
+
+    (drawn,) = block.drawn_lines
+    assert drawn.label.text() == nullify
+    assert "only applies under a condition" in drawn.label.toolTip()
 
 
 def test_every_curse_of_the_copy_stands_in_the_block(block):

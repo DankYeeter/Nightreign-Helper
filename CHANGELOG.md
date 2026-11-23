@@ -6,6 +6,16 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Changed
+- **A suggested relic lists every effect, as the game does.** The suggestion
+  card in the Build planner now names each effect of the relic once, under
+  the game's own name and in the relic's order, so the relic is easy to find
+  again in game. An effect the advisor has no number for, such as
+  "Occasionally Nullify Attacks When Damage Negation is Lowered" on The Will
+  of Balance, used to be left to **Why this relic** and now stands on the card
+  by its name; an effect that moves several figures is one line instead of
+  one per figure. Scores, suggestions and the stat breakdown are unchanged.
+
 ## [1.23.3] - 2026-11-19
 
 ### Changed

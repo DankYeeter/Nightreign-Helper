@@ -723,10 +723,10 @@ def test_every_curse_of_the_suggested_copy_stands_in_the_block(game_data,
                                                                armament):
     """AK-159 and the Director's correction of 06.09.2026, in one case.
 
-    **A curse is a trap, a silent effect is not.** Every curse of the copy is
-    in the block, the one with a figure and the one without; the effect that
-    merely does nothing here waits in the `Why` dialog, where it costs no
-    height in a card that measured 16 lines at its worst.
+    **A curse is a trap.** Every curse of the copy is in the block, the one
+    with a figure and the one without. Since 23.11.2026 (owner) the effect
+    that merely does nothing here stands there too: the block lists the relic
+    as the game does.
 
     The names are resolved through the dataset, not through the module: what
     is compared is the set of curse names against `curse_ids`, so a curse
@@ -758,10 +758,9 @@ def test_every_curse_of_the_suggested_copy_stands_in_the_block(game_data,
     quiet_name = effect_names(game_data, [quiet]).pop()
     assert any(line.text.startswith(f"{quiet_name}: ") for line in dialog), (
         "the silent effect is named nowhere at all")
-    assert not any(line.text.startswith(f"{quiet_name}: ")
-                   for line in block), (
-        "the silent effect stands in the block, where the Director's "
-        "correction of 06.09.2026 keeps it out")
+    assert any(line.text.startswith(f"{quiet_name}: ") for line in block), (
+        "the silent effect is missing from the block, which lists every "
+        "effect of the relic as the game does (owner, 23.11.2026)")
 
 
 # -- the effects that moved nothing -----------------------------------------
@@ -2733,3 +2732,33 @@ def test_zero_stacks_are_said_as_not_counted_even_when_favourited(
     _, groups = _at_stacks(game_data, wylder, armament, 0,
                            excluded=frozenset({NIGHT_INVADER}))
     assert "you avoided it" in lines_of(groups)[0]
+
+
+# -- the block lists the relic as the game does (owner, 23.11.2026) ----------
+
+def test_every_effect_of_the_will_of_balance_reaches_the_block(game_data,
+                                                               wylder,
+                                                               armament):
+    """The report: "Occasionally Nullify Attacks When Damage Negation is
+    Lowered" was missing from the suggestion card of the relic carrying it,
+    because it moves no number. Every effect of the copy is named in what the
+    block draws, and a figure line carries its figure apart from the name.
+    """
+    rolled = [7006600, 7006700, 7037800]
+    if any(str(effect_id) not in game_data["effects"] for effect_id in rolled):
+        pytest.skip("this dataset does not carry The Will of Balance's roll")
+    problem = advisor.problem([advisor.RED])
+    ctx = advisor.context(game_data, wylder, reference=armament)
+    chosen = (a_copy(0, 1, "The Will of Balance", rolled),)
+
+    (group,) = explain.reasons(problem, chosen, evaluate(problem, (), ctx),
+                               evaluate(problem, chosen, ctx), ctx,
+                               goals.GOALS["max_damage"])
+    block = [line for line in group.lines if types.drawn_in_the_block(line)]
+
+    assert {line.effect_id for line in block} == set(rolled)
+    for line in block:
+        (name,) = effect_names(game_data, [line.effect_id])
+        assert line.text.startswith(f"{name}: ")
+        if line.silence == types.CARRIES_A_FIGURE:
+            assert line.text == f"{name}: {line.figure}"

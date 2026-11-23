@@ -3,13 +3,13 @@
 Two views of one answer, and the difference between them is decided on the
 shape of a line rather than on its words (`types.drawn_in_the_block`):
 
-* the **block** sits in the slot card under `rolled_label` and shows what the
-  player has to weigh **before** applying -- the figures, and every curse of
-  the suggested copy including the one no figure covers. A curse is a trap;
-  the price has to be readable before the deal (Director, 06.09.2026);
-* the **`Why` dialog** shows the whole account: the same lines plus the
-  silent effects, the conditional list, the legend and the procedural
-  sentences of the direction.
+* the **block** sits in the slot card under `rolled_label` and lists every
+  effect and every curse of the suggested copy under the game's own name, one
+  for one, so the relic can be found again in game (owner, 23.11.2026). An
+  effect without a number is its name alone (`block_text`);
+* the **`Why` dialog** shows the whole account: the same lines with the
+  reason each silent effect has no number, the conditional list, the legend
+  and the procedural sentences of the direction.
 
 **Nothing here reads a sentence.** Every line arrives with its slot, with
 whether it is a curse and with why it carries no figure, and this module maps
@@ -125,6 +125,9 @@ SMALL_TEXT = 11
 NUMBERLESS = frozenset({types.SILENT_NO_NUMBER_HERE,
                         types.SILENT_UNDER_A_CONDITION,
                         types.SILENT_ARMAMENT_BOUND})
+
+#: Between the figures of one effect on its one line of the block.
+FIGURE_JOIN = " · "
 
 #: The least height of a fold button, in px (AK-376).
 FOLD_HEIGHT = 24
@@ -261,6 +264,43 @@ def is_numberless(line: types.ReasonLine) -> bool:
     """Does this line only say that it has no number (AK-372)? A curse never
     does: its price is read before applying (AK-373)."""
     return not line.is_curse and line.silence in NUMBERLESS
+
+
+def block_text(line: types.ReasonLine, name: str) -> str:
+    """What the block writes for this line: an effect that only has no number
+    is its name as the game writes it, the sentence stays in the tooltip and
+    in `Why`. Decided on `silence`, never on the words (AK-147)."""
+    return name if is_numberless(line) else line.text
+
+
+def per_effect(lines) -> list[list[types.ReasonLine]]:
+    """The lines of one group, one entry per effect of the relic.
+
+    An effect that moved several figures arrives as several lines, each
+    opening with its name ("Improved Melee Attack Power" is five). The game
+    lists it once, and so does the block (owner, 23.11.2026). Only
+    neighbouring figure lines of one effect are joined, and only a line that
+    brings its `figure` apart from its name; the order is the relic's own.
+    """
+    grouped: list[list[types.ReasonLine]] = []
+    for line in lines:
+        last = grouped[-1][-1] if grouped else None
+        if (last is not None and line.figure
+                and last.effect_id == line.effect_id
+                and not last.is_curse and not line.is_curse
+                and last.silence == line.silence == types.CARRIES_A_FIGURE):
+            grouped[-1].append(line)
+        else:
+            grouped.append([line])
+    return grouped
+
+
+def joined_text(lines, name: str) -> str:
+    """One effect's lines as one: the first whole, then every further
+    `figure`. Nothing is cut here (AK-147)."""
+    first, *rest = lines
+    return FIGURE_JOIN.join([block_text(first, name),
+                             *(line.figure for line in rest)])
 
 
 class FoldButton(QToolButton):
@@ -450,12 +490,12 @@ class IgnoreButton(LineButton):
 
 class BlockLine(QWidget):
     """One line of the block: bullet, text, Ignore, X (AK-420), plain text
-    throughout. A line that already says the effect is ignored (a curse; any
-    other leaves the block) offers no second Ignore."""
+    throughout. A line that already says the effect is ignored offers no
+    second Ignore."""
 
     def __init__(self, line: types.ReasonLine, name: str, favourited: bool,
                  walk, parent: QWidget | None = None, *,
-                 symbol=None) -> None:
+                 symbol=None, text: str | None = None) -> None:
         super().__init__(parent)
         self.line = line
         row = QHBoxLayout(self)
@@ -463,7 +503,9 @@ class BlockLine(QWidget):
         row.setSpacing(4)
         self.bullet = _plain()
         self.bullet.setWordWrap(False)
-        self.label = _plain(line.text)
+        self.label = _plain(block_text(line, name) if text is None else text)
+        if is_numberless(line):
+            self.label.setToolTip(as_a_tooltip(line.text))
         _dress(_styled(line, None), self.bullet, self.label, self.label.font())
         self.ignore = IgnoreButton(line, name, favourited, walk)
         self.ignore.setVisible(line.silence != types.SILENT_IGNORED)
@@ -677,15 +719,17 @@ class SuggestionBlock(QFrame):
         self.setVisible(True)
 
     def _draw_the_lines(self, lines, names, favourited) -> None:
-        """One `BlockLine` each. The X's follow `Reject` in the tab order, the
+        """One `BlockLine` per effect. The X's follow `Reject` in the tab order, the
         first of them standing on the group's one stop (AK-423)."""
         self._clear_the_lines()
         before = self.reject_button
-        for line in lines:
-            drawn = BlockLine(line, names.get(line.effect_id,
-                                              f"effect {line.effect_id}"),
+        for members in per_effect(lines):
+            line = members[0]
+            name = names.get(line.effect_id, f"effect {line.effect_id}")
+            drawn = BlockLine(line, name,
                               line.effect_id in favourited, self._walk_the_xs,
-                              symbol=self._symbol_of(line.effect_id))
+                              symbol=self._symbol_of(line.effect_id),
+                              text=joined_text(members, name))
             drawn.avoid.clicked.connect(
                 lambda _checked=False, effect_id=line.effect_id:
                 self.avoid_requested.emit(effect_id))

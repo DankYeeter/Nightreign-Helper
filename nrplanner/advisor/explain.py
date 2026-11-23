@@ -863,12 +863,15 @@ def reasons(problem: types.SlotProblem, chosen: Sequence[types.Candidate],
             if effect_id in with_a_figure:
                 own = [one for one in mine if one.effect_id == effect_id]
                 first_attribute = _first_attribute(own, scaling)
-                lines.extend(
-                    types.ReasonLine(
+                for one in _bundled(own, built, ctx):
+                    text = _explained_line(one, built, felt, rating,
+                                           one is first_attribute, ctx)
+                    # Every filling of `_explained_line` opens with the
+                    # name and `: `; what follows is the figure alone.
+                    lines.append(types.ReasonLine(
                         slot_index=candidate.slot_index, effect_id=effect_id,
-                        text=_explained_line(one, built, felt, rating,
-                                             one is first_attribute, ctx))
-                    for one in _bundled(own, built, ctx))
+                        text=text,
+                        figure=text.removeprefix(f"{one.effect_name}: ")))
             else:
                 lines.append(_silent_effect(
                     candidate, effect_id, ctx, built,

@@ -773,6 +773,12 @@ class ReasonLine:
     same one `SlotProblem.excluded`/`required` name. AK-276 binds the
     marking control to the id, not to the drawn line: two lines about one
     effect show one state, and a click on either moves both.
+
+    `figure` is what a figure line says after the effect's name, written by
+    `explain.reasons` beside `text`. The block lists an effect once and hangs
+    the figures of its further lines behind the first (owner, 23.11.2026); it
+    takes them from here so that it never cuts a sentence (AK-147). Empty for
+    every line that is not an effect's figure line.
     """
 
     slot_index: int
@@ -780,6 +786,7 @@ class ReasonLine:
     text: str
     is_curse: bool = False
     silence: str = CARRIES_A_FIGURE
+    figure: str = ""
 
 
 @dataclass(frozen=True)
@@ -808,16 +815,15 @@ class SlotReasons:
 def drawn_in_the_block(line: ReasonLine) -> bool:
     """Does this line stand in the suggestion block, or only in `Why`?
 
-    Decided here rather than at each drawing site, and decided on the shape
-    rather than on the words. **A curse is a trap, a silent effect is not**
-    (Director, 06.09.2026): the price of a suggestion has to be readable
-    before it is applied, so every curse of the suggested copy stands in the
-    block, including the one no figure covers. An effect that merely does
-    nothing here costs no slot the player would not have spent anyway, and it
-    is what made the worst measured card 16 lines tall, so it waits in the
-    `Why` dialog.
+    Every line does (owner, 23.11.2026): the block lists the suggested relic's
+    effects one for one as the game lists them, so the relic can be found
+    again in game. Until then a silent effect waited in the `Why` dialog
+    (Director, 06.09.2026), and "Occasionally Nullify Attacks When Damage
+    Negation is Lowered" was missing from the card of the relic that carries
+    it. The scoring is untouched; `advisorblock.block_text` keeps a silent
+    line short. Kept as the one place the question is asked.
     """
-    return line.is_curse or line.silence == CARRIES_A_FIGURE
+    return True
 
 
 @dataclass(frozen=True)
