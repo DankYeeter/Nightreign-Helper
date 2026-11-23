@@ -1263,6 +1263,29 @@ def _first_carriers(effects: list[dict], build: "Build") -> list[dict]:
     return kept
 
 
+#: `_live_counts` by what was declared. The advisor asks with the same few
+#: hundred conditions thousands of times per run, and reading them anew each
+#: time was a fifth of a build. Emptied when full, never grown past it.
+_LIVE_COUNTS: dict[tuple, dict[int, int]] = {}
+_LIVE_COUNTS_KEPT = 64
+
+
+def _live_counts(declared: dict[int, int] | None) -> dict[int, int]:
+    """Effect id -> how often its condition counts as met, capped at the
+    effect's own limit; a count of nothing is left out. Read only."""
+    if not declared:
+        return {}
+    key = tuple(declared.items())
+    live = _LIVE_COUNTS.get(key)
+    if live is None:
+        if len(_LIVE_COUNTS) >= _LIVE_COUNTS_KEPT:
+            _LIVE_COUNTS.clear()
+        live = _LIVE_COUNTS[key] = {
+            int(k): min(int(v), stack_limit(int(k), int(v)))
+            for k, v in declared.items() if int(v) > 0}
+    return live
+
+
 def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = None,
             weapon: dict | None = None,
             weapons_held: list[dict] | None = None,
@@ -1320,8 +1343,7 @@ def compute(hero: dict, level: int, effects: list[dict], curves: dict | None = N
     # than kept alongside them: leaving the original in would make the first
     # copy of an isStrongestEffect look like a duplicate of it and be dropped.
     effects = _first_carriers(effects, build)
-    live = {int(k): min(int(v), stack_limit(int(k), int(v)))
-            for k, v in (declared or {}).items() if int(v) > 0}
+    live = _live_counts(declared)
     if live:
         expanded: list[dict] = []
         declared_once: set[int] = set()

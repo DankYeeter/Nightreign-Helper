@@ -6,6 +6,18 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Fixed
+- **Comparing every vessel no longer stalls with many favourites.** After
+  Optimize the planner asks the same question about every vessel of the
+  Nightfarer. With many effects marked Favourite, checking whether the
+  remaining slots can still carry them took most of the time, so the
+  comparison ran for a minute or more and every further mark started it
+  again. The check now answers the same question in a fraction of the time.
+  Measured on a save with 328 relics, 11 vessels, Deep of Night, 48
+  favourites and 12 avoided effects: Maximise damage 24.7 s to 2.5 s,
+  Balanced 68.7 s to 6.7 s, Minimise damage taken 21.3 s to 2.4 s, with the
+  same suggestions and figures.
+
 ## [1.23.3] - 2026-11-19
 
 ### Changed

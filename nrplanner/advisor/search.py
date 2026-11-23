@@ -169,38 +169,98 @@ def _carriers_by_level(problem: types.SlotProblem,
             for pool in pools]
 
 
-def _can_still_be_met(problem: types.SlotProblem, unmet: tuple[int, ...],
-                      later: Sequence[dict[int, tuple[types.Candidate, ...]]],
-                      spent: frozenset[int],
-                      refuted: set[tuple[int, tuple[int, ...]]] | None = None
-                      ) -> bool:
-    """Can the levels to come still carry the unmet effects (AD-058.3)?
+@dataclass(frozen=True)
+class _Coverage:
+    """Per free slot, which sets of required effects one copy there carries.
+
+    The question `_can_still_be_met` asks, laid out so that it costs bit
+    arithmetic: a required effect is a bit, a copy is the mask of what it
+    carries, and copies of one mask are kept together with their handles.
+    `reach[level]` is every bit the levels from there on carry at all, so a
+    state whose open effects are beyond it is refused without a search.
+    """
+
+    bit_of: dict[int, int]
+    levels: tuple[tuple[tuple[int, tuple[int, ...]], ...], ...]
+    reach: tuple[int, ...]
+
+    def mask(self, unmet: Sequence[int]) -> int:
+        out = 0
+        for effect_id in unmet:
+            out |= self.bit_of[effect_id]
+        return out
+
+
+def _coverage(carriers: Sequence[dict[int, tuple[types.Candidate, ...]]]
+              ) -> _Coverage:
+    """`_carriers_by_level` read the other way round: per copy, its effects."""
+    effects = sorted({eid for level in carriers for eid in level})
+    bit_of = {eid: 1 << bit for bit, eid in enumerate(effects)}
+    levels = []
+    for level in carriers:
+        mask_of: dict[int, int] = {}
+        for eid in effects:
+            for copy in level.get(eid, ()):
+                mask_of[copy.handle] = mask_of.get(copy.handle, 0) | bit_of[eid]
+        handles: dict[int, list[int]] = {}
+        for handle, mask in mask_of.items():
+            handles.setdefault(mask, []).append(handle)
+        levels.append(tuple((mask, tuple(handles[mask]))
+                            for mask in sorted(handles)))
+    reach = [0]
+    for level in reversed(levels):
+        here = reach[0]
+        for mask, _handles in level:
+            here |= mask
+        reach.insert(0, here)
+    return _Coverage(bit_of, tuple(levels), tuple(reach))
+
+
+def _can_still_be_met(coverage: _Coverage, unmet: tuple[int, ...],
+                      level: int, spent: frozenset[int]) -> bool:
+    """Can the levels from `level` on still carry the unmet effects
+    (AD-058.3)?
 
     One copy per level, and what is left open afterwards goes to the next
     one. `spent` does not grow on the way down, and that is exact rather than
     generous: a copy covers everything it carries at once, so a second use of
     it covers nothing new. So the same effects left open at the same level are
-    one question, and `refuted` keeps it from being asked twice: without it a
+    one question, and `answered` keeps it from being asked twice: without it a
     state with many open favourites took seconds (QA-326).
     """
     if not unmet:
         return True
-    if not later:
-        return False
-    refuted = set() if refuted is None else refuted
-    question = len(later), unmet
-    if question in refuted:
-        return False
-    for effect in unmet:
-        for copy in later[0].get(effect, ()):
-            if copy.handle not in spent and _can_still_be_met(
-                    problem, _still_unmet(problem, unmet, copy), later[1:],
-                    spent, refuted):
-                return True
-    if _can_still_be_met(problem, unmet, later[1:], spent, refuted):
-        return True
-    refuted.add(question)
-    return False
+    levels, reach = coverage.levels, coverage.reach
+    depth = len(levels)
+    answered: dict[tuple[int, int], bool] = {}
+
+    def met(at: int, still: int) -> bool:
+        if not still:
+            return True
+        if still & ~reach[at]:
+            return False
+        question = at, still
+        known = answered.get(question)
+        if known is not None:
+            return known
+        tried = set()
+        answer = False
+        for mask, handles in levels[at]:
+            left = still & ~mask
+            if left == still or left in tried:
+                continue
+            if all(handle in spent for handle in handles):
+                continue
+            tried.add(left)
+            if met(at + 1, left):
+                answer = True
+                break
+        else:
+            answer = at + 1 < depth and met(at + 1, still)
+        answered[question] = answer
+        return answer
+
+    return met(level, coverage.mask(unmet))
 
 
 #: AD-058.2: the sets of favourites `attainable` follows at once.
@@ -534,7 +594,8 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
                    score=scorer.score(()), unmet=unmet,
                    stacked=frozenset().union(
                        *map(_stack_effects, types.held_relics(problem))))]
-    if not _can_still_be_met(problem, unmet, carriers, live[0].spent):
+    coverage = _coverage(carriers)
+    if not _can_still_be_met(coverage, unmet, 0, live[0].spent):
         return ()
     for level, slot in enumerate(free):
         if should_cancel():
@@ -549,8 +610,8 @@ def beam(problem: types.SlotProblem, pools: Sequence[types.SlotPool],
                 state, offers, _floor_in_the_group(state, group, rank_of),
                 budget, scorer, carriers[level], problem))
         grown = [state for state in grown
-                 if _can_still_be_met(problem, state.unmet,
-                                      carriers[level + 1:], state.spent)]
+                 if _can_still_be_met(coverage, state.unmet, level + 1,
+                                      state.spent)]
         grown.sort(key=_order)
         live = _once_per_placement(grown, group_of)[:budget.beam_width]
 
