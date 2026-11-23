@@ -6,8 +6,7 @@ import html
 import os
 import sys
 
-from PySide6.QtCore import (QEvent, QPoint, QProcess, QRect, QSignalBlocker,
-                            QSize, Qt)
+from PySide6.QtCore import QPoint, QProcess, QRect, QSignalBlocker, QSize, Qt
 from PySide6.QtGui import (
     QColor, QCursor, QFontMetrics, QIcon, QPainter, QPalette, QPen, QPixmap,
 )
@@ -30,7 +29,8 @@ from .advisor import run as advisor_run
 from .advisor import types as advisor_types
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
-from .advisorbar import (COMPARE_POINT_PX, VESSEL_LINE_ROLE, AdvisorBar,
+from .advisorbar import (COMPARE_POINT_PX, VESSEL_LINE_ROLE,
+                         VESSEL_SLOTS_ROLE, AdvisorBar,
                          RejectedList, VesselRowDelegate, asking_from,
                          comparison_base, comparison_status, held_slot,
                          vessel_accessible_name,
@@ -59,6 +59,10 @@ GRAIL_HERO_TYPE = 11
 # Where the three panes' widths are kept, so a window sized once stays
 # that way. QSplitter's own encoding, which survives a pane being added.
 PANES_KEY = "ui/panes"
+# The widths the player dragged the two outer panes to, left and right. Kept
+# beside the splitter's own state because that state is what the panes were
+# at on the way out -- on a narrow desktop the squeezed widths, not the wish.
+PANES_WANTED_KEY = "ui/panes_wanted"
 
 # T-328a: which Nightfarer was selected last, so the next launch opens on
 # them instead of always the first.
@@ -582,11 +586,37 @@ class _Panes(QSplitter):
     advisor row needs to keep its question whole (T-334n). Below that the two
     edges give way, each down to its own least width, before the row has to
     shorten a box. The rail beside the pages took that room at 1536 px.
+
+    And they take it back: an edge that gave way grows again, up to `wanted`,
+    as soon as the middle has more than its need. Without that a window
+    opened on a 1707 px desktop and then maximised kept its vessel column at
+    327 px of the 430 it opens at, with the room going to the middle only.
+    `wanted` is the opening widths until the player drags a handle, and then
+    what the drag left.
     """
 
-    def __init__(self, middle_need) -> None:
+    def __init__(self, middle_need, wanted) -> None:
         super().__init__(Qt.Horizontal)
         self._middle_need = middle_need
+        #: The widths the left and the right pane come back to.
+        self.wanted = list(wanted)
+        self.splitterMoved.connect(self._dragged)
+
+    def _dragged(self, *_args) -> None:
+        sizes = self.sizes()
+        if len(sizes) == 3:
+            self.wanted = [sizes[0], sizes[2]]
+
+    def _give_back(self, sizes: list[int], surplus: int) -> None:
+        """The middle's surplus to the edges that are below what they want."""
+        lack = [max(self.wanted[0] - sizes[0], 0),
+                max(self.wanted[1] - sizes[2], 0)]
+        back = min(surplus, sum(lack))
+        if back <= 0:
+            return
+        left = back * lack[0] // sum(lack)
+        self.setSizes([sizes[0] + left, sizes[1] - back,
+                       sizes[2] + (back - left)])
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
         super().resizeEvent(event)
@@ -594,6 +624,9 @@ class _Panes(QSplitter):
         if len(sizes) != 3:
             return
         short = self._middle_need() - sizes[1]
+        if short < 0:
+            self._give_back(sizes, -short)
+            return
         spare = [max(sizes[i] - max(self.widget(i).minimumWidth(),
                                     self.widget(i).minimumSizeHint().width()),
                      0) for i in (0, 2)]
@@ -827,7 +860,7 @@ class Planner(QMainWindow):
         # be done about either. Collapsing is off -- a pane dragged shut
         # leaves nothing on screen to say it is still there, and reads as the
         # program having lost it.
-        self.panes = _Panes(self._middle_need)
+        self.panes = _Panes(self._middle_need, self._stored_wanted_panes())
         self.panes.setChildrenCollapsible(False)
         self.panes.setHandleWidth(10)
         self.panes.addWidget(self._build_left())
@@ -1065,13 +1098,11 @@ class Planner(QMainWindow):
         layout.addWidget(self.switch_button)
         self.chalice_list = QListWidget()
         self.chalice_list.setItemDelegate(VesselRowDelegate(self.chalice_list))
-        # Wide enough for the vessel's own icon plus its slots drawn beside
-        # it; six of them in Deep of Night is the widest case. The height
-        # follows `_settle_vessel_rows`: a list too narrow for six in a line
-        # draws the Deep slots under the others.
-        self.chalice_list.setIconSize(
-            QSize(self.ROW_CELL + 5 + 6 * (self.ROW_SLOT + 2), self.ROW_CELL))
-        self.chalice_list.installEventFilter(self)
+        # The vessel's own icon only. Its slots are a line of their own
+        # between the name and the comparison's figures (`VesselRowDelegate`):
+        # beside the name, six of them in Deep of Night left 95 px of text in
+        # a 288 px list and the figures were cut after `Defe`.
+        self.chalice_list.setIconSize(QSize(self.ROW_CELL, self.ROW_CELL))
         self.chalice_list.currentRowChanged.connect(self._vessel_row_chosen)
         layout.addWidget(self.chalice_list, 1)
 
@@ -1565,6 +1596,17 @@ class Planner(QMainWindow):
         if hasattr(self, "panes"):
             favourites.settings().setValue(
                 PANES_KEY, self.panes.saveState())
+            favourites.settings().setValue(
+                PANES_WANTED_KEY, ",".join(map(str, self.panes.wanted)))
+
+    @staticmethod
+    def _stored_wanted_panes() -> list[int]:
+        """The outer panes' wanted widths, or the opening ones."""
+        raw = str(favourites.settings().value(PANES_WANTED_KEY, "") or "")
+        parts = raw.split(",")
+        if len(parts) == 2 and all(part.isdigit() for part in parts):
+            return [int(part) for part in parts]
+        return [PANE_DEFAULTS[0], PANE_DEFAULTS[2]]
 
     def _reset_layout(self) -> None:
         """The panes back to their opening widths, and the stored state gone.
@@ -1572,8 +1614,10 @@ class Planner(QMainWindow):
         Both halves matter: setSizes alone would come back wrong on the next
         launch if the stored state is the broken thing being escaped from.
         """
+        self.panes.wanted = [PANE_DEFAULTS[0], PANE_DEFAULTS[2]]
         self.panes.setSizes(list(PANE_DEFAULTS))
         favourites.settings().remove(PANES_KEY)
+        favourites.settings().remove(PANES_WANTED_KEY)
 
     def _choose_scale(self, _index: int) -> None:
         """Store the chosen scale, and offer the restart it needs to show.
@@ -1774,52 +1818,19 @@ class Planner(QMainWindow):
         self.active_weapon = 0
 
     ROW_SLOT = 22
-    #: The vessel's own icon in a row, and the row image's height while the
-    #: slots stand in one line.
+    #: The vessel's own icon in a row.
     ROW_CELL = 34
-    #: What a row keeps for its name and the comparison's figures. Six slots
-    #: in a line left 95 px of a 288 px list (2560x1600 at 150 %, the window
-    #: at its opening size) and `AR +87 % / Defense +29 %` read `AR +87 % /
-    #: Defe…`; three slots leave 171 px there, which holds it.
-    ROW_TEXT_FLOOR = 170
 
-    def _deep_rows_stack(self) -> bool:
-        """Do the Deep slots go under the others, for want of width?
-
-        Asked of the list's own width with the scroll bar counted whether or
-        not it is up: taller rows bring the bar up, and an answer that
-        depended on it could change its mind about itself.
-        """
-        if not self.deep_check.isChecked():
-            return False
-        listed = self.chalice_list
-        room = (listed.width() - 2 * listed.frameWidth()
-                - listed.verticalScrollBar().sizeHint().width())
-        in_a_line = self.ROW_CELL + 5 + 6 * (self.ROW_SLOT + 2)
-        return room - in_a_line < self.ROW_TEXT_FLOOR
-
-    def _settle_vessel_rows(self) -> bool:
-        """Size the row image for one line of slots or two; did it change?"""
-        stacked = self._deep_rows_stack()
-        changed = stacked != getattr(self, "_rows_stacked", False)
-        self._rows_stacked = stacked
-        size = self.chalice_list.iconSize()
-        height = 2 * (self.ROW_SLOT + 2) if stacked else self.ROW_CELL
-        if size.height() != height:
-            self.chalice_list.setIconSize(QSize(size.width(), height))
-        return changed
-
-    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
-        if (watched is getattr(self, "chalice_list", None)
-                and event.type() == QEvent.Resize
-                and hasattr(self, "deep_check")
-                and self._settle_vessel_rows()):
-            self.refresh_vessel_rows()
-        return super().eventFilter(watched, event)
+    def _draw_vessel_row(self, item, vessel: dict, items=None,
+                         worn: bool = False, selected: bool = False) -> None:
+        """Give a row its two images: the vessel, and the line of its slots."""
+        icon, slots = self._vessel_row_art(vessel, items, worn, selected)
+        item.setIcon(QIcon(icon))
+        item.setData(VESSEL_SLOTS_ROLE, slots)
 
     def _vessel_row_art(self, vessel: dict, items=None, worn: bool = False,
                         selected: bool = False):
-        """A vessel's own icon followed by its slots, as one row image.
+        """A vessel's own icon, and its slots as one line image.
 
         Reading a vessel's colours off a letter code -- "R B Y" -- means
         translating in your head every time. Drawing the slots is what the
@@ -1842,33 +1853,23 @@ class Planner(QMainWindow):
         normal_slots = len(colours)
         if self.deep_check.isChecked():
             colours += list(vessel.get("deep_slots") or [])
-        # Two lines where the list is too narrow for six in one: the Deep
-        # slots under the others, so the name and the figures keep the room
-        # they have with three (`_deep_rows_stack`).
-        stacked = (getattr(self, "_rows_stacked", False)
-                   and len(colours) > normal_slots)
-        per_line = (max(normal_slots, len(colours) - normal_slots)
-                    if stacked else len(colours))
-        gap = 5
-        width = cell + gap + per_line * step
-        height = 2 * step if stacked else cell
-        art = QPixmap(width, height)
+        slots = QPixmap(max(len(colours) * step - 2, 1), self.ROW_SLOT)
+        slots.fill(Qt.transparent)
+        painter = QPainter(slots)
+        for i, colour in enumerate(colours):
+            owned = items[i] if items and i < len(items) else None
+            painter.drawPixmap(i * step, 0,
+                               slot_chip(self.icons, colour, owned,
+                                         self.ROW_SLOT, i >= normal_slots))
+        painter.end()
+        art = QPixmap(cell, cell)
         art.fill(Qt.transparent)
         painter = QPainter(art)
         base = self.icons.item(vessel.get("icon")) if self.icons else None
         if base is not None:
             base = base.scaled(cell, cell, Qt.KeepAspectRatio,
                                Qt.SmoothTransformation)
-            painter.drawPixmap(0, (height - base.height()) // 2, base)
-        for i, colour in enumerate(colours):
-            owned = items[i] if items and i < len(items) else None
-            deep = i >= normal_slots
-            column = i - normal_slots if stacked and deep else i
-            top = ((step if deep else 0) + 1 if stacked
-                   else (cell - self.ROW_SLOT) // 2)
-            painter.drawPixmap(cell + gap + column * step, top,
-                               slot_chip(self.icons, colour, owned,
-                                         self.ROW_SLOT, i >= normal_slots))
+            painter.drawPixmap(0, (cell - base.height()) // 2, base)
         if worn:
             # Drawn rather than taken from the game: the menus mark the worn
             # chalice by moving it, not with a sprite this program could
@@ -1879,10 +1880,9 @@ class Planner(QMainWindow):
                           if selected else (QColor(ACCENT), QColor("#14150f")))
             painter.setPen(QPen(edge, 1))
             painter.setBrush(fill)
-            painter.drawEllipse(cell - dot - 1, (height - cell) // 2 + 1,
-                                dot, dot)
+            painter.drawEllipse(cell - dot - 1, 1, dot, dot)
         painter.end()
-        return art
+        return art, slots
 
     def _relics_by_handle(self) -> dict:
         """Owned relics keyed by their save handle, for drawing rows."""
@@ -1931,7 +1931,6 @@ class Planner(QMainWindow):
         """
         if not getattr(self, "hero_vessels", None):
             return
-        self._settle_vessel_rows()
         hero_id = self.current_hero()["id"]
         by_handle = self._relics_by_handle()
         current = self.chalice_list.currentRow()
@@ -1944,9 +1943,9 @@ class Planner(QMainWindow):
                 items = [s.current_relic() for s in self._visible_slots()]
             else:
                 items = self._stored_relics(hero_id, vessel["id"], by_handle)
-            item.setIcon(QIcon(self._vessel_row_art(
-                vessel, items, vessel["id"] == self._worn_vessel_id(),
-                row == current)))
+            self._draw_vessel_row(
+                item, vessel, items, vessel["id"] == self._worn_vessel_id(),
+                row == current)
         self._show_the_comparison()
 
     def _show_the_comparison(self) -> None:
@@ -2135,9 +2134,9 @@ class Planner(QMainWindow):
         # which runs on every slot change -- quietly rubbed the mark off the
         # selected row, and the equipped chalice is the row most likely to be
         # selected, so the mark appeared to not work at all.
-        item.setIcon(QIcon(self._vessel_row_art(
-            vessel, [s.current_relic() for s in slots],
-            vessel["id"] == self._worn_vessel_id(), True)))
+        self._draw_vessel_row(
+            item, vessel, [s.current_relic() for s in slots],
+            vessel["id"] == self._worn_vessel_id(), True)
 
     def reload_chalices(self) -> None:
         hero = self.current_hero()
@@ -2174,8 +2173,8 @@ class Planner(QMainWindow):
                 for vessel in vessels:
                     item = QListWidgetItem(vessel["name"])
                     item.setData(Qt.UserRole, vessel)
-                    item.setIcon(QIcon(self._vessel_row_art(
-                        vessel, None, vessel["id"] == worn_id)))
+                    self._draw_vessel_row(
+                        item, vessel, None, vessel["id"] == worn_id)
                     item.setToolTip(
                         vessel_tooltip(vessel, vessel["id"] == worn_id))
                     self.chalice_list.addItem(item)
