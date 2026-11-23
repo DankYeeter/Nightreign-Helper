@@ -6,6 +6,21 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+## [1.23.4] - 2026-11-23
+
+### Changed
+- **Vessel rows are three lines: name, slots, figures.** The slots stood
+  beside the name; with Deep of Night on, six of them left so little room
+  that a vessel's compared figures (`AR +87 % / Defense +29 %`) were cut to
+  `AR +87 % / Defe…` on a 2560x1600 display at 150 % scaling. Name and
+  figures now have the row's whole width.
+- **The outer columns grow back.** On a narrow desktop the vessel column and
+  the stat sheet give way to the advisor row; they now return to their own
+  width as soon as the window has the room, for example when maximised.
+  A column you dragged keeps the width you gave it.
+- **A spinner beside `Optimize` shows a run.** It replaces the bar that came
+  up in the middle of the advisor row and looked like a stray block.
+
 ### Fixed
 - **Comparing every vessel no longer stalls with many favourites.** After
   Optimize the planner asks the same question about every vessel of the
