@@ -690,6 +690,9 @@ class Planner(QMainWindow):
             int(effect_id): effecttext.family_key(
                 effect, data.get("weapon_families", {}))
             for effect_id, effect in self.effects.items()})
+        self.effect_filters.names = {
+            int(effect_id): effecttext.name(effect)
+            for effect_id, effect in self.effects.items()}
         # The build every tab reads, computed once per change by recompute().
         # None until the first one has been computed.
         self._build: model.Build | None = None
@@ -3421,11 +3424,6 @@ class Planner(QMainWindow):
             card.suggestion.ignore_requested.connect(
                 lambda effect_id, slot=card:
                 self._ignore_from_the_block(slot, effect_id))
-            # AK-274: the card's own `Why` opens the very dialog the bar's
-            # does -- same handler, so there is no second account to keep in
-            # step with the first.
-            card.suggestion.why_requested.connect(
-                lambda slot=card: self.open_why(slot))
 
     def _the_suggestion_changed(self, result) -> None:
         """A different answer stands, or none does.
@@ -3807,13 +3805,6 @@ class Planner(QMainWindow):
                for entry in (*suggestion.reasons, *result.empty_slots)):
             return
         by_slot = {choice.slot_index: choice for choice in suggestion.choices}
-        # AK-274: the card's `Why` follows the bar's own gate
-        # (`advisorbar.ACTING_STATES`), read off the bar's button rather than
-        # duplicated here -- `isVisibleTo` asks only whether the button was
-        # explicitly hidden, not whether the window itself is on screen, so
-        # this holds true offscreen as well.
-        bar = self.advisor_bar
-        may_explain = bar.why_button.isVisibleTo(bar)
         # AK-314.3: the held-favourite line names the whole result, not one
         # slot, so it is drawn once -- on the lowest-indexed visible card
         # that is not itself already equipped (that one shows no lines at
@@ -3830,7 +3821,7 @@ class Planner(QMainWindow):
             in_the_slot = cards[group.slot_index].current_relic()
             cards[group.slot_index].show_the_suggestion(
                 result.goal_label, group,
-                by_slot.get(group.slot_index), may_explain=may_explain,
+                by_slot.get(group.slot_index),
                 equipped_out_line=advisorblock.equipped_out_line(
                     advisorblock.effect_name(self.effects, effect_id)
                     for effect_id in (*getattr(in_the_slot, "effect_ids", ()),
@@ -3854,8 +3845,9 @@ class Planner(QMainWindow):
         out of how many relics -- so they are read off this window at the
         moment the dialog opens.
 
-        `card` is the slot whose `Why this relic` asked; the dialog then
-        stands on that slot's group (AK-379).
+        `card`, where given, is a slot whose group the dialog stands on
+        (AK-379). The card's own `Why this relic` that asked with it is gone
+        (owner, 23.11.2026); the bar's `Why` asks without one.
         """
         result = self.advisor_bar.answer
         if result is None:

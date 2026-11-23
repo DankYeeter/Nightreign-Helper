@@ -2337,7 +2337,7 @@ def test_six_blocks_with_x_and_reject_stay_inside_the_narrow_column(planner):
         area = _the_slot_area(planner)
         assert area.horizontalScrollBar().maximum() == 0
         block = cards[0].suggestion
-        for button in (block.use_button, block.why_button, block.reject_button):
+        for button in (block.use_button, block.reject_button):
             assert button.width() >= button.minimumSizeHint().width(), (
                 f"{button.text()} is cut: {button.width()} of "
                 f"{button.minimumSizeHint().width()}")

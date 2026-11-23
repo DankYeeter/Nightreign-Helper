@@ -9,6 +9,26 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ## [1.23.4] - 2026-11-23
 
 ### Changed
+- **A suggested relic lists its effects as the game does.** The suggestion
+  card in the Build planner and each slot of the **Why** dialog now name every
+  effect of the relic once, under the game's own name and in the relic's
+  order, so the relic is easy to find again in game. An effect the advisor
+  has no number for, such as "Occasionally Nullify Attacks When Damage
+  Negation is Lowered" on The Will of Balance, used to be left out of the
+  card and folded away in **Why**; now it stands in both. An effect that
+  moves several damage types by one figure is one line ("Improved Melee
+  Attack Power: All damage, melee armaments only +6.0%") instead of five; the
+  split per damage type stays in the stat breakdown. Scores and suggestions
+  are unchanged.
+
+- **The filter window lists an effect once per name.** The game keeps some
+  effects as several entries of one name ("Taking attacks improves attack
+  power" is three, "Physical Attack Up +2" two) and shows one name. They
+  stood as two or three equal rows under a heading, which read as levels of
+  an effect that has only one. Now each is one row: its boxes mark every
+  entry at once, **Copies** counts the relics carrying any of them, and a
+  favourite is met by whichever entry a relic carries.
+
 - **Vessel rows are three lines: name, slots, figures.** The slots stood
   beside the name; with Deep of Night on, six of them left so little room
   that a vessel's compared figures (`AR +87 % / Defense +29 %`) were cut to
@@ -20,6 +40,10 @@ History before 1.10.0 was not reconstructed; this file starts here.
   A column you dragged keeps the width you gave it.
 - **A spinner beside `Optimize` shows a run.** It replaces the bar that came
   up in the middle of the advisor row and looked like a stray block.
+
+### Removed
+- **Why this relic** on the suggestion cards. The card's figures already say
+  it; **Why** in the Advisor row still opens the full account.
 
 ### Fixed
 - **Comparing every vessel no longer stalls with many favourites.** After

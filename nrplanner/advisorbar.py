@@ -360,6 +360,13 @@ def families_avoided(count: int) -> str:
     return f"{count} {'family' if count == 1 else 'families'} avoided"
 
 
+def _marks(filters, effect_ids) -> int:
+    """Marks as the player made them (`EffectFilters.marks`); the plain
+    number of ids for a stand-in that counts no names."""
+    counted = getattr(filters, "marks", None)
+    return counted(effect_ids) if counted else len(effect_ids)
+
+
 def marking_clauses(filters) -> list[str]:
     """The AK-280 clauses of the `Filters` tooltip (AK-302, AK-316.5): how
     many effects and families the player marked, in every one of the
@@ -368,9 +375,9 @@ def marking_clauses(filters) -> list[str]:
     has nothing to count."""
     if filters is None:
         return []
-    return ([_marked(len(filters.excluded), "avoided")]
+    return ([_marked(_marks(filters, filters.excluded), "avoided")]
             if filters.excluded else []) + (
-            [_marked(len(filters.required)
+            [_marked(_marks(filters, filters.required)
                      + len(filters.favourite_families), "favourited")]
             if filters.required or filters.favourite_families else []) + (
             [families_avoided(len(filters.avoided_families))]
@@ -382,7 +389,8 @@ def marking_clauses(filters) -> list[str]:
 def ignored_count(filters) -> int:
     """Ids and families marked `Ignore`, as one number: both are few and
     neither takes a relic away."""
-    return len(filters.ignored) + len(filters.ignored_families)
+    return (_marks(filters, filters.ignored)
+            + len(filters.ignored_families))
 
 
 def _closing_clauses(situation: Situation) -> tuple[str, ...]:
@@ -1107,6 +1115,18 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         lambda effect_id: effecttext.name(all_effects[str(effect_id)])
         if str(effect_id) in all_effects and effecttext.works_for(
             all_effects[str(effect_id)], hero["name"]) else None)
+    # The game keeps some effects as several entries of one name, and the
+    # filter window marks them with one box (owner, 23.11.2026): any one of
+    # them in the build meets the favourite, as in a favourited family.
+    by_name: dict[str, list[int]] = {}
+    for effect_id in sorted(favourited - of_others):
+        if str(effect_id) in all_effects:
+            by_name.setdefault(effecttext.name(all_effects[str(effect_id)]),
+                               []).append(effect_id)
+    same_name = tuple(tuple(ids) for ids in by_name.values() if len(ids) > 1)
+    stood_for = {effect_id for ids in same_name for effect_id in ids[1:]}
+    any_of = (*any_of, *same_name)
+    favourited = favourited - stood_for
     problem = types.SlotProblem(slots=slots, held=held,
                                 excluded=planner.effect_filters.resolved_excluded,
                                 ignored=planner.effect_filters.resolved_ignored,

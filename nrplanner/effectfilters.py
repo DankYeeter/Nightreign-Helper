@@ -201,7 +201,16 @@ class EffectFilters(QObject):
                  hero_id: int | None = None) -> None:
         super().__init__(parent)
         self.families: Mapping[int, str] = dict(families or {})
+        #: Effect id -> display name, where the window knows it. Only what
+        #: counts marks reads it: several ids of one name are one mark.
+        self.names: Mapping[int, str] = {}
         self._load(hero_id)
+
+    def marks(self, effect_ids: Iterable[int]) -> int:
+        """How many marks these ids are as the player made them: the ids
+        of one name were marked with one box (`mark_all`)."""
+        return len({self.names.get(effect_id, effect_id)
+                    for effect_id in effect_ids})
 
     #: The six sets a marking moves, in `store`'s order.
     _SETS = (EXCLUDED, REQUIRED, AVOIDED_FAMILIES,
@@ -249,6 +258,17 @@ class EffectFilters(QObject):
                 for name in (EXCLUDED, REQUIRED, IGNORED)}
         if kind in sets:
             sets[kind] |= {effect_id}
+        self._apply(**sets)
+
+    def mark_all(self, effect_ids: Iterable[int], kind: str | None) -> None:
+        """`mark` for the ids of one row in one write: the game lists some
+        effects under several entries of one name, and the filter window
+        shows them as the one row the game shows (owner, 23.11.2026)."""
+        ids = frozenset(effect_ids)
+        sets = {name: getattr(self, name) - ids
+                for name in (EXCLUDED, REQUIRED, IGNORED)}
+        if kind in sets:
+            sets[kind] |= ids
         self._apply(**sets)
 
     def _mark_family(self, kind: str, key: str, on: bool) -> None:
