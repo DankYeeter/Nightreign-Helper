@@ -980,7 +980,8 @@ class WhyDialog(QDialog):
                  self._filters.required),
                 (self.ignored_list, IGNORED_HEADING,
                  self._filters.ignored)):
-            names = sorted(self._name_of(effect_id) for effect_id in ids)
+            # A set: several entries of one name are one mark.
+            names = sorted({self._name_of(effect_id) for effect_id in ids})
             if label is self.ignored_list:
                 names += sorted(f"{key} (the whole family)" for key
                                 in self._filters.ignored_families)

@@ -656,6 +656,9 @@ class Planner(QMainWindow):
             int(effect_id): effecttext.family_key(
                 effect, data.get("weapon_families", {}))
             for effect_id, effect in self.effects.items()})
+        self.effect_filters.names = {
+            int(effect_id): effecttext.name(effect)
+            for effect_id, effect in self.effects.items()}
         # The build every tab reads, computed once per change by recompute().
         # None until the first one has been computed.
         self._build: model.Build | None = None

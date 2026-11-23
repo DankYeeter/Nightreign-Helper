@@ -19,6 +19,14 @@ History before 1.10.0 was not reconstructed; this file starts here.
   split per damage type stays in the stat breakdown. Scores and suggestions
   are unchanged.
 
+- **The filter window lists an effect once per name.** The game keeps some
+  effects as several entries of one name ("Taking attacks improves attack
+  power" is three, "Physical Attack Up +2" two) and shows one name. They
+  stood as two or three equal rows under a heading, which read as levels of
+  an effect that has only one. Now each is one row: its boxes mark every
+  entry at once, **Copies** counts the relics carrying any of them, and a
+  favourite is met by whichever entry a relic carries.
+
 ### Removed
 - **Why this relic** on the suggestion cards. The card's figures already say
   it; **Why** in the Advisor row still opens the full account.
