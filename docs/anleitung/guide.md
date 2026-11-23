@@ -232,15 +232,18 @@ its own card with **Use**. A slot without a suggestion is left as it is, and a
 relic you already have there stays. **Undo apply** puts the previous slots
 back. **Why**, in the
 Advisor row, opens the full account of what the suggestion counted and what it
-left out; **Why this relic**, on a slot card, opens the same dialog already
-scrolled so that card's slot is at the top. **Clear** puts a suggestion away
-without applying it.
+left out. **Clear** puts a suggestion away without applying it.
 
-In the **Why** dialog, effects that have no number — they apply only under a
-condition, or only to a particular armament, or the game gives no figure — are
-hidden at first. Under each slot's lines a button reads `Show {n} effects
-without a number`; click it to list them, click `Hide …` to put them away
-again. Curses always stay visible, because they show what a relic costs. The
+A suggestion card and each slot group of the **Why** dialog list the relic's
+effects as the game does: every effect once, under the game's own name, in
+the relic's order. Behind the name stands the figure the effect moved; an
+effect that moves several damage types by the same figure says it once
+(`All damage, melee armaments only +6.0%`), and the split per damage type is
+in the stat breakdown.
+
+An effect that has no number here (it applies only under a condition, or only
+to a particular armament, or the game gives no figure) is listed all the same:
+on the card by its name alone, in the **Why** dialog with the reason. The
 notes at the bottom (what was not measured, how the figures were worked out)
 sit behind **Notes on these figures**; they open by themselves when the run
 could not answer part of the question or stopped its search early. Which
@@ -394,7 +397,7 @@ suggestion cards do it without leaving the card.
   `“{name}” ignored.` Taking it back is Filters, uncheck **Ignore**. The ∅
   and ✕ buttons of a card form one Tab stop; Up and Down move along the
   lines, Left and Right between the two buttons of a line.
-- **Reject**, beside **Why this relic**, means "not this relic": "Do not
+- **Reject**, beside **Use**, means "not this relic": "Do not
   suggest this relic, or any copy with the same effects, for this build."
   Optimize runs again at once and the status line ends `“{relic name}”
   rejected.` (on a starred relic the tooltip adds "Your favourite stays

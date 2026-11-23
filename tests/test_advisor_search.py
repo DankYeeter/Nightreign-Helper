@@ -1080,16 +1080,58 @@ def test_a_stopped_run_is_heard_inside_attainable():
         search.attainable(problem, pools, lambda: True)
 
 
-def test_many_open_favourites_are_refuted_without_walking_every_order(
-        monkeypatch):
-    """Fourteen favourites, six levels, one each: no. Walking every order asked
-    2,1 million times; the same open set at the same level is one question."""
-    wanted = tuple(range(WANTED, WANTED + 14))
+def test_many_open_favourites_are_refuted_without_walking_every_order():
+    """Thirty favourites, six levels, one each: no. Walking every order would
+    not end; the open effects are past what the levels carry at all."""
+    wanted = tuple(range(WANTED, WANTED + 30))
     level = {eid: (offer(0, eid, 1.0, effects={eid}),) for eid in wanted}
-    asked = []
-    still_unmet = search._still_unmet
-    monkeypatch.setattr(search, "_still_unmet", lambda problem, unmet, copy: (
-        asked.append(1), still_unmet(problem, unmet, copy))[1])
-    assert not search._can_still_be_met(types.SlotProblem(), wanted,
-                                        [level] * 6, frozenset())
-    assert len(asked) < 100_000
+    coverage = search._coverage([level] * 6)
+    assert not search._can_still_be_met(coverage, wanted, 0, frozenset())
+    assert search._can_still_be_met(coverage, wanted[:6], 0, frozenset())
+    assert not search._can_still_be_met(coverage, wanted[:6], 1, frozenset())
+
+
+def _met_by_trying_every_copy(unmet, later, spent) -> bool:
+    """The question of `_can_still_be_met` answered the slow way, as the
+    reference: one copy per level or none, every choice tried."""
+    if not unmet:
+        return True
+    if not later:
+        return False
+    copies = {copy.handle: copy for effect in unmet
+              for copy in later[0].get(effect, ())}
+    return any(
+        _met_by_trying_every_copy(
+            tuple(eid for eid in unmet if eid not in copy.effect_ids),
+            later[1:], spent)
+        for copy in copies.values() if copy.handle not in spent
+    ) or _met_by_trying_every_copy(unmet, later[1:], spent)
+
+
+def test_the_quick_answer_about_open_favourites_is_the_slow_one():
+    """Speed changed how the question is asked, never what it answers
+    (user, 2026-11-23): small random vessels, every level and every set of
+    spent copies against the reference."""
+    import random
+
+    rng = random.Random(20261123)
+    wanted = tuple(range(WANTED, WANTED + 5))
+    for case in range(300):
+        # One handle is one copy: the same effects wherever it is offered.
+        owned = [offer(0, handle, 1.0,
+                       effects=rng.sample(wanted, rng.randint(1, 3)))
+                 for handle in range(1, 9)]
+        carriers = []
+        for _level in range(rng.randint(1, 4)):
+            copies = rng.sample(owned, rng.randint(0, 4))
+            carriers.append({eid: tuple(copy for copy in copies
+                                        if eid in copy.effect_ids)
+                             for eid in wanted})
+        coverage = search._coverage(carriers)
+        for _ in range(8):
+            unmet = tuple(sorted(rng.sample(wanted, rng.randint(0, 5))))
+            spent = frozenset(rng.sample(range(1, 9), rng.randint(0, 4)))
+            start = rng.randint(0, len(carriers))
+            assert search._can_still_be_met(
+                coverage, unmet, start, spent) == _met_by_trying_every_copy(
+                    unmet, carriers[start:], spent), (case, unmet, spent, start)

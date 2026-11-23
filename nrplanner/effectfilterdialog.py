@@ -146,28 +146,55 @@ class Row:
     family: str
     #: A stack effect (`model.accumulates`): the one kind with a Stacks field.
     stacks: bool = False
+    #: Every id this row stands for, `effect_id` first. More than one where
+    #: the game keeps one name as several entries.
+    ids: tuple[int, ...] = ()
+
+    @property
+    def all_ids(self) -> tuple[int, ...]:
+        return self.ids or (self.effect_id,)
 
 
 def rows_from(owned, effects: dict, families: Mapping[int, str]) -> list[Row]:
-    """One row per id the owned relics carry, counted in relic copies.
+    """One row per effect name the owned relics carry, counted in relic copies.
 
-    A copy that carries the same id twice counts once: the column says how
+    **Per name, not per id** (owner, 23.11.2026): the game keeps some effects
+    as several entries of one name -- "Taking attacks improves attack power"
+    is three, "Physical Attack Up +2" two -- and shows one name. Listed per
+    id they stood as two or three equal rows under a heading, which reads as
+    levels of an effect that has one. A curse and an effect of one name stay
+    apart, as do two families. The id most relics carry stands first.
+
+    A copy that carries the same name twice counts once: the column says how
     many relics carry it, not how many times. A name the dataset has lost
     is written as `effect {id}` the way `WhyDialog` writes it, and is a
     family of its own.
     """
-    copies = collections.Counter()
-    for item in owned.relics:
-        copies.update(set(item.effect_ids) | set(item.curse_ids))
-    rows = []
-    for effect_id, count in copies.items():
+    def key_of(effect_id: int) -> tuple:
         effect = effects.get(str(effect_id))
         name = effecttext.name(effect) if effect else f"effect {effect_id}"
-        rows.append(Row(effect_id=effect_id, name=name,
-                        is_curse=bool(effect and effect.get("is_curse")),
-                        copies=count,
-                        family=families.get(effect_id, name),
-                        stacks=bool(effect and model.accumulates(effect))))
+        return (name, bool(effect and effect.get("is_curse")),
+                families.get(effect_id, name))
+
+    copies = collections.Counter()
+    per_id = collections.Counter()
+    for item in owned.relics:
+        carried = set(item.effect_ids) | set(item.curse_ids)
+        per_id.update(carried)
+        copies.update({key_of(effect_id) for effect_id in carried})
+    ids_of = collections.defaultdict(list)
+    for effect_id in per_id:
+        ids_of[key_of(effect_id)].append(effect_id)
+    rows = []
+    for (name, is_curse, family), count in copies.items():
+        ids = sorted(ids_of[name, is_curse, family],
+                     key=lambda effect_id: (-per_id[effect_id], effect_id))
+        rows.append(Row(effect_id=ids[0], name=name, is_curse=is_curse,
+                        copies=count, family=family,
+                        stacks=any(model.accumulates(effects[str(effect_id)])
+                                   for effect_id in ids
+                                   if str(effect_id) in effects),
+                        ids=tuple(ids)))
     return rows
 
 
@@ -175,9 +202,10 @@ def counter_line(shown: int, total: int, filters) -> str:
     """AK-307, AK-316.5: `{shown} of {total} effects`, and the three counts
     when set -- ids avoided on their own and families avoided are two
     numbers, never one."""
-    favourited = len(filters.required) + len(filters.favourite_families)
+    favourited = (filters.marks(filters.required)
+                  + len(filters.favourite_families))
     clauses = ([f"{favourited} favourited"] if favourited else []) + (
-               [f"{len(filters.excluded)} avoided"]
+               [f"{filters.marks(filters.excluded)} avoided"]
                if filters.excluded else []) + (
                [families_avoided(len(filters.avoided_families))]
                if filters.avoided_families else []) + (
@@ -232,6 +260,8 @@ class EffectFilterWindow(QDialog):
         self._symbol_of = symbol_of or (lambda _effect_id: None)
         #: effect id -> (row, Favourite box, Avoid box, Ignore box, item)
         self._marks: dict[int, tuple] = {}
+        #: Every id a row stands for -> the id its row is filed under.
+        self._row_of: dict[int, int] = {}
         #: family key -> (Avoid box, heading item, Favourite box, Ignore box)
         self._family_marks: dict[str, tuple] = {}
         #: effect id -> its Stacks field, stack effects only
@@ -353,13 +383,15 @@ class EffectFilterWindow(QDialog):
         for column, tooltip, kind in columns:
             box = self._box(tooltip, self._colours.get(column))
             box.clicked.connect(
-                lambda on, i=row.effect_id, k=kind: self._filters.mark(
-                    i, k if on else None))
+                lambda on, ids=row.all_ids, k=kind: self._filters.mark_all(
+                    ids, k if on else None))
             self.tree.setItemWidget(item, column, box)
             boxes.append(box)
         if row.stacks:
             self._add_stacks_field(row, item)
         self._marks[row.effect_id] = (row, *boxes, item)
+        for effect_id in row.all_ids:
+            self._row_of[effect_id] = row.effect_id
 
     def _add_stacks_field(self, row: Row, item: _Item) -> None:
         """Written on every keystroke, as a box on every click: a value typed
@@ -378,16 +410,17 @@ class EffectFilterWindow(QDialog):
             limit=effectfilters.stack_limit(row.effect_id)))
         field.setAccessibleName(f"Stacks: {row.name}")
         field.textEdited.connect(
-            lambda text, i=row.effect_id, f=field: self._stacks_typed(i, f, text))
+            lambda text, r=row, f=field: self._stacks_typed(r, f, text))
         self.tree.setItemWidget(item, COL_STACKS, field)
         self.stack_fields[row.effect_id] = field
 
-    def _stacks_typed(self, effect_id: int, field: QLineEdit, text: str) -> None:
+    def _stacks_typed(self, row: Row, field: QLineEdit, text: str) -> None:
         """A text that is no count stays as typed, in red, and counts as empty."""
         field.setStyleSheet(
-            f"color: {BAD};" if _is_refused(text, effect_id) else "")
-        self._filters.set_stacks(effect_id,
-                                 effectfilters.stack_count(text, effect_id))
+            f"color: {BAD};" if _is_refused(text, row.effect_id) else "")
+        for effect_id in row.all_ids:
+            self._filters.set_stacks(
+                effect_id, effectfilters.stack_count(text, effect_id))
 
     def shown_ids(self) -> list[int]:
         """The ids of the rows the search leaves visible, top to bottom --
@@ -405,7 +438,7 @@ class EffectFilterWindow(QDialog):
 
     def boxes(self, effect_id: int) -> tuple[QCheckBox, QCheckBox]:
         """The (Favourite, Avoid) boxes of one row."""
-        _, favourite, avoid, _, _ = self._marks[effect_id]
+        _, favourite, avoid, _, _ = self._marks[self._row_of[effect_id]]
         return favourite, avoid
 
     def family_box(self, key: str) -> QCheckBox:
@@ -414,7 +447,7 @@ class EffectFilterWindow(QDialog):
 
     def ignore_box(self, effect_id: int) -> QCheckBox:
         """The Ignore box of one row."""
-        return self._marks[effect_id][3]
+        return self._marks[self._row_of[effect_id]][3]
 
     def family_ignore_box(self, key: str) -> QCheckBox:
         """The Ignore box on the heading of one family."""
@@ -427,11 +460,13 @@ class EffectFilterWindow(QDialog):
     def _draw_the_marks(self) -> None:
         filters = self._filters
         for effect_id, (row, favourite, avoid, ignore, item) in self._marks.items():
-            favourite.setChecked(effect_id in filters.required)
-            avoid.setChecked(effect_id in filters.excluded)
+            # A row of several ids is marked where every one of them is.
+            ids = frozenset(row.all_ids)
+            favourite.setChecked(ids <= filters.required)
+            avoid.setChecked(ids <= filters.excluded)
             item.on[COL_FAVOURITE] = favourite.isChecked()
             item.on[COL_AVOID] = avoid.isChecked()
-            ignore.setChecked(effect_id in filters.ignored)
+            ignore.setChecked(ids <= filters.ignored)
             item.on[COL_IGNORE] = ignore.isChecked()
         for key, (avoid, head, favour, ignore) in self._family_marks.items():
             ignore.setChecked(key in filters.ignored_families)

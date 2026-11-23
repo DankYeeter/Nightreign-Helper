@@ -81,8 +81,9 @@ def test_one_row_per_id_counted_in_relic_copies():
         _owned(_relic(10, 11), _relic(10, 12, curses=(90,)), _relic(10, 10),
                _relic(77)),
         EFFECTS, FAMILIES)}
-    assert rows[10] == dlg.Row(10, "Vigor +2", False, 3, "Vigor")
-    assert rows[90] == dlg.Row(90, "Reduced HP", True, 1, "Reduced HP")
+    assert rows[10] == dlg.Row(10, "Vigor +2", False, 3, "Vigor", ids=(10,))
+    assert rows[90] == dlg.Row(90, "Reduced HP", True, 1, "Reduced HP",
+                               ids=(90,))
     assert rows[77].name == rows[77].family == "effect 77"
     assert len(rows) == 5
 
@@ -304,15 +305,18 @@ def test_the_frozen_save_names_its_rows_out_of_the_dataset(qapp, filters,
                                                             frozen_inventory,
                                                             game_data):
     """AK-304 against the real dataset: every row has a name, no row is an
-    id, one row per distinct id -- and the user's two dagger effects sit
-    in one family (AD-039)."""
+    id, one row per distinct name and every id in exactly one row (owner,
+    23.11.2026) -- and the user's two dagger effects sit in one family
+    (AD-039)."""
     effects = game_data["effects"]
     families = {int(i): effecttext.family_key(e, game_data["weapon_families"])
                 for i, e in effects.items()}
     rows = dlg.rows_from(frozen_inventory, effects, families)
     ids = {i for item in frozen_inventory.relics
            for i in (*item.effect_ids, *item.curse_ids)}
-    assert len(rows) == len(ids) > 0
+    assert sorted(i for row in rows for i in row.all_ids) == sorted(ids)
+    named = [(row.name, row.is_curse, row.family) for row in rows]
+    assert len(named) == len(set(named)) > 0
     assert not any(row.name.startswith("effect ") for row in rows)
     assert any(row.is_curse for row in rows)
     by_id = {row.effect_id: row for row in rows}
@@ -611,3 +615,49 @@ def test_ignore_is_the_third_box_on_a_row_and_on_a_heading(window, filters):
     assert filters.avoided_families == {FAMILY}
     assert not filters.ignored_families and not family.isChecked()
     assert filters.resolved_ignored == {11}
+
+
+# -- one row per name (owner, 23.11.2026) -------------------------------------
+
+TWINS = {"20": {"name": "Taking attacks improves attack power"},
+         "21": {"name": "Taking attacks improves attack power"},
+         "22": {"name": "Taking attacks improves attack power"}}
+TWIN_FAMILIES = {20: "Taking attacks improves attack power",
+                 21: "Taking attacks improves attack power",
+                 22: "Taking attacks improves attack power"}
+
+
+def test_several_entries_of_one_name_are_one_row():
+    """The game keeps "Taking attacks improves attack power" as three
+    entries and shows one name. Three equal rows under a heading read as
+    levels of an effect that has one. One row, the id most relics carry
+    first, `Copies` in relics that carry any of them."""
+    (row,) = dlg.rows_from(
+        _owned(_relic(21), _relic(20), _relic(21, 22), _relic(22, 22)),
+        TWINS, TWIN_FAMILIES)
+
+    assert row.name == "Taking attacks improves attack power"
+    assert row.all_ids == (21, 22, 20)
+    assert row.effect_id == 21 and row.copies == 4
+
+
+def test_a_box_on_a_row_of_several_entries_marks_them_all(qapp, filters):
+    """One box, one mark: every id of the row goes into the set in one
+    write, the row reads marked while all of them are, and the counter says
+    one mark."""
+    filters.names = {int(i): e["name"] for i, e in TWINS.items()}
+    rows = dlg.rows_from(_owned(_relic(20), _relic(21), _relic(22)),
+                         TWINS, TWIN_FAMILIES)
+    window = dlg.EffectFilterWindow(filters, rows)
+    try:
+        _favourite, avoid = window.boxes(22)
+        assert window.shown_ids() == [20]
+        avoid.click()
+        assert filters.excluded == {20, 21, 22}
+        assert avoid.isChecked()
+        assert "1 avoided" in window.counter.text()
+        filters.mark(21, None)
+        assert not avoid.isChecked()
+    finally:
+        filters.mark_all((20, 21, 22), None)
+        window.deleteLater()

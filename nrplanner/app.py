@@ -29,7 +29,8 @@ from .advisor import run as advisor_run
 from .advisor import types as advisor_types
 from .advisor.worker import (AdvisorController, PICKER_CACHE_SIZE,
                              PICKER_DEBOUNCE_MS)
-from .advisorbar import (COMPARE_POINT_PX, VESSEL_LINE_ROLE, AdvisorBar,
+from .advisorbar import (COMPARE_POINT_PX, VESSEL_LINE_ROLE,
+                         VESSEL_SLOTS_ROLE, AdvisorBar,
                          RejectedList, VesselRowDelegate, asking_from,
                          comparison_base, comparison_status, held_slot,
                          vessel_accessible_name,
@@ -58,6 +59,10 @@ GRAIL_HERO_TYPE = 11
 # Where the three panes' widths are kept, so a window sized once stays
 # that way. QSplitter's own encoding, which survives a pane being added.
 PANES_KEY = "ui/panes"
+# The widths the player dragged the two outer panes to, left and right. Kept
+# beside the splitter's own state because that state is what the panes were
+# at on the way out -- on a narrow desktop the squeezed widths, not the wish.
+PANES_WANTED_KEY = "ui/panes_wanted"
 
 # T-328a: which Nightfarer was selected last, so the next launch opens on
 # them instead of always the first.
@@ -581,11 +586,37 @@ class _Panes(QSplitter):
     advisor row needs to keep its question whole (T-334n). Below that the two
     edges give way, each down to its own least width, before the row has to
     shorten a box. The rail beside the pages took that room at 1536 px.
+
+    And they take it back: an edge that gave way grows again, up to `wanted`,
+    as soon as the middle has more than its need. Without that a window
+    opened on a 1707 px desktop and then maximised kept its vessel column at
+    327 px of the 430 it opens at, with the room going to the middle only.
+    `wanted` is the opening widths until the player drags a handle, and then
+    what the drag left.
     """
 
-    def __init__(self, middle_need) -> None:
+    def __init__(self, middle_need, wanted) -> None:
         super().__init__(Qt.Horizontal)
         self._middle_need = middle_need
+        #: The widths the left and the right pane come back to.
+        self.wanted = list(wanted)
+        self.splitterMoved.connect(self._dragged)
+
+    def _dragged(self, *_args) -> None:
+        sizes = self.sizes()
+        if len(sizes) == 3:
+            self.wanted = [sizes[0], sizes[2]]
+
+    def _give_back(self, sizes: list[int], surplus: int) -> None:
+        """The middle's surplus to the edges that are below what they want."""
+        lack = [max(self.wanted[0] - sizes[0], 0),
+                max(self.wanted[1] - sizes[2], 0)]
+        back = min(surplus, sum(lack))
+        if back <= 0:
+            return
+        left = back * lack[0] // sum(lack)
+        self.setSizes([sizes[0] + left, sizes[1] - back,
+                       sizes[2] + (back - left)])
 
     def resizeEvent(self, event) -> None:  # noqa: N802 - Qt naming
         super().resizeEvent(event)
@@ -593,6 +624,9 @@ class _Panes(QSplitter):
         if len(sizes) != 3:
             return
         short = self._middle_need() - sizes[1]
+        if short < 0:
+            self._give_back(sizes, -short)
+            return
         spare = [max(sizes[i] - max(self.widget(i).minimumWidth(),
                                     self.widget(i).minimumSizeHint().width()),
                      0) for i in (0, 2)]
@@ -656,6 +690,9 @@ class Planner(QMainWindow):
             int(effect_id): effecttext.family_key(
                 effect, data.get("weapon_families", {}))
             for effect_id, effect in self.effects.items()})
+        self.effect_filters.names = {
+            int(effect_id): effecttext.name(effect)
+            for effect_id, effect in self.effects.items()}
         # The build every tab reads, computed once per change by recompute().
         # None until the first one has been computed.
         self._build: model.Build | None = None
@@ -826,7 +863,7 @@ class Planner(QMainWindow):
         # be done about either. Collapsing is off -- a pane dragged shut
         # leaves nothing on screen to say it is still there, and reads as the
         # program having lost it.
-        self.panes = _Panes(self._middle_need)
+        self.panes = _Panes(self._middle_need, self._stored_wanted_panes())
         self.panes.setChildrenCollapsible(False)
         self.panes.setHandleWidth(10)
         self.panes.addWidget(self._build_left())
@@ -1064,9 +1101,11 @@ class Planner(QMainWindow):
         layout.addWidget(self.switch_button)
         self.chalice_list = QListWidget()
         self.chalice_list.setItemDelegate(VesselRowDelegate(self.chalice_list))
-        # Wide enough for the vessel's own icon plus its slots drawn beside
-        # it; six of them in Deep of Night is the widest case.
-        self.chalice_list.setIconSize(QSize(34 + 5 + 6 * 24, 34))
+        # The vessel's own icon only. Its slots are a line of their own
+        # between the name and the comparison's figures (`VesselRowDelegate`):
+        # beside the name, six of them in Deep of Night left 95 px of text in
+        # a 288 px list and the figures were cut after `Defe`.
+        self.chalice_list.setIconSize(QSize(self.ROW_CELL, self.ROW_CELL))
         self.chalice_list.currentRowChanged.connect(self._vessel_row_chosen)
         layout.addWidget(self.chalice_list, 1)
 
@@ -1560,6 +1599,17 @@ class Planner(QMainWindow):
         if hasattr(self, "panes"):
             favourites.settings().setValue(
                 PANES_KEY, self.panes.saveState())
+            favourites.settings().setValue(
+                PANES_WANTED_KEY, ",".join(map(str, self.panes.wanted)))
+
+    @staticmethod
+    def _stored_wanted_panes() -> list[int]:
+        """The outer panes' wanted widths, or the opening ones."""
+        raw = str(favourites.settings().value(PANES_WANTED_KEY, "") or "")
+        parts = raw.split(",")
+        if len(parts) == 2 and all(part.isdigit() for part in parts):
+            return [int(part) for part in parts]
+        return [PANE_DEFAULTS[0], PANE_DEFAULTS[2]]
 
     def _reset_layout(self) -> None:
         """The panes back to their opening widths, and the stored state gone.
@@ -1567,8 +1617,10 @@ class Planner(QMainWindow):
         Both halves matter: setSizes alone would come back wrong on the next
         launch if the stored state is the broken thing being escaped from.
         """
+        self.panes.wanted = [PANE_DEFAULTS[0], PANE_DEFAULTS[2]]
         self.panes.setSizes(list(PANE_DEFAULTS))
         favourites.settings().remove(PANES_KEY)
+        favourites.settings().remove(PANES_WANTED_KEY)
 
     def _choose_scale(self, _index: int) -> None:
         """Store the chosen scale, and offer the restart it needs to show.
@@ -1769,10 +1821,19 @@ class Planner(QMainWindow):
         self.active_weapon = 0
 
     ROW_SLOT = 22
+    #: The vessel's own icon in a row.
+    ROW_CELL = 34
+
+    def _draw_vessel_row(self, item, vessel: dict, items=None,
+                         worn: bool = False, selected: bool = False) -> None:
+        """Give a row its two images: the vessel, and the line of its slots."""
+        icon, slots = self._vessel_row_art(vessel, items, worn, selected)
+        item.setIcon(QIcon(icon))
+        item.setData(VESSEL_SLOTS_ROLE, slots)
 
     def _vessel_row_art(self, vessel: dict, items=None, worn: bool = False,
                         selected: bool = False):
-        """A vessel's own icon followed by its slots, as one row image.
+        """A vessel's own icon, and its slots as one line image.
 
         Reading a vessel's colours off a letter code -- "R B Y" -- means
         translating in your head every time. Drawing the slots is what the
@@ -1789,14 +1850,22 @@ class Planner(QMainWindow):
         That is the row it matters on most: the equipped chalice is the one
         open after an import and on a Nightfarer's first visit.
         """
-        cell = self.chalice_list.iconSize().height()
+        cell = self.ROW_CELL
+        step = self.ROW_SLOT + 2
         colours = list(vessel.get("slots", []))
         normal_slots = len(colours)
         if self.deep_check.isChecked():
             colours += list(vessel.get("deep_slots") or [])
-        gap = 5
-        width = cell + gap + len(colours) * (self.ROW_SLOT + 2)
-        art = QPixmap(width, cell)
+        slots = QPixmap(max(len(colours) * step - 2, 1), self.ROW_SLOT)
+        slots.fill(Qt.transparent)
+        painter = QPainter(slots)
+        for i, colour in enumerate(colours):
+            owned = items[i] if items and i < len(items) else None
+            painter.drawPixmap(i * step, 0,
+                               slot_chip(self.icons, colour, owned,
+                                         self.ROW_SLOT, i >= normal_slots))
+        painter.end()
+        art = QPixmap(cell, cell)
         art.fill(Qt.transparent)
         painter = QPainter(art)
         base = self.icons.item(vessel.get("icon")) if self.icons else None
@@ -1804,12 +1873,6 @@ class Planner(QMainWindow):
             base = base.scaled(cell, cell, Qt.KeepAspectRatio,
                                Qt.SmoothTransformation)
             painter.drawPixmap(0, (cell - base.height()) // 2, base)
-        top = (cell - self.ROW_SLOT) // 2
-        for i, colour in enumerate(colours):
-            owned = items[i] if items and i < len(items) else None
-            painter.drawPixmap(cell + gap + i * (self.ROW_SLOT + 2), top,
-                               slot_chip(self.icons, colour, owned,
-                                         self.ROW_SLOT, i >= normal_slots))
         if worn:
             # Drawn rather than taken from the game: the menus mark the worn
             # chalice by moving it, not with a sprite this program could
@@ -1822,7 +1885,7 @@ class Planner(QMainWindow):
             painter.setBrush(fill)
             painter.drawEllipse(cell - dot - 1, 1, dot, dot)
         painter.end()
-        return art
+        return art, slots
 
     def _relics_by_handle(self) -> dict:
         """Owned relics keyed by their save handle, for drawing rows."""
@@ -1883,9 +1946,9 @@ class Planner(QMainWindow):
                 items = [s.current_relic() for s in self._visible_slots()]
             else:
                 items = self._stored_relics(hero_id, vessel["id"], by_handle)
-            item.setIcon(QIcon(self._vessel_row_art(
-                vessel, items, vessel["id"] == self._worn_vessel_id(),
-                row == current)))
+            self._draw_vessel_row(
+                item, vessel, items, vessel["id"] == self._worn_vessel_id(),
+                row == current)
         self._show_the_comparison()
 
     def _show_the_comparison(self) -> None:
@@ -2074,9 +2137,9 @@ class Planner(QMainWindow):
         # which runs on every slot change -- quietly rubbed the mark off the
         # selected row, and the equipped chalice is the row most likely to be
         # selected, so the mark appeared to not work at all.
-        item.setIcon(QIcon(self._vessel_row_art(
-            vessel, [s.current_relic() for s in slots],
-            vessel["id"] == self._worn_vessel_id(), True)))
+        self._draw_vessel_row(
+            item, vessel, [s.current_relic() for s in slots],
+            vessel["id"] == self._worn_vessel_id(), True)
 
     def reload_chalices(self) -> None:
         hero = self.current_hero()
@@ -2113,8 +2176,8 @@ class Planner(QMainWindow):
                 for vessel in vessels:
                     item = QListWidgetItem(vessel["name"])
                     item.setData(Qt.UserRole, vessel)
-                    item.setIcon(QIcon(self._vessel_row_art(
-                        vessel, None, vessel["id"] == worn_id)))
+                    self._draw_vessel_row(
+                        item, vessel, None, vessel["id"] == worn_id)
                     item.setToolTip(
                         vessel_tooltip(vessel, vessel["id"] == worn_id))
                     self.chalice_list.addItem(item)
@@ -3361,11 +3424,6 @@ class Planner(QMainWindow):
             card.suggestion.ignore_requested.connect(
                 lambda effect_id, slot=card:
                 self._ignore_from_the_block(slot, effect_id))
-            # AK-274: the card's own `Why` opens the very dialog the bar's
-            # does -- same handler, so there is no second account to keep in
-            # step with the first.
-            card.suggestion.why_requested.connect(
-                lambda slot=card: self.open_why(slot))
 
     def _the_suggestion_changed(self, result) -> None:
         """A different answer stands, or none does.
@@ -3747,13 +3805,6 @@ class Planner(QMainWindow):
                for entry in (*suggestion.reasons, *result.empty_slots)):
             return
         by_slot = {choice.slot_index: choice for choice in suggestion.choices}
-        # AK-274: the card's `Why` follows the bar's own gate
-        # (`advisorbar.ACTING_STATES`), read off the bar's button rather than
-        # duplicated here -- `isVisibleTo` asks only whether the button was
-        # explicitly hidden, not whether the window itself is on screen, so
-        # this holds true offscreen as well.
-        bar = self.advisor_bar
-        may_explain = bar.why_button.isVisibleTo(bar)
         # AK-314.3: the held-favourite line names the whole result, not one
         # slot, so it is drawn once -- on the lowest-indexed visible card
         # that is not itself already equipped (that one shows no lines at
@@ -3770,7 +3821,7 @@ class Planner(QMainWindow):
             in_the_slot = cards[group.slot_index].current_relic()
             cards[group.slot_index].show_the_suggestion(
                 result.goal_label, group,
-                by_slot.get(group.slot_index), may_explain=may_explain,
+                by_slot.get(group.slot_index),
                 equipped_out_line=advisorblock.equipped_out_line(
                     advisorblock.effect_name(self.effects, effect_id)
                     for effect_id in (*getattr(in_the_slot, "effect_ids", ()),
@@ -3794,8 +3845,9 @@ class Planner(QMainWindow):
         out of how many relics -- so they are read off this window at the
         moment the dialog opens.
 
-        `card` is the slot whose `Why this relic` asked; the dialog then
-        stands on that slot's group (AK-379).
+        `card`, where given, is a slot whose group the dialog stands on
+        (AK-379). The card's own `Why this relic` that asked with it is gone
+        (owner, 23.11.2026); the bar's `Why` asks without one.
         """
         result = self.advisor_bar.answer
         if result is None:

@@ -44,11 +44,11 @@ import html
 
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QEvent, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QFontMetrics
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import (QBoxLayout, QComboBox, QFrame, QHBoxLayout,
                                QStyle, QStyledItemDelegate,
                                QStyleOptionViewItem, QToolTip,
-                               QLabel, QProgressBar, QPushButton, QScrollArea,
+                               QLabel, QPushButton, QScrollArea,
                                QSizePolicy, QVBoxLayout, QWidget)
 
 from . import (damage, effecttext, favourites, iconpack, model, weapons,
@@ -360,6 +360,13 @@ def families_avoided(count: int) -> str:
     return f"{count} {'family' if count == 1 else 'families'} avoided"
 
 
+def _marks(filters, effect_ids) -> int:
+    """Marks as the player made them (`EffectFilters.marks`); the plain
+    number of ids for a stand-in that counts no names."""
+    counted = getattr(filters, "marks", None)
+    return counted(effect_ids) if counted else len(effect_ids)
+
+
 def marking_clauses(filters) -> list[str]:
     """The AK-280 clauses of the `Filters` tooltip (AK-302, AK-316.5): how
     many effects and families the player marked, in every one of the
@@ -368,9 +375,9 @@ def marking_clauses(filters) -> list[str]:
     has nothing to count."""
     if filters is None:
         return []
-    return ([_marked(len(filters.excluded), "avoided")]
+    return ([_marked(_marks(filters, filters.excluded), "avoided")]
             if filters.excluded else []) + (
-            [_marked(len(filters.required)
+            [_marked(_marks(filters, filters.required)
                      + len(filters.favourite_families), "favourited")]
             if filters.required or filters.favourite_families else []) + (
             [families_avoided(len(filters.avoided_families))]
@@ -382,7 +389,8 @@ def marking_clauses(filters) -> list[str]:
 def ignored_count(filters) -> int:
     """Ids and families marked `Ignore`, as one number: both are few and
     neither takes a relic away."""
-    return len(filters.ignored) + len(filters.ignored_families)
+    return (_marks(filters, filters.ignored)
+            + len(filters.ignored_families))
 
 
 def _closing_clauses(situation: Situation) -> tuple[str, ...]:
@@ -823,11 +831,16 @@ def vessel_accessible_name(comparing: Comparing | None, vessel_id: int,
             else f"{name}, {row.figure}, rank {_rank_of(comparing, row)} of {total}")
 
 
-#: The data role a vessel row's second text line travels in.
+#: The data role a vessel row's line of figures travels in.
 VESSEL_LINE_ROLE = Qt.UserRole + 1
-#: AK-432: room for the second line, one height whether it is drawn or not, so
-#: the list does not jump when a comparison starts.
-VESSEL_ROW_HEIGHT = 38
+#: The data role the image of a vessel row's slots travels in.
+VESSEL_SLOTS_ROLE = Qt.UserRole + 2
+#: AK-432: room for the name, the slots and the line of figures, one height
+#: whether that line is drawn or not, so the list does not jump when a
+#: comparison starts.
+VESSEL_ROW_HEIGHT = 66
+#: Between the three lines of a vessel row.
+VESSEL_LINE_GAP = 3
 #: AK-432: the second line and the status line.
 COMPARE_POINT_PX = 11
 
@@ -840,10 +853,16 @@ def _small_font(font: QFont) -> QFont:
 
 
 class VesselRowDelegate(QStyledItemDelegate):
-    """A vessel row with a second text line under its name (AK-432).
+    """A vessel row in three lines: its name, its slots, and the figures of
+    the comparison (AK-432; three lines by user decision 2026-11-23).
 
-    On the open row the highlight is `ACCENT` itself, so there both lines take
-    the highlighted text colour; the word `BEST` says it, not the colour.
+    The slots stood beside the name until then. Six of them in Deep of Night
+    left 95 px of a 288 px list for the text (2560x1600 at 150 %), and the
+    figures were cut after `Defe`. On a line of their own, the name and the
+    figures have the row's whole width whatever it holds.
+
+    On the open row the highlight is `ACCENT` itself, so there both text
+    lines take the highlighted text colour.
     """
 
     def sizeHint(self, option, index):  # noqa: N802 - Qt naming
@@ -883,28 +902,46 @@ class VesselRowDelegate(QStyledItemDelegate):
         return True
 
     def paint(self, painter, option, index) -> None:
-        line = index.data(VESSEL_LINE_ROLE)
-        if line is None:
+        if index.data(Qt.UserRole) is None:
             super().paint(painter, option, index)
             return
+        line = index.data(VESSEL_LINE_ROLE)
+        slots = index.data(VESSEL_SLOTS_ROLE)
         item, area = self._laid_out(option, index)
         style = item.widget.style()
         name, item.text = item.text, ""
         style.drawControl(QStyle.CE_ItemViewItem, item, painter, item.widget)
 
+        small = _small_font(item.font)
+        metrics = QFontMetrics(small)
+        name_height = item.fontMetrics.height()
+        slots_height = (round(slots.height() / slots.devicePixelRatio())
+                        if slots is not None else 0)
+        # All three counted whether or not the figures are up, so the name
+        # and the slots do not move when a comparison starts.
+        whole = (name_height + slots_height + metrics.height()
+                 + 2 * VESSEL_LINE_GAP)
+        top = area.top() + max(0, (area.height() - whole) // 2)
+
         selected = bool(item.state & QStyle.State_Selected)
         marked = item.palette.highlightedText().color()
         painter.save()
+        painter.setClipRect(area, Qt.IntersectClip)
         painter.setPen(marked if selected else item.palette.text().color())
         painter.setFont(item.font)
-        top = area.adjusted(0, 0, 0, -area.height() // 2)
-        painter.drawText(top, Qt.AlignLeft | Qt.AlignBottom,
+        painter.drawText(area.left(), top, area.width(), name_height,
+                         Qt.AlignLeft | Qt.AlignVCenter,
                          item.fontMetrics.elidedText(name, Qt.ElideRight,
                                                      area.width()))
-        small = _small_font(item.font)
+        top += name_height + VESSEL_LINE_GAP
+        if slots is not None:
+            painter.drawPixmap(area.left(), top, slots)
+        top += slots_height + VESSEL_LINE_GAP
+        if line is None:
+            painter.restore()
+            return
         painter.setFont(small)
-        metrics = QFontMetrics(small)
-        below = area.adjusted(0, area.height() // 2, 0, 0)
+        below = area.adjusted(0, top - area.top(), 0, 0)
         accent, muted = line
         accent = metrics.elidedText(accent, Qt.ElideRight, below.width())
         lead = metrics.horizontalAdvance(accent)
@@ -1078,6 +1115,18 @@ def asking_from(planner, goal_id: str) -> Asking | None:
         lambda effect_id: effecttext.name(all_effects[str(effect_id)])
         if str(effect_id) in all_effects and effecttext.works_for(
             all_effects[str(effect_id)], hero["name"]) else None)
+    # The game keeps some effects as several entries of one name, and the
+    # filter window marks them with one box (owner, 23.11.2026): any one of
+    # them in the build meets the favourite, as in a favourited family.
+    by_name: dict[str, list[int]] = {}
+    for effect_id in sorted(favourited - of_others):
+        if str(effect_id) in all_effects:
+            by_name.setdefault(effecttext.name(all_effects[str(effect_id)]),
+                               []).append(effect_id)
+    same_name = tuple(tuple(ids) for ids in by_name.values() if len(ids) > 1)
+    stood_for = {effect_id for ids in same_name for effect_id in ids[1:]}
+    any_of = (*any_of, *same_name)
+    favourited = favourited - stood_for
     problem = types.SlotProblem(slots=slots, held=held,
                                 excluded=planner.effect_filters.resolved_excluded,
                                 ignored=planner.effect_filters.resolved_ignored,
@@ -1455,6 +1504,55 @@ class _OneOrTwoLines(QBoxLayout):
         return margins.top() + lines + margins.bottom()
 
 
+class _Spinner(QWidget):
+    """A turning arc beside `Optimize` while a run is worth mentioning.
+
+    In place of an indeterminate `QProgressBar` (user decision 2026-11-23):
+    that bar had no style of its own, and between the status and the action
+    buttons it came up as a solid block that read as a defect. This is drawn
+    by hand -- a faint ring and an `ACCENT` arc -- so it has no fill to fall
+    back to, and it turns only while it is on screen.
+    """
+
+    SIDE = 16
+    STEP_DEGREES = 30
+    STEP_MS = 80
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFixedSize(self.SIDE, self.SIDE)
+        self.setAccessibleName("Working")
+        self._angle = 0
+        self._timer = QTimer(self)
+        self._timer.setInterval(self.STEP_MS)
+        self._timer.timeout.connect(self._turn)
+
+    def _turn(self) -> None:
+        self._angle = (self._angle + self.STEP_DEGREES) % 360
+        self.update()
+
+    def showEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._timer.start()
+        super().showEvent(event)
+
+    def hideEvent(self, event) -> None:  # noqa: N802 - Qt naming
+        self._timer.stop()
+        super().hideEvent(event)
+
+    def paintEvent(self, _event) -> None:  # noqa: N802 - Qt naming
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        ring = self.rect().adjusted(2, 2, -2, -2)
+        painter.setPen(QPen(QColor(255, 255, 255, 40), 2))
+        painter.drawEllipse(ring)
+        pen = QPen(QColor(ACCENT), 2)
+        pen.setCapStyle(Qt.RoundCap)
+        painter.setPen(pen)
+        # Qt counts arcs in sixteenths of a degree, anticlockwise.
+        painter.drawArc(ring, -self._angle * 16, 100 * 16)
+        painter.end()
+
+
 def _widest_hint(button: QPushButton, captions: tuple[str, ...]) -> int:
     """The button's `sizeHint` width under the widest of its captions,
     leaving it on the first."""
@@ -1680,18 +1778,15 @@ class AdvisorBar(QWidget):
         self.optimize_button.clicked.connect(self._optimize_or_cancel)
         doing.addWidget(self.optimize_button)
 
-        self.status = _ElidingLabel()
-        doing.addWidget(self.status, 1)
-
-        # The same indeterminate bar `firstrun._Window` uses: there is no
-        # total to count towards, and AD-006.1 says so in the worker.
-        self.progress = QProgressBar()
-        self.progress.setRange(0, 0)
-        self.progress.setTextVisible(False)
-        self.progress.setFixedHeight(6)
-        self.progress.setMinimumWidth(0)
+        # Beside the button that started the run and now cancels it. No
+        # total to count towards (AD-006.1 says so in the worker), so it only
+        # turns.
+        self.progress = _Spinner()
         self.progress.setVisible(False)
         doing.addWidget(self.progress)
+
+        self.status = _ElidingLabel()
+        doing.addWidget(self.status, 1)
 
         # The three action buttons of §3.1, in the order that section writes
         # them. `Apply all` and `Undo apply` are one button because they are

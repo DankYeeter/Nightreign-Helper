@@ -165,22 +165,88 @@ def drawn_text(widget) -> str:
 
 # --- what stands in the block and what does not ----------------------------
 
-def test_the_block_leaves_the_silent_effects_to_the_why_dialog(block):
-    """Director's correction 1: a curse is a trap, a silent effect is not.
-
-    The price of a suggestion has to be readable before it is applied; the
-    nothing does not, and it is what made the worst measured card 16 lines
-    tall.
+def test_the_block_lists_every_effect_of_the_relic(block):
+    """Owner, 23.11.2026: the block lists the relic's effects one for one as
+    the game does, so the relic can be found again in game. It replaces the
+    Director's correction of 06.09.2026, which left a silent effect to the
+    `Why` dialog -- "Occasionally Nullify Attacks When Damage Negation is
+    Lowered" was missing from the card of the relic that carries it.
     """
     group = a_mixed_group()
     block.show_the_suggestion("Maximise damage", group)
 
+    assert [one.line for one in block.drawn_lines] == list(group.lines)
     drawn = block_text(block)
     assert "Improved Melee Attack Power" in drawn
+    assert "[Duchess] Improved Sleep Resistance" in drawn
     assert "Ultimate Art Charging Impaired" in drawn
     assert "Taking Damage Causes Madness Buildup" in drawn
-    assert "works only for Duchess" not in drawn
-    assert "only applies under a condition" not in drawn
+
+
+def test_an_effect_with_several_figures_is_listed_once(block):
+    """The game lists "Improved Melee Attack Power" once; so does the block,
+    with every figure behind the one name (owner, 23.11.2026)."""
+    name = "Improved Melee Attack Power"
+    figures = ["Physical Attack, melee armaments only +6.0%",
+               "Magic Attack, melee armaments only +6.0%"]
+    group = a_group(*(types.ReasonLine(slot_index=0, effect_id=7006600,
+                                       text=f"{name}: {figure}",
+                                       figure=figure)
+                      for figure in figures),
+                    a_line("Improved Skill Attack Power: +15.0%",
+                           effect_id=7006700))
+    block.show_the_suggestion("Maximise damage", group)
+
+    assert [one.label.text() for one in block.drawn_lines] == [
+        f"{name}: {figures[0]} · {figures[1]}",
+        "Improved Skill Attack Power: +15.0%"]
+
+
+def test_the_why_dialog_lists_every_effect_once_and_folds_none(qapp):
+    """Owner, 23.11.2026: a group of `Why` reads as the relic does in game.
+    No effect waits behind `Show 1 effect without a number` any more, and an
+    effect with several figures is one line."""
+    name = "Improved Melee Attack Power"
+    group = a_group(
+        types.ReasonLine(slot_index=0, effect_id=7, text=f"{name}: A +6.0%",
+                         figure="A +6.0%"),
+        types.ReasonLine(slot_index=0, effect_id=7, text=f"{name}: B +6.0%",
+                         figure="B +6.0%"),
+        a_line("Roar Reduces Damage Taken: only applies under a condition, "
+               "so no number here.", effect_id=8,
+               silence=types.SILENT_UNDER_A_CONDITION))
+    dialog = advisorblock.WhyDialog(
+        advisorblock.WhyHeading("Maximise damage", "Wylder", "Goblet",
+                                False, 3),
+        an_answer(group), filters=effectfilters.EffectFilters(), effects={})
+    dialog.show()
+    qapp.processEvents()
+
+    (_title, _count, lines), = dialog.groups
+    assert [line.label.text() for line in lines] == [
+        f"{name}: A +6.0% · B +6.0%",
+        "Roar Reduces Damage Taken: only applies under a condition, so no "
+        "number here."]
+    assert all(line.isVisible() for line in lines)
+    assert not [button for button in dialog.findChildren(QToolButton)
+                if "without a number" in button.text()]
+    dialog.deleteLater()
+
+
+def test_an_effect_without_a_number_is_its_name_alone(block):
+    """The card stays short: the game's name on the line, the sentence that
+    says why there is no number in the tooltip and in `Why`."""
+    nullify = "Occasionally Nullify Attacks When Damage Negation is Lowered"
+    silent = types.ReasonLine(
+        slot_index=0, effect_id=7037800,
+        text=f"{nullify}: only applies under a condition, so no number here.",
+        silence=types.SILENT_UNDER_A_CONDITION)
+    block.show_the_suggestion("Maximise damage", a_group(silent),
+                              names={7037800: nullify})
+
+    (drawn,) = block.drawn_lines
+    assert drawn.label.text() == nullify
+    assert "only applies under a condition" in drawn.label.toolTip()
 
 
 def test_every_curse_of_the_copy_stands_in_the_block(block):
@@ -219,23 +285,19 @@ def test_the_block_names_the_goal_and_the_relic(block):
     assert block.relic_name.text() == "The Will of the Balancers"
 
 
-def test_the_block_carries_exactly_use_why_and_reject(block):
-    """§3.2 plus AK-274 and AK-427: `Use`, `Why`, `Reject`, at the right end
-    of the heading, and besides those only the X per line.
+def test_the_block_carries_exactly_use_and_reject(block):
+    """§3.2 and AK-427: `Use` and `Reject`, at the right end of the heading,
+    and besides those only the buttons per line.
 
-    Asked of every button the block owns rather than of the two this case
-    remembers: `Apply all` and `Undo apply` still belong to the bar alone,
-    and a second place to reach them would make the action harder to find
-    rather than easier -- the same reason §3.4 keeps `Apply` out of the
-    dialog. `Why` is the one bar control AK-274 puts on the card too,
-    because it only opens what the bar's own `Why` already shows.
+    Asked of every button the block owns: `Apply all` and `Undo apply` belong
+    to the bar alone, and since 23.11.2026 (owner) so does `Why` -- the card's
+    own `Why this relic` is gone, the figures on the card say it.
     """
     block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     buttons = [button for button in block.findChildren(QAbstractButton)
                if not isinstance(button, advisorblock.LineButton)]
-    assert [button.text() for button in buttons] == ["Use", "Why this relic",
-                                                     "Reject"]
+    assert [button.text() for button in buttons] == ["Use", "Reject"]
     assert all(button.isVisibleTo(block) for button in buttons)
 
 
@@ -259,42 +321,6 @@ def test_a_slot_that_may_not_be_used_is_drawn_without_the_button(block):
         "the block itself is drawn, so this is about the control alone")
 
 
-def test_a_held_slot_still_offers_why(block):
-    """AK-274: `may_explain` never follows `may_be_used`.
-
-    Holding is about applying, not about reading the account -- a held slot
-    still explains a suggestion it will not accept.
-    """
-    block.show_the_suggestion("Maximise damage", a_mixed_group(),
-                              may_be_used=False)
-
-    assert not block.use_button.isVisibleTo(block)
-    assert block.why_button.isVisibleTo(block)
-
-
-def test_why_says_it_was_pressed_and_changes_nothing_itself(block):
-    """The block asks for the same dialog the bar's `Why` does (AK-274)."""
-    asked = []
-    block.why_requested.connect(lambda: asked.append(True))
-    block.show_the_suggestion("Maximise damage", a_mixed_group())
-    block.why_button.click()
-
-    assert asked == [True]
-
-
-def test_a_bar_that_is_not_acting_hides_why_on_the_block(block):
-    """AK-274: the same gate as `bar.why_button` (`advisorbar.ACTING_STATES`).
-
-    `Use` stays -- whether the slot may be used is a fact about the hold,
-    untouched by whether the bar is currently offering `Why` of its own.
-    """
-    block.show_the_suggestion("Maximise damage", a_mixed_group(),
-                              may_explain=False)
-
-    assert not block.why_button.isVisibleTo(block)
-    assert block.use_button.isVisibleTo(block)
-
-
 def test_a_suggestion_already_in_the_slot_is_one_line(block):
     """§3.2: everything falls away but the one line.
 
@@ -308,7 +334,7 @@ def test_a_suggestion_already_in_the_slot_is_one_line(block):
     assert block.already_equipped.text() == (
         "Already equipped — nothing to change here.")
     for hidden in (block.heading, block.relic_name, block.count_line,
-                   block.lines, block.use_button, block.why_button):
+                   block.lines, block.use_button):
         assert not hidden.isVisibleTo(block)
 
 
@@ -836,57 +862,6 @@ def test_why_with_no_answer_on_screen_opens_nothing(planner, monkeypatch):
     planner.open_why()
 
 
-def test_the_cards_why_opens_the_same_dialog_as_the_bars(planner, monkeypatch):
-    """AK-274: one dialog, one handler, reached from either button; the
-    card's names its slot, the bar's none (AK-379)."""
-    built = []
-
-    class _Stub:
-        def __init__(self, heading, result, parent=None, **marking):
-            built.append((heading, result, marking["slot_index"]))
-
-        def exec(self):
-            return 0
-
-    monkeypatch.setattr(advisorblock, "WhyDialog", _Stub)
-    answer = an_answer(a_group(a_line("X: Physical Attack +1", slot=0), slot=0))
-    planner.advisor_bar._answer = answer
-    planner.advisor_bar._show(advisorbar.Situation(
-        advisorbar.State.SUGGESTED, goal_label="Maximise damage",
-        slots=len(planner.active_slots()), slots_filled=1))
-    planner.show_the_suggestion(answer)
-
-    card = planner.active_slots()[0]
-    assert card.suggestion.why_button.isVisibleTo(card.suggestion), (
-        "the bar is acting, so the card offers Why too")
-    card.suggestion.why_requested.emit()
-    planner.advisor_bar.why_requested.emit()
-
-    assert len(built) == 2
-    heading, seen, slot_index = built[0]
-    assert seen is answer and slot_index == 0
-    assert heading.goal_label == "Maximise damage"
-    assert built[1][1] is answer and built[1][2] is None
-
-
-def test_the_cards_why_follows_the_bars_own_gate(planner):
-    """AK-274: for one situation, `bar.why_button` and the card agree.
-
-    Drawn with the bar left at its resting state, as a stale redraw could
-    leave it: the bar offers no `Why` of its own, and neither does the card,
-    even though the same call still offers `Use`.
-    """
-    answer = an_answer(a_group(a_line("X: Physical Attack +1", slot=0), slot=0))
-    planner.show_the_suggestion(answer)
-
-    card = planner.active_slots()[0]
-    bar = planner.advisor_bar
-    assert card.suggestion.why_button.isVisibleTo(card.suggestion) == (
-        bar.why_button.isVisibleTo(bar))
-    assert not card.suggestion.why_button.isVisibleTo(card.suggestion)
-    assert card.suggestion.use_button.isVisibleTo(card.suggestion)
-
-
 def test_the_block_asks_the_card_for_no_width_of_its_own(qapp):
     """AK-160: no horizontal scrollbar in the middle column of the planner.
 
@@ -1088,62 +1063,6 @@ def a_shown_dialog(qapp, result, filters=None, slot_index=None):
     return dialog
 
 
-def test_numberless_lines_start_folded_under_a_counted_button(qapp):
-    """AK-372: the three "no number" fillings are folded, behind `Show {n}
-    effects without a number`; a click shows them, in their order."""
-    group = a_group(
-        a_line("A: Physical Attack +1"),
-        *(a_line(f"N{i}: no number.", silence=silence)
-          for i, silence in enumerate(NUMBERLESS)))
-    dialog = a_shown_dialog(qapp, an_answer(group))
-
-    (_title, _count, lines), = dialog.groups
-    fold, = dialog.folds
-    assert [line.line.text for line in lines] == [
-        line.text for line in group.lines], "every widget stays (AK-165)"
-    assert lines[0].isVisible()
-    assert not any(line.isVisible() for line in lines[1:])
-    assert fold.text() == "▸ Show 3 effects without a number"
-
-    fold.click()
-    assert all(line.isVisible() for line in lines)
-    assert fold.text() == "▾ Hide 3 effects without a number"
-    assert [line.y() for line in lines[1:]] == sorted(
-        line.y() for line in lines[1:])
-    dialog.deleteLater()
-
-
-def test_one_numberless_line_is_said_in_the_singular_and_none_draws_no_fold(
-        qapp):
-    """AK-372: `1 effect`; a group with none has no fold, not a placeholder."""
-    dialog = a_shown_dialog(qapp, an_answer(
-        a_mixed_group(slot=0),
-        a_group(a_line("A: Physical Attack +1", slot=1), slot=1)))
-
-    first, second = dialog.folds
-    assert first.text() == "▸ Show 1 effect without a number"
-    first.click()
-    assert first.text() == "▾ Hide 1 effect without a number"
-    assert second is None
-    dialog.deleteLater()
-
-
-def test_curses_and_the_players_own_decisions_are_never_folded(qapp):
-    """AK-373: every curse, also `no number here shows what this costs.`,
-    and every filling about a decision of the player's stays drawn."""
-    group = a_group(
-        a_line("C: no number here shows what this costs.", curse=True,
-               silence=types.SILENT_NO_NUMBER_HERE),
-        *(a_line(f"D{i}: said.", silence=silence)
-          for i, silence in enumerate(NEVER_FOLDED)))
-    dialog = a_shown_dialog(qapp, an_answer(group))
-
-    (_title, _count, lines), = dialog.groups
-    assert all(line.isVisible() for line in lines)
-    assert dialog.folds == [None]
-    dialog.deleteLater()
-
-
 def test_the_answer_stands_at_the_top_in_bold(qapp):
     """AK-374: bold titles, and at 640 x 620 the first title, its count line
     and a line of it stand in view without scrolling."""
@@ -1184,54 +1103,6 @@ def test_the_notes_are_folded_unless_they_speak_of_this_run(qapp):
                                            unknowns=(), weights_note=""))
     assert empty.notes_button is None
     empty.deleteLater()
-
-
-def test_a_fold_is_a_flat_accent_tool_button_the_keyboard_works(qapp):
-    """AK-376: `QToolButton`, no frame, `ACCENT`, >= 24 px, a tab stop,
-    Space and Enter fold, the accessible name is the text without arrow."""
-    from nrplanner.theme import ACCENT
-
-    dialog = a_shown_dialog(qapp, an_answer(a_mixed_group()))
-    fold = dialog.folds[0]
-    assert isinstance(fold, QToolButton) and fold.autoRaise()
-    assert ACCENT in fold.styleSheet() and ":focus" in fold.styleSheet()
-    assert fold.height() >= advisorblock.FOLD_HEIGHT
-    assert fold.focusPolicy() & Qt.TabFocus
-    assert fold.accessibleName() == "Show 1 effect without a number"
-
-    fold.setFocus()
-    QTest.keyClick(fold, Qt.Key_Space)
-    assert fold.isChecked()
-    QTest.keyClick(fold, Qt.Key_Return)
-    assert not fold.isChecked()
-    assert dialog.isVisible(), "Enter folded and did not press Close"
-    assert fold.accessibleName() == "Show 1 effect without a number"
-    dialog.deleteLater()
-
-
-def test_the_fold_state_is_the_dialogs_alone(qapp, filters):
-    """AK-377: a marking leaves it as it is; the next opening starts
-    folded again."""
-    dialog = a_shown_dialog(qapp, an_answer(a_mixed_group()), filters)
-    dialog.folds[0].click()
-    filters.mark(1, effectfilters.REQUIRED)
-    assert dialog.folds[0].isChecked()
-    dialog.deleteLater()
-
-    again = a_shown_dialog(qapp, an_answer(a_mixed_group()), filters)
-    assert not again.folds[0].isChecked()
-    again.deleteLater()
-
-
-def test_the_two_why_buttons_say_what_they_explain(qapp, block, planner):
-    """AK-378: the card's is `Why this relic`, the bar's stays `Why` and
-    says in its tooltip that it is the whole suggestion."""
-    assert block.why_button.text() == "Why this relic"
-    assert block.why_button.toolTip() == (
-        "Why this relic is suggested for this slot")
-    assert planner.advisor_bar.why_button.text() == "Why"
-    assert planner.advisor_bar.why_button.toolTip() == (
-        "Why this whole suggestion")
 
 
 def test_the_cards_dialog_stands_on_its_own_slot(qapp):
@@ -1276,7 +1147,7 @@ def test_a_slot_with_no_suggestion_says_why_and_offers_nothing(block):
     assert block.empty_reason.maximumHeight() == (
         2 * block.empty_reason.fontMetrics().lineSpacing())
     assert not block.empty_reason.isHidden()
-    for part in (block.use_button, block.why_button, block.relic_name,
+    for part in (block.use_button, block.relic_name,
                  block.count_line, block.lines, block.held_favourite,
                  block.already_equipped):
         assert part.isHidden()
@@ -1515,7 +1386,7 @@ def test_left_and_right_change_between_ignore_and_x(block):
 
 
 def test_the_x_group_follows_reject_in_the_tab_order(block):
-    """AK-423: `Use`, `Why this relic`, `Reject`, the X's."""
+    """AK-423: `Use`, `Reject`, the X's."""
     block.show_the_suggestion("Maximise damage", a_mixed_group())
 
     def next_stop(widget):
@@ -1524,8 +1395,7 @@ def test_the_x_group_follows_reject_in_the_tab_order(block):
             widget = widget.nextInFocusChain()
         return widget
 
-    assert next_stop(block.use_button) is block.why_button
-    assert next_stop(block.why_button) is block.reject_button
+    assert next_stop(block.use_button) is block.reject_button
     assert next_stop(block.reject_button) is block.first_x()
 
 
@@ -1575,7 +1445,7 @@ def test_the_heading_gives_way_before_a_button_does(block):
     head = block.layout().itemAt(0).layout()
     assert head.stretch(head.indexOf(block.heading)) == 1
     assert all(head.stretch(head.indexOf(button)) == 0
-               for button in (block.use_button, block.why_button,
+               for button in (block.use_button,
                               block.reject_button))
 
 

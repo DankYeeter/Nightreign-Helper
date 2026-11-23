@@ -287,3 +287,13 @@ starts there.
   passives such as "Improved Damage Negation at Full HP" are no longer shown
   as red relic rolls at about 2%. **The data cache is rebuilt once on first
   start.**
+- **1.23.4** — A suggested relic lists every effect as the game does, one
+  line per effect, including effects the advisor has no number for; the
+  filter window lists an effect once per name; **Why this relic** on the
+  suggestion cards is removed (**Why** in the Advisor row stays). Vessel rows are three lines (name, slots, figures), so the
+  compared figures are no longer cut with Deep of Night on a scaled display.
+  The outer columns grow back to their width when the window has room, and a
+  spinner beside **Optimize** replaces the bar in the advisor row. Fixed:
+  comparing every vessel no longer stalls with many favourites (measured
+  with 48 favourites: Balanced 68.7 s to 6.7 s, same suggestions and
+  figures). The data cache is not rebuilt.
