@@ -2757,6 +2757,11 @@ def test_every_effect_of_the_will_of_balance_reaches_the_block(game_data,
     block = [line for line in group.lines if types.drawn_in_the_block(line)]
 
     assert {line.effect_id for line in block} == set(rolled)
+    # One effect in game, one line here: its five damage types of melee
+    # armaments move by one figure, and the split is the stat sheet's.
+    assert [line.text for line in block if line.effect_id == 7006600] == [
+        "Improved Melee Attack Power: All damage, melee armaments only "
+        "+6.0%"]
     for line in block:
         (name,) = effect_names(game_data, [line.effect_id])
         assert line.text.startswith(f"{name}: ")

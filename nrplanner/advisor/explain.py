@@ -952,18 +952,27 @@ def _bundle_key(one: _Contribution, built: model.Build,
     `None` for a line that has to stand alone.
 
     Attributes carry AK-315's amount on one line of their own, spell paths
-    and art-scoped buffs are worded apart, a weapon-class field carries its
-    restriction in its name, and a field named after the effect has no name
-    of its own to join.
+    and art-scoped buffs are worded apart, and a field named after the effect
+    has no name of its own to join. A weapon-class field joins only its own
+    class: "Improved Melee Attack Power" lifts five damage types of melee
+    armaments by one figure and is one effect in game, so it is one line here
+    and the split stays in the stat sheet's breakdown (owner, 23.11.2026).
     """
     key = one.field_key
     label = _field_label(key)
     if (key == _SPELL_PATH_FIELD or key in model.ATTRIBUTE_ORDER
-            or key.startswith(model.WEAPON_CLASS_PREFIX)
             or (_spell_art_chosen(ctx) and _is_art_scoped(one))
             or label is None or label == one.effect_name):
         return None
-    return (_amount(key, one.own, built), _is_a_cost(key, one.own, built))
+    return (_weapon_class(key), _amount(key, one.own, built),
+            _is_a_cost(key, one.own, built))
+
+
+def _weapon_class(key: str) -> str:
+    """The armament class a key is filed under, empty for every armament."""
+    if key.startswith(model.WEAPON_CLASS_PREFIX):
+        return key.split(":", 2)[1]
+    return ""
 
 
 def _bundled(contributions: Sequence[_Contribution], built: model.Build,
@@ -992,12 +1001,17 @@ def _bundled(contributions: Sequence[_Contribution], built: model.Build,
 
 
 def _joined_label(members: Sequence[_Contribution]) -> str:
-    """`All damage taken`, or `Skill FP cost, Spell FP cost and Item use cost`."""
-    fields = frozenset(one.field_key for one in members)
+    """`All damage taken`, or `Skill FP cost, Spell FP cost and Item use cost`
+    -- and `All damage, melee armaments only` for the fields of one class."""
+    weapon_class = _weapon_class(members[0].field_key)
+    only = (f", {effecttext.restricted_to(weapon_class)}" if weapon_class
+            else "")
+    fields = frozenset(_real_field(one.field_key) for one in members)
     if fields in _SAID_AS_ONE:
-        return _SAID_AS_ONE[fields]
-    labels = [_field_label(one.field_key) for one in members]
-    return f"{', '.join(labels[:-1])} and {labels[-1]}"
+        return f"{_SAID_AS_ONE[fields]}{only}"
+    labels = [effecttext.field_label(_real_field(one.field_key))
+              for one in members]
+    return f"{', '.join(labels[:-1])} and {labels[-1]}{only}"
 
 
 def curses_without_a_figure(groups: Sequence[types.SlotReasons]

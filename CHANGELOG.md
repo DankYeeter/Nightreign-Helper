@@ -7,14 +7,21 @@ History before 1.10.0 was not reconstructed; this file starts here.
 ## [Unreleased]
 
 ### Changed
-- **A suggested relic lists every effect, as the game does.** The suggestion
-  card in the Build planner now names each effect of the relic once, under
-  the game's own name and in the relic's order, so the relic is easy to find
-  again in game. An effect the advisor has no number for, such as
-  "Occasionally Nullify Attacks When Damage Negation is Lowered" on The Will
-  of Balance, used to be left to **Why this relic** and now stands on the card
-  by its name; an effect that moves several figures is one line instead of
-  one per figure. Scores, suggestions and the stat breakdown are unchanged.
+- **A suggested relic lists its effects as the game does.** The suggestion
+  card in the Build planner and each slot of the **Why** dialog now name every
+  effect of the relic once, under the game's own name and in the relic's
+  order, so the relic is easy to find again in game. An effect the advisor
+  has no number for, such as "Occasionally Nullify Attacks When Damage
+  Negation is Lowered" on The Will of Balance, used to be left out of the
+  card and folded away in **Why**; now it stands in both. An effect that
+  moves several damage types by one figure is one line ("Improved Melee
+  Attack Power: All damage, melee armaments only +6.0%") instead of five; the
+  split per damage type stays in the stat breakdown. Scores and suggestions
+  are unchanged.
+
+### Removed
+- **Why this relic** on the suggestion cards. The card's figures already say
+  it; **Why** in the Advisor row still opens the full account.
 
 ## [1.23.3] - 2026-11-19
 

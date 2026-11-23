@@ -344,12 +344,6 @@ class FoldButton(QToolButton):
         super().keyPressEvent(event)
 
 
-def _numberless_fold(count: int, target: QWidget) -> FoldButton:
-    effects = "1 effect" if count == 1 else f"{count} effects"
-    return FoldButton(f"Show {effects} without a number",
-                      f"Hide {effects} without a number", target)
-
-
 class WhyLine(QWidget):
     """One drawn line of the `Why` dialog, in the state its effect carries.
 
@@ -362,7 +356,8 @@ class WhyLine(QWidget):
 
     def __init__(self, line: types.ReasonLine,
                  filters: effectfilters.EffectFilters,
-                 parent: QWidget | None = None, *, symbol=None) -> None:
+                 parent: QWidget | None = None, *, symbol=None,
+                 text: str | None = None) -> None:
         super().__init__(parent)
         self.line = line
         self._filters = filters
@@ -371,7 +366,7 @@ class WhyLine(QWidget):
         row.setSpacing(4)
         self.bullet = _plain()
         self.bullet.setWordWrap(False)
-        self.label = _plain(line.text)
+        self.label = _plain(line.text if text is None else text)
         self._base_font = QFont(self.label.font())
         row.addWidget(self.bullet, 0, Qt.AlignTop)
         if symbol is not None:
@@ -536,17 +531,14 @@ class SuggestionBlock(QFrame):
     program dashed means "planned, not real", which is exactly what a
     suggestion is until it is applied (`UI_SPEC` §3.2).
 
-    `Use`, `Why this relic`, `Reject` and an X per line (AK-274, AK-378,
-    AK-420, AK-427), and none changes anything here: the block holds no relics,
-    so it says the player asked and the window does the rest.
+    `Use`, `Reject` and an X per line (AK-420, AK-427), and none changes
+    anything here: the block holds no relics, so it says the player asked and
+    the window does the rest. The card's own `Why this relic` is gone (owner,
+    23.11.2026: the figures on the card say it); the bar's `Why` stays.
     """
 
     #: `Use` was pressed on this block (`UI_SPEC` §3.2: only this one slot).
     use_requested = Signal()
-    #: `Why` was pressed on this block. Opens the one dialog the bar's own
-    #: `Why` opens, with the same, whole content -- AK-274 forbids a second,
-    #: card-only account of the answer.
-    why_requested = Signal()
     #: `Reject` was pressed on this block (AK-427).
     reject_requested = Signal()
     #: An X was pressed: avoid this effect or curse (AK-424).
@@ -594,11 +586,6 @@ class SuggestionBlock(QFrame):
         self.use_button = QPushButton("Use")
         self.use_button.clicked.connect(self.use_requested)
         head.addWidget(self.use_button)
-        # AK-274: next to `Use`, never in its place.
-        self.why_button = QPushButton("Why this relic")
-        self.why_button.setToolTip("Why this relic is suggested for this slot")
-        self.why_button.clicked.connect(self.why_requested)
-        head.addWidget(self.why_button)
         self.reject_button = QPushButton("Reject")
         self.reject_button.clicked.connect(self.reject_requested)
         head.addWidget(self.reject_button)
@@ -660,7 +647,6 @@ class SuggestionBlock(QFrame):
                             group: types.SlotReasons, *,
                             already_equipped: bool = False,
                             may_be_used: bool = True,
-                            may_explain: bool = True,
                             curse_tooltip: str = "",
                             held_favourite_line: str = "",
                             equipped_out_line: str = "",
@@ -676,18 +662,13 @@ class SuggestionBlock(QFrame):
         handle in the slot, and the block holds no relics. `may_be_used` is
         the window's answer for the same reason -- whether this slot is held
         is a fact about the window, and a held slot is one no applying may
-        touch (`UI_SPEC` §5.4). `may_explain` is a third, independent fact of
-        the window's: whether the bar's own `Why` is offered right now
-        (`advisorbar.ACTING_STATES`, AK-274). A held slot still explains
-        itself -- holding is about applying, not about reading the account --
-        so this never follows `may_be_used`. `pinned`: the run laid this relic
+        touch (`UI_SPEC` §5.4). `pinned`: the run laid this relic
         because it is starred (AK-437). `names` and `favourited` are the X's
         words (AK-422): the block has no dataset and no marks to read.
         """
         self.heading.setText(f"Suggested — {goal_label}".upper())
         self.heading.setVisible(not already_equipped)
         self.use_button.setVisible(may_be_used and not already_equipped)
-        self.why_button.setVisible(may_explain and not already_equipped)
         self.reject_button.setVisible(may_be_used and not already_equipped)
         self.reject_button.setToolTip(as_a_tooltip(
             f"{REJECT_TOOLTIP} {REJECT_PINNED_TOOLTIP}" if pinned
@@ -782,7 +763,7 @@ class SuggestionBlock(QFrame):
         self.heading.setText("NO SUGGESTION")
         self.heading.setVisible(True)
         self._clear_the_lines()
-        for part in (self.use_button, self.why_button, self.reject_button,
+        for part in (self.use_button, self.reject_button,
                      self.relic_name, self.relic_symbol, self.pinned_line, self.count_line, self.lines, self.held_favourite,
                      self.equipped_out, self.already_equipped):
             part.setVisible(False)
@@ -890,8 +871,6 @@ class WhyDialog(QDialog):
         column.addWidget(self.pins_left_out)
 
         self.groups: list[tuple[QLabel, QLabel, list[WhyLine]]] = []
-        #: Per group, its fold of the numberless lines, `None` for none.
-        self.folds: list[FoldButton | None] = []
         #: The title the card's `Why this relic` scrolls to (AK-379).
         self._slot_title: QLabel | None = None
         for group in _groups_of(result):
@@ -910,20 +889,15 @@ class WhyDialog(QDialog):
             # One holder per group at spacing 0: the lines used to be the
             # `<div>`s of one label, and a column gap between line widgets
             # would make the dialog taller than that label was (T-250b).
-            # The numberless ones go into a second holder under their fold
-            # (AK-372), in the order they had.
-            lines = [WhyLine(line, filters, symbol=self._symbol_of(line.effect_id))
-                     for line in group.lines]
-            column.addWidget(_stacked(
-                [line for line in lines if not is_numberless(line.line)]))
-            folded = [line for line in lines if is_numberless(line.line)]
-            fold = None
-            if folded:
-                hidden = _stacked(folded)
-                fold = _numberless_fold(len(folded), hidden)
-                column.addWidget(fold, 0, Qt.AlignLeft)
-                column.addWidget(hidden)
-            self.folds.append(fold)
+            # One line per effect, in the relic's order and none folded away
+            # (owner, 23.11.2026): the group reads as the relic does in game.
+            lines = [WhyLine(members[0], filters,
+                             symbol=self._symbol_of(members[0].effect_id),
+                             text=FIGURE_JOIN.join(
+                                 [members[0].text,
+                                  *(line.figure for line in members[1:])]))
+                     for members in per_effect(group.lines)]
+            column.addWidget(_stacked(lines))
             self.groups.append((title, count_line, lines))
 
         # AK-279/AK-301: the two marked sets, every marked id whether or not
