@@ -6,6 +6,13 @@ History before 1.10.0 was not reconstructed; this file starts here.
 
 ## [Unreleased]
 
+### Fixed
+- **Vessel list keeps its figures with Deep of Night on.** Where the list is
+  too narrow for six slots in one line, the three Deep slots are drawn under
+  the others, so a vessel's name and its compared figures (`AR +87 % /
+  Defense +29 %`) are no longer cut to `AR +87 % / Defe…`. Seen at
+  2560x1600 with 150 % scaling; a wider list keeps the six in one line.
+
 ## [1.23.3] - 2026-11-19
 
 ### Changed

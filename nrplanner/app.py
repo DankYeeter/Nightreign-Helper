@@ -6,7 +6,8 @@ import html
 import os
 import sys
 
-from PySide6.QtCore import QPoint, QProcess, QRect, QSignalBlocker, QSize, Qt
+from PySide6.QtCore import (QEvent, QPoint, QProcess, QRect, QSignalBlocker,
+                            QSize, Qt)
 from PySide6.QtGui import (
     QColor, QCursor, QFontMetrics, QIcon, QPainter, QPalette, QPen, QPixmap,
 )
@@ -1065,8 +1066,12 @@ class Planner(QMainWindow):
         self.chalice_list = QListWidget()
         self.chalice_list.setItemDelegate(VesselRowDelegate(self.chalice_list))
         # Wide enough for the vessel's own icon plus its slots drawn beside
-        # it; six of them in Deep of Night is the widest case.
-        self.chalice_list.setIconSize(QSize(34 + 5 + 6 * 24, 34))
+        # it; six of them in Deep of Night is the widest case. The height
+        # follows `_settle_vessel_rows`: a list too narrow for six in a line
+        # draws the Deep slots under the others.
+        self.chalice_list.setIconSize(
+            QSize(self.ROW_CELL + 5 + 6 * (self.ROW_SLOT + 2), self.ROW_CELL))
+        self.chalice_list.installEventFilter(self)
         self.chalice_list.currentRowChanged.connect(self._vessel_row_chosen)
         layout.addWidget(self.chalice_list, 1)
 
@@ -1769,6 +1774,48 @@ class Planner(QMainWindow):
         self.active_weapon = 0
 
     ROW_SLOT = 22
+    #: The vessel's own icon in a row, and the row image's height while the
+    #: slots stand in one line.
+    ROW_CELL = 34
+    #: What a row keeps for its name and the comparison's figures. Six slots
+    #: in a line left 95 px of a 288 px list (2560x1600 at 150 %, the window
+    #: at its opening size) and `AR +87 % / Defense +29 %` read `AR +87 % /
+    #: Defe…`; three slots leave 171 px there, which holds it.
+    ROW_TEXT_FLOOR = 170
+
+    def _deep_rows_stack(self) -> bool:
+        """Do the Deep slots go under the others, for want of width?
+
+        Asked of the list's own width with the scroll bar counted whether or
+        not it is up: taller rows bring the bar up, and an answer that
+        depended on it could change its mind about itself.
+        """
+        if not self.deep_check.isChecked():
+            return False
+        listed = self.chalice_list
+        room = (listed.width() - 2 * listed.frameWidth()
+                - listed.verticalScrollBar().sizeHint().width())
+        in_a_line = self.ROW_CELL + 5 + 6 * (self.ROW_SLOT + 2)
+        return room - in_a_line < self.ROW_TEXT_FLOOR
+
+    def _settle_vessel_rows(self) -> bool:
+        """Size the row image for one line of slots or two; did it change?"""
+        stacked = self._deep_rows_stack()
+        changed = stacked != getattr(self, "_rows_stacked", False)
+        self._rows_stacked = stacked
+        size = self.chalice_list.iconSize()
+        height = 2 * (self.ROW_SLOT + 2) if stacked else self.ROW_CELL
+        if size.height() != height:
+            self.chalice_list.setIconSize(QSize(size.width(), height))
+        return changed
+
+    def eventFilter(self, watched, event) -> bool:  # noqa: N802 - Qt naming
+        if (watched is getattr(self, "chalice_list", None)
+                and event.type() == QEvent.Resize
+                and hasattr(self, "deep_check")
+                and self._settle_vessel_rows()):
+            self.refresh_vessel_rows()
+        return super().eventFilter(watched, event)
 
     def _vessel_row_art(self, vessel: dict, items=None, worn: bool = False,
                         selected: bool = False):
@@ -1789,25 +1836,37 @@ class Planner(QMainWindow):
         That is the row it matters on most: the equipped chalice is the one
         open after an import and on a Nightfarer's first visit.
         """
-        cell = self.chalice_list.iconSize().height()
+        cell = self.ROW_CELL
+        step = self.ROW_SLOT + 2
         colours = list(vessel.get("slots", []))
         normal_slots = len(colours)
         if self.deep_check.isChecked():
             colours += list(vessel.get("deep_slots") or [])
+        # Two lines where the list is too narrow for six in one: the Deep
+        # slots under the others, so the name and the figures keep the room
+        # they have with three (`_deep_rows_stack`).
+        stacked = (getattr(self, "_rows_stacked", False)
+                   and len(colours) > normal_slots)
+        per_line = (max(normal_slots, len(colours) - normal_slots)
+                    if stacked else len(colours))
         gap = 5
-        width = cell + gap + len(colours) * (self.ROW_SLOT + 2)
-        art = QPixmap(width, cell)
+        width = cell + gap + per_line * step
+        height = 2 * step if stacked else cell
+        art = QPixmap(width, height)
         art.fill(Qt.transparent)
         painter = QPainter(art)
         base = self.icons.item(vessel.get("icon")) if self.icons else None
         if base is not None:
             base = base.scaled(cell, cell, Qt.KeepAspectRatio,
                                Qt.SmoothTransformation)
-            painter.drawPixmap(0, (cell - base.height()) // 2, base)
-        top = (cell - self.ROW_SLOT) // 2
+            painter.drawPixmap(0, (height - base.height()) // 2, base)
         for i, colour in enumerate(colours):
             owned = items[i] if items and i < len(items) else None
-            painter.drawPixmap(cell + gap + i * (self.ROW_SLOT + 2), top,
+            deep = i >= normal_slots
+            column = i - normal_slots if stacked and deep else i
+            top = ((step if deep else 0) + 1 if stacked
+                   else (cell - self.ROW_SLOT) // 2)
+            painter.drawPixmap(cell + gap + column * step, top,
                                slot_chip(self.icons, colour, owned,
                                          self.ROW_SLOT, i >= normal_slots))
         if worn:
@@ -1820,7 +1879,8 @@ class Planner(QMainWindow):
                           if selected else (QColor(ACCENT), QColor("#14150f")))
             painter.setPen(QPen(edge, 1))
             painter.setBrush(fill)
-            painter.drawEllipse(cell - dot - 1, 1, dot, dot)
+            painter.drawEllipse(cell - dot - 1, (height - cell) // 2 + 1,
+                                dot, dot)
         painter.end()
         return art
 
@@ -1871,6 +1931,7 @@ class Planner(QMainWindow):
         """
         if not getattr(self, "hero_vessels", None):
             return
+        self._settle_vessel_rows()
         hero_id = self.current_hero()["id"]
         by_handle = self._relics_by_handle()
         current = self.chalice_list.currentRow()
